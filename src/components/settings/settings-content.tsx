@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState, useSyncExternalStore, useMemo } from "react";
 import { useTheme } from "@/components/theme-provider";
-import { useUser } from "@clerk/nextjs";
+import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -16,20 +17,38 @@ import {
   Calendar,
   Shield,
   Palette,
-  User,
+  User as UserIcon,
   Building2,
   Download,
   Trash2,
 } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 // Subscribe to nothing - just for getting client-side value
 const emptySubscribe = () => () => {};
 
 export function SettingsContent() {
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const { user } = useUser();
+  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
+  
+  // Create supabase client lazily on client side only
+  const supabase = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    // Dynamic import to avoid issues during SSR
+    const { createClient } = require("@/lib/supabase/client");
+    return createClient();
+  }, []);
+  
+  useEffect(() => {
+    if (!supabase) return;
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+  }, [supabase]);
   
   // Calendar URL - use useSyncExternalStore to safely access window
   const calendarUrl = useSyncExternalStore(
@@ -52,6 +71,13 @@ export function SettingsContent() {
     { value: "dark", label: "Dark", icon: Moon },
     { value: "system", label: "System", icon: Monitor },
   ] as const;
+
+  const handleSignOut = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    router.push("/sign-in");
+    router.refresh();
+  };
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -246,7 +272,7 @@ export function SettingsContent() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+            <UserIcon className="h-5 w-5" />
             Account
           </CardTitle>
           <CardDescription>
@@ -257,14 +283,14 @@ export function SettingsContent() {
           {user && (
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold">
-                {user.firstName?.charAt(0) || user.emailAddresses[0]?.emailAddress.charAt(0).toUpperCase()}
+                {user.email?.charAt(0).toUpperCase() || "U"}
               </div>
               <div>
                 <p className="font-medium">
-                  {user.fullName || user.emailAddresses[0]?.emailAddress}
+                  {user.email}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {user.emailAddresses[0]?.emailAddress}
+                  Signed in with {user.app_metadata?.provider || "email"}
                 </p>
               </div>
             </div>
@@ -272,22 +298,18 @@ export function SettingsContent() {
           <Separator />
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Manage Account</Label>
+              <Label className="text-sm font-medium">Sign Out</Label>
               <p className="text-xs text-muted-foreground">
-                Update profile, password, and security settings
+                Sign out of your account on this device
               </p>
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                // Open Clerk user profile
-                const userButton = document.querySelector('[data-clerk-component="user-button"]') as HTMLElement;
-                userButton?.click();
-              }}
+              onClick={handleSignOut}
             >
               <Shield className="h-4 w-4 mr-2" />
-              Manage
+              Sign Out
             </Button>
           </div>
         </CardContent>
@@ -335,4 +357,3 @@ export function SettingsContent() {
     </div>
   );
 }
-

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { getUserId } from "@/lib/supabase/auth";
 import { getGmailAuthUrl } from "@/lib/gmail";
 
 export async function GET() {
-  const { userId } = await auth();
+  const userId = await getUserId();
 
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -13,4 +13,3 @@ export async function GET() {
   
   return NextResponse.redirect(authUrl);
 }
-

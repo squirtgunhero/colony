@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { SignedIn, UserButton } from "@clerk/nextjs";
+import { UserMenu } from "@/components/auth/user-menu";
 import { cn } from "@/lib/utils";
 import { Bell, RefreshCw, Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,6 @@ export function TopNav() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Prevent hydration mismatch by only rendering client-specific content after mount
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(frame);
@@ -34,7 +33,6 @@ export function TopNav() {
     <header className="sticky top-0 z-40 h-14 flex items-center justify-between px-6 bg-background border-b border-border" suppressHydrationWarning>
       {/* Left: Mobile Menu + Brand */}
       <div className="flex items-center gap-4" suppressHydrationWarning>
-        {/* Mobile Menu - Only render after mount to avoid hydration mismatch */}
         {mounted ? (
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
@@ -46,7 +44,6 @@ export function TopNav() {
           <SheetContent side="left" className="w-72 p-0" aria-describedby={undefined}>
             <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             <div className="flex h-full flex-col">
-              {/* Mobile Header */}
               <div className="flex h-14 items-center gap-3 border-b border-border px-4">
                 <Image
                   src="/colony-icon.svg"
@@ -60,7 +57,6 @@ export function TopNav() {
                 </span>
               </div>
 
-              {/* Navigation Links */}
               <nav className="flex-1 p-3 space-y-1">
                 {navTabs.map((tab) => {
                   const isActive = pathname === tab.href || 
@@ -83,7 +79,6 @@ export function TopNav() {
                 })}
               </nav>
 
-              {/* Bottom Actions */}
               <div className="border-t border-border p-4">
                 <Button className="w-full" size="sm" onClick={() => setOpen(false)}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -100,7 +95,6 @@ export function TopNav() {
           </Button>
         )}
 
-        {/* Brand - Hidden on desktop (shown in sidebar) */}
         <Link href="/dashboard" className="flex items-center gap-2 md:hidden" suppressHydrationWarning>
           <Image
             src="/colony-icon.svg"
@@ -148,17 +142,7 @@ export function TopNav() {
           <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
         </Button>
         <div className="ml-2 pl-2 border-l border-border" suppressHydrationWarning>
-          {mounted && (
-            <SignedIn>
-              <UserButton 
-                appearance={{
-                  elements: {
-                    avatarBox: "h-8 w-8",
-                  },
-                }}
-              />
-            </SignedIn>
-          )}
+          {mounted && <UserMenu />}
         </div>
       </div>
     </header>

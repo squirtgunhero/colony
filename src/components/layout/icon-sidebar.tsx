@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { SignedIn, UserButton } from "@clerk/nextjs";
+import { UserMenu } from "@/components/auth/user-menu";
 import {
   Command,
   LayoutDashboard,
@@ -43,7 +43,6 @@ export function IconSidebar() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Prevent hydration mismatch for Clerk components
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(frame);
@@ -177,17 +176,7 @@ export function IconSidebar() {
           )}
           suppressHydrationWarning
         >
-          {mounted && (
-            <SignedIn>
-              <UserButton 
-                appearance={{
-                  elements: {
-                    avatarBox: "h-7 w-7",
-                  },
-                }}
-              />
-            </SignedIn>
-          )}
+          {mounted && <UserMenu size="sm" />}
           {isExpanded && (
             <span className="text-sm text-neutral-400 whitespace-nowrap">
               Account
