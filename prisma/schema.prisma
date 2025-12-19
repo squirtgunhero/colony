@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Contact {
+  id         String   @id @default(cuid())
+  name       String
+  email      String?
+  phone      String?
+  type       String   @default("lead") // lead, client, agent, vendor
+  source     String?  // zillow, website, referral, social, cold_call, open_house, other
+  notes      String?
+  isFavorite Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  properties Property[]
+  deals      Deal[]
+  tasks      Task[]
+  activities Activity[]
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  type        String   // call, email, meeting, note, task_completed, deal_update
+  title       String
+  description String?
+  metadata    String?  // JSON string for extra data (email subject, call duration, etc.)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  contactId  String?
+  contact    Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  dealId     String?
+  deal       Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // contract, disclosure, inspection, photo, other
+  url         String   // file path or URL
+  size        Int?     // file size in bytes
+  createdAt   DateTime @default(now())
+
+  // Relations
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  dealId     String?
+  deal       Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+}
+
+model Property {
+  id          String   @id @default(cuid())
+  address     String
+  city        String
+  state       String?
+  zipCode     String?
+  price       Float
+  status      String   @default("available") // available, under_contract, sold, off_market
+  bedrooms    Int?
+  bathrooms   Float?
+  sqft        Float?
+  description String?
+  imageUrl    String?
+  isFavorite  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  ownerId    String?
+  owner      Contact?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  deals      Deal[]
+  tasks      Task[]
+  activities Activity[]
+  documents  Document[]
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  title             String
+  stage             String    @default("new_lead") // new_lead, qualified, showing, offer, negotiation, closed
+  value             Float?
+  expectedCloseDate DateTime?
+  notes             String?
+  isFavorite        Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  contactId  String?
+  contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  propertyId String?
+  property   Property?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  tasks      Task[]
+  activities Activity[]
+  documents  Document[]
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  priority    String    @default("medium") // low, medium, high
+  completed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  contactId  String?
+  contact    Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  dealId     String?
+  deal       Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+}
+
+model EmailAccount {
+  id           String   @id @default(cuid())
+  userId       String   // Clerk user ID
+  provider     String   // gmail, outlook
+  email        String   // The connected email address
+  accessToken  String   // OAuth access token
+  refreshToken String   // OAuth refresh token
+  expiresAt    DateTime // Token expiration
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, email])
+  @@index([userId])
+}

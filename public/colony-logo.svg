@@ -1,0 +1,23 @@
+<svg width="140" height="32" viewBox="0 0 140 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- C -->
+  <path d="M4 16C4 8.82 9.82 3 17 3C21.5 3 25.5 5.2 28 8.5" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M4 16C4 23.18 9.82 29 17 29C21.5 29 25.5 26.8 28 23.5" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  
+  <!-- First O (dark) - interlocking -->
+  <ellipse cx="38" cy="16" rx="9" ry="13" stroke="#1a1a1a" stroke-width="2.5" fill="none"/>
+  
+  <!-- Second O (gold) - interlocking, overlapping with first O -->
+  <ellipse cx="50" cy="16" rx="9" ry="13" stroke="#c4a55a" stroke-width="2.5" fill="none"/>
+  
+  <!-- L -->
+  <path d="M66 3V29H78" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <!-- O -->
+  <ellipse cx="92" cy="16" rx="9" ry="13" stroke="#1a1a1a" stroke-width="2.5" fill="none"/>
+  
+  <!-- N -->
+  <path d="M108 29V3L122 29V3" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  
+  <!-- Y -->
+  <path d="M128 3L134 14M140 3L134 14V29" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
