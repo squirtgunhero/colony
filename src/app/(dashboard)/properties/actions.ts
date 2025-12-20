@@ -5,7 +5,7 @@ import { requireUserId } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
 
 interface ContactData {
-  name: string;
+  name?: string;
   email?: string;
   phone?: string;
   type?: string;

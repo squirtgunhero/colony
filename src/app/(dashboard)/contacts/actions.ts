@@ -15,11 +15,11 @@ interface ContactData {
 }
 
 interface PropertyData {
-  address: string;
-  city: string;
+  address?: string;
+  city?: string;
   state?: string;
   zipCode?: string;
-  price: number;
+  price?: number;
   status?: string;
   bedrooms?: number;
   bathrooms?: number;
