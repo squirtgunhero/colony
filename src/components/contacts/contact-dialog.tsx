@@ -68,10 +68,16 @@ interface Contact {
 interface ContactDialogProps {
   contact?: Contact;
   children: React.ReactNode;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ContactDialog({ contact, children }: ContactDialogProps) {
+export function ContactDialog({ contact, children, onOpenChange }: ContactDialogProps) {
   const [open, setOpen] = useState(false);
+  
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    onOpenChange?.(newOpen);
+  };
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -134,7 +140,7 @@ export function ContactDialog({ contact, children }: ContactDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

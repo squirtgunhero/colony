@@ -85,11 +85,10 @@ export function TopNav() {
               </nav>
 
               <div className="border-t border-neutral-800 p-4">
-                <ContactDialog>
+                <ContactDialog onOpenChange={(isOpen) => isOpen && setOpen(false)}>
                   <Button 
                     className="w-full bg-neutral-100 text-neutral-900 hover:bg-neutral-200" 
-                    size="sm" 
-                    onClick={() => setOpen(false)}
+                    size="sm"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     New Contact
