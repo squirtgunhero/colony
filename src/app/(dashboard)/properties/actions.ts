@@ -43,9 +43,6 @@ export async function createProperty(data: CreatePropertyWithContactData) {
         email: data.newContact.email || null,
         phone: data.newContact.phone || null,
         type: data.newContact.type || "client",
-        tags: [],
-        source: null,
-        notes: null,
       },
     });
     ownerId = contact.id;
