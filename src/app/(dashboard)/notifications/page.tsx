@@ -72,33 +72,42 @@ export default function NotificationsPage() {
       <PageHeader
         title="Notifications"
         description="Stay updated on your activities and important alerts."
-      >
-        <div className="flex gap-2">
-          {notifications.length > 0 && (
-            <>
-              {hasUnread && (
-                <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
-                  Mark all as read
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={handleClearAll}>
-                Clear all
-              </Button>
-            </>
-          )}
-        </div>
-      </PageHeader>
+      />
 
       <div className="p-4 sm:p-6 max-w-3xl">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Recent Notifications
-            </CardTitle>
-            <CardDescription>
-              Your latest updates and alerts
-            </CardDescription>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Recent Notifications
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Your latest updates and alerts
+                </CardDescription>
+              </div>
+              {notifications.length > 0 && (
+                <div className="flex gap-2">
+                  {hasUnread && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleMarkAllAsRead}
+                    >
+                      Mark all as read
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleClearAll}
+                  >
+                    Clear all
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {notifications.length === 0 ? (
@@ -106,7 +115,7 @@ export default function NotificationsPage() {
                 <Bell className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <p className="text-lg font-medium text-muted-foreground">No notifications</p>
                 <p className="text-sm text-muted-foreground/80">
-                  You're all caught up!
+                  You&apos;re all caught up!
                 </p>
               </div>
             ) : (
