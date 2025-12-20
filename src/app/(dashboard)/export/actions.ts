@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 
 function escapeCSV(value: string | number | boolean | null | undefined): string {
   if (value === null || value === undefined) return "";
@@ -28,7 +29,8 @@ export interface ExportOptions {
 }
 
 export async function exportContactsCSV(options?: ExportOptions): Promise<string> {
-  const where: Record<string, unknown> = {};
+  const userId = await requireUserId();
+  const where: Record<string, unknown> = { userId };
   
   if (options?.startDate || options?.endDate) {
     where.createdAt = {};
@@ -63,7 +65,8 @@ export async function exportContactsCSV(options?: ExportOptions): Promise<string
 }
 
 export async function exportPropertiesCSV(options?: ExportOptions): Promise<string> {
-  const where: Record<string, unknown> = {};
+  const userId = await requireUserId();
+  const where: Record<string, unknown> = { userId };
   
   if (options?.startDate || options?.endDate) {
     where.createdAt = {};
@@ -122,7 +125,8 @@ export async function exportPropertiesCSV(options?: ExportOptions): Promise<stri
 }
 
 export async function exportDealsCSV(options?: ExportOptions): Promise<string> {
-  const where: Record<string, unknown> = {};
+  const userId = await requireUserId();
+  const where: Record<string, unknown> = { userId };
   
   if (options?.startDate || options?.endDate) {
     where.createdAt = {};
@@ -172,7 +176,8 @@ export async function exportDealsCSV(options?: ExportOptions): Promise<string> {
 }
 
 export async function exportTasksCSV(options?: ExportOptions): Promise<string> {
-  const where: Record<string, unknown> = {};
+  const userId = await requireUserId();
+  const where: Record<string, unknown> = { userId };
   
   if (options?.startDate || options?.endDate) {
     where.createdAt = {};
@@ -225,7 +230,8 @@ export async function exportTasksCSV(options?: ExportOptions): Promise<string> {
 }
 
 export async function exportActivitiesCSV(options?: ExportOptions): Promise<string> {
-  const where: Record<string, unknown> = {};
+  const userId = await requireUserId();
+  const where: Record<string, unknown> = { userId };
   
   if (options?.startDate || options?.endDate) {
     where.createdAt = {};
@@ -280,12 +286,14 @@ export interface ExportStats {
 }
 
 export async function getExportStats(): Promise<ExportStats> {
+  const userId = await requireUserId();
+  
   const [contacts, properties, deals, tasks, activities] = await Promise.all([
-    prisma.contact.count(),
-    prisma.property.count(),
-    prisma.deal.count(),
-    prisma.task.count(),
-    prisma.activity.count(),
+    prisma.contact.count({ where: { userId } }),
+    prisma.property.count({ where: { userId } }),
+    prisma.deal.count({ where: { userId } }),
+    prisma.task.count({ where: { userId } }),
+    prisma.activity.count({ where: { userId } }),
   ]);
 
   return { contacts, properties, deals, tasks, activities };

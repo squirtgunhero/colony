@@ -1,11 +1,11 @@
 "use server";
 
-import { getUserId } from "@/lib/supabase/auth";
+import { requireUserId } from "@/lib/supabase/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 export async function getEmailAccounts() {
-  const userId = await getUserId();
+  const userId = await requireUserId();
   
   if (!userId) {
     return [];
@@ -25,7 +25,7 @@ export async function getEmailAccounts() {
 }
 
 export async function disconnectEmailAccount(accountId: string) {
-  const userId = await getUserId();
+  const userId = await requireUserId();
   
   if (!userId) {
     return { success: false, error: "Unauthorized" };
@@ -67,7 +67,7 @@ export async function disconnectEmailAccount(accountId: string) {
 }
 
 export async function setDefaultEmailAccount(accountId: string) {
-  const userId = await getUserId();
+  const userId = await requireUserId();
   
   if (!userId) {
     return { success: false, error: "Unauthorized" };

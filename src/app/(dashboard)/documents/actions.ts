@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
 
 interface CreateDocumentData {
@@ -13,8 +14,11 @@ interface CreateDocumentData {
 }
 
 export async function createDocument(data: CreateDocumentData) {
+  const userId = await requireUserId();
+  
   const document = await prisma.document.create({
     data: {
+      userId,
       name: data.name,
       type: data.type,
       url: data.url,
@@ -36,20 +40,25 @@ export async function createDocument(data: CreateDocumentData) {
 }
 
 export async function getPropertyDocuments(propertyId: string) {
+  const userId = await requireUserId();
+  
   return prisma.document.findMany({
-    where: { propertyId },
+    where: { userId, propertyId },
     orderBy: { createdAt: "desc" },
   });
 }
 
 export async function deleteDocument(id: string) {
-  const doc = await prisma.document.findUnique({
-    where: { id },
+  const userId = await requireUserId();
+  
+  const doc = await prisma.document.findFirst({
+    where: { id, userId },
     select: { propertyId: true, dealId: true },
   });
 
-  await prisma.document.delete({
-    where: { id },
+  // Only delete if user owns the document
+  await prisma.document.deleteMany({
+    where: { id, userId },
   });
 
   revalidatePath("/properties");

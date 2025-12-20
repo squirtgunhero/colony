@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
 
 interface DealData {
@@ -13,8 +14,11 @@ interface DealData {
 }
 
 export async function createDeal(data: DealData) {
+  const userId = await requireUserId();
+  
   const deal = await prisma.deal.create({
     data: {
+      userId,
       title: data.title,
       stage: data.stage,
       value: data.value || null,
@@ -30,8 +34,11 @@ export async function createDeal(data: DealData) {
 }
 
 export async function updateDeal(id: string, data: DealData) {
-  const deal = await prisma.deal.update({
-    where: { id },
+  const userId = await requireUserId();
+  
+  // Only update if user owns the deal
+  const deal = await prisma.deal.updateMany({
+    where: { id, userId },
     data: {
       title: data.title,
       stage: data.stage,
@@ -48,8 +55,11 @@ export async function updateDeal(id: string, data: DealData) {
 }
 
 export async function updateDealStage(id: string, stage: string) {
-  const deal = await prisma.deal.update({
-    where: { id },
+  const userId = await requireUserId();
+  
+  // Only update if user owns the deal
+  const deal = await prisma.deal.updateMany({
+    where: { id, userId },
     data: { stage },
   });
 
@@ -59,8 +69,11 @@ export async function updateDealStage(id: string, stage: string) {
 }
 
 export async function deleteDeal(id: string) {
-  await prisma.deal.delete({
-    where: { id },
+  const userId = await requireUserId();
+  
+  // Only delete if user owns the deal
+  await prisma.deal.deleteMany({
+    where: { id, userId },
   });
 
   revalidatePath("/deals");

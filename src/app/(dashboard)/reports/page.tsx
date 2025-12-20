@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { PageHeader } from "@/components/layout/page-header";
 import { RevenueCard } from "@/components/reports/revenue-card";
 import { PipelineCard } from "@/components/reports/pipeline-card";
@@ -11,7 +12,7 @@ import { TasksCard } from "@/components/reports/tasks-card";
 import { Button } from "@/components/ui/button";
 import { Download, CalendarRange } from "lucide-react";
 
-async function getReportData() {
+async function getReportData(userId: string) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -30,43 +31,47 @@ async function getReportData() {
     recentDeals,
     leadsBySource,
   ] = await Promise.all([
-    prisma.deal.count(),
-    prisma.deal.count({ where: { stage: "closed" } }),
-    prisma.contact.count(),
+    prisma.deal.count({ where: { userId } }),
+    prisma.deal.count({ where: { userId, stage: "closed" } }),
+    prisma.contact.count({ where: { userId } }),
     prisma.contact.count({
-      where: { createdAt: { gte: startOfMonth } },
+      where: { userId, createdAt: { gte: startOfMonth } },
     }),
     prisma.contact.count({
       where: {
+        userId,
         createdAt: { gte: startOfLastMonth, lte: endOfLastMonth },
       },
     }),
-    prisma.property.count(),
-    prisma.task.count({ where: { completed: true } }),
-    prisma.task.count({ where: { completed: false } }),
+    prisma.property.count({ where: { userId } }),
+    prisma.task.count({ where: { userId, completed: true } }),
+    prisma.task.count({ where: { userId, completed: false } }),
     prisma.deal.groupBy({
       by: ["stage"],
+      where: { userId },
       _count: true,
       _sum: { value: true },
     }),
     prisma.deal.findMany({
+      where: { userId },
       take: 10,
       orderBy: { createdAt: "desc" },
       include: { contact: true, property: true },
     }),
     prisma.contact.groupBy({
       by: ["source"],
+      where: { userId },
       _count: true,
     }),
   ]);
 
   const totalRevenue = await prisma.deal.aggregate({
-    where: { stage: "closed" },
+    where: { userId, stage: "closed" },
     _sum: { value: true },
   });
 
   const pipelineValue = await prisma.deal.aggregate({
-    where: { stage: { not: "closed" } },
+    where: { userId, stage: { not: "closed" } },
     _sum: { value: true },
   });
 
@@ -103,7 +108,8 @@ async function getReportData() {
 }
 
 export default async function ReportsPage() {
-  const data = await getReportData();
+  const userId = await requireUserId();
+  const data = await getReportData(userId);
 
   return (
     <div className="min-h-screen">
@@ -169,7 +175,7 @@ export default async function ReportsPage() {
             />
           </div>
 
-          {/* Lead Sources - Tall */}
+          {/* Contact Sources - Tall */}
           <div className="col-span-2 row-span-3">
             <LeadSourceCard leadSources={data.leadSources} />
           </div>

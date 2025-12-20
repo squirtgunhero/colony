@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,9 +44,9 @@ const statusLabels: Record<string, string> = {
   off_market: "Off Market",
 };
 
-async function getProperty(id: string) {
-  const property = await prisma.property.findUnique({
-    where: { id },
+async function getProperty(id: string, userId: string) {
+  const property = await prisma.property.findFirst({
+    where: { id, userId },
     include: {
       owner: true,
       documents: {
@@ -75,8 +76,9 @@ async function getProperty(id: string) {
   return property;
 }
 
-async function getContacts() {
+async function getContacts(userId: string) {
   return prisma.contact.findMany({
+    where: { userId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -84,9 +86,10 @@ async function getContacts() {
 
 export default async function PropertyPage({ params }: PropertyPageProps) {
   const { id } = await params;
+  const userId = await requireUserId();
   const [property, contacts] = await Promise.all([
-    getProperty(id),
-    getContacts(),
+    getProperty(id, userId),
+    getContacts(userId),
   ]);
 
   if (!property) {

@@ -1,6 +1,6 @@
 "use server";
 
-import { getUserId } from "@/lib/supabase/auth";
+import { requireUserId } from "@/lib/supabase/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { sendGmailEmail } from "@/lib/gmail";
@@ -14,7 +14,7 @@ interface SendEmailData {
 }
 
 export async function sendEmail(data: SendEmailData) {
-  const userId = await getUserId();
+  const userId = await requireUserId();
   
   if (!userId) {
     return { success: false, error: "Unauthorized" };
@@ -99,7 +99,7 @@ export async function sendEmail(data: SendEmailData) {
 
 // Get user's connected email accounts for the email composer
 export async function getUserEmailAccounts() {
-  const userId = await getUserId();
+  const userId = await requireUserId();
   
   if (!userId) {
     return [];
@@ -126,7 +126,7 @@ interface SendPropertyListingEmailData {
 }
 
 export async function sendPropertyListingEmail(data: SendPropertyListingEmailData) {
-  const userId = await getUserId();
+  const userId = await requireUserId();
   
   if (!userId) {
     return { success: false, error: "Unauthorized" };

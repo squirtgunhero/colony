@@ -11,12 +11,26 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// Profile table - synced with Supabase auth.users
+model Profile {
+  id        String   @id @db.Uuid // References auth.users(id)
+  email     String?
+  fullName  String?  @map("full_name")
+  avatarUrl String?  @map("avatar_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("profiles")
+}
+
 model Contact {
   id         String   @id @default(cuid())
+  userId     String?  @map("user_id") @db.Uuid // Owner of this contact
   name       String
   email      String?
   phone      String?
   type       String   @default("lead") // lead, client, agent, vendor
+  tags       String[] @default([]) // buyer, seller, renter
   source     String?  // zillow, website, referral, social, cold_call, open_house, other
   notes      String?
   isFavorite Boolean  @default(false)
@@ -32,6 +46,7 @@ model Contact {
 
 model Activity {
   id          String   @id @default(cuid())
+  userId      String?  @map("user_id") @db.Uuid // Owner of this activity
   type        String   // call, email, meeting, note, task_completed, deal_update
   title       String
   description String?
@@ -49,6 +64,7 @@ model Activity {
 
 model Document {
   id          String   @id @default(cuid())
+  userId      String?  @map("user_id") @db.Uuid // Owner of this document
   name        String
   type        String   // contract, disclosure, inspection, photo, other
   url         String   // file path or URL
@@ -64,6 +80,7 @@ model Document {
 
 model Property {
   id          String   @id @default(cuid())
+  userId      String?  @map("user_id") @db.Uuid // Owner of this property record
   address     String
   city        String
   state       String?
@@ -90,6 +107,7 @@ model Property {
 
 model Deal {
   id                String    @id @default(cuid())
+  userId            String?   @map("user_id") @db.Uuid // Owner of this deal
   title             String
   stage             String    @default("new_lead") // new_lead, qualified, showing, offer, negotiation, closed
   value             Float?
@@ -111,6 +129,7 @@ model Deal {
 
 model Task {
   id          String    @id @default(cuid())
+  userId      String?   @map("user_id") @db.Uuid // Owner of this task
   title       String
   description String?
   dueDate     DateTime?
@@ -130,15 +149,15 @@ model Task {
 
 model EmailAccount {
   id           String   @id @default(cuid())
-  userId       String   // Clerk user ID
+  userId       String   @map("user_id") @db.Uuid // Supabase auth user ID
   provider     String   // gmail, outlook
   email        String   // The connected email address
-  accessToken  String   // OAuth access token
-  refreshToken String   // OAuth refresh token
-  expiresAt    DateTime // Token expiration
-  isDefault    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  accessToken  String   @map("access_token") // OAuth access token
+  refreshToken String   @map("refresh_token") // OAuth refresh token
+  expiresAt    DateTime @map("expires_at") // Token expiration
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, email])
   @@index([userId])

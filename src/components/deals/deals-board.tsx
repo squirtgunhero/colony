@@ -56,7 +56,7 @@ interface DealsBoardProps {
 }
 
 const stages = [
-  { id: "new_lead", label: "New Lead", color: "bg-blue-500" },
+  { id: "new_lead", label: "New Contact", color: "bg-blue-500" },
   { id: "qualified", label: "Qualified", color: "bg-purple-500" },
   { id: "showing", label: "Showing", color: "bg-amber-500" },
   { id: "offer", label: "Offer", color: "bg-orange-500" },

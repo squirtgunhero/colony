@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { PageHeader } from "@/components/layout/page-header";
 import { DealsBoard } from "@/components/deals/deals-board";
 import { DealDialog } from "@/components/deals/deal-dialog";
@@ -6,8 +7,9 @@ import { DealsExport } from "@/components/deals/deals-export";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-async function getDeals() {
+async function getDeals(userId: string) {
   return prisma.deal.findMany({
+    where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
       contact: true,
@@ -16,25 +18,28 @@ async function getDeals() {
   });
 }
 
-async function getContacts() {
+async function getContacts(userId: string) {
   return prisma.contact.findMany({
+    where: { userId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
 }
 
-async function getProperties() {
+async function getProperties(userId: string) {
   return prisma.property.findMany({
+    where: { userId },
     select: { id: true, address: true, city: true },
     orderBy: { address: "asc" },
   });
 }
 
 export default async function DealsPage() {
+  const userId = await requireUserId();
   const [deals, contacts, properties] = await Promise.all([
-    getDeals(),
-    getContacts(),
-    getProperties(),
+    getDeals(userId),
+    getContacts(userId),
+    getProperties(userId),
   ]);
 
   return (

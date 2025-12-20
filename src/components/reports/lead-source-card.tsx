@@ -28,14 +28,14 @@ export function LeadSourceCard({ leadSources }: LeadSourceCardProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-900/5">
               <Globe2 className="h-4 w-4 text-neutral-700" />
             </div>
-            <span className="font-semibold">Lead Sources</span>
+            <span className="font-semibold">Contact Sources</span>
           </div>
 
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <Globe2 className="h-10 w-10 text-neutral-300 mb-3" />
-            <p className="text-sm text-neutral-500 mb-2">No lead sources tracked yet</p>
+            <p className="text-sm text-neutral-500 mb-2">No contact sources tracked yet</p>
             <p className="text-xs text-neutral-400 mb-4">
-              Add contacts with a source to see where your leads come from
+              Add contacts with a source to see where they come from
             </p>
             <Link
               href="/contacts"
@@ -57,11 +57,11 @@ export function LeadSourceCard({ leadSources }: LeadSourceCardProps) {
   return (
     <Card className="h-full overflow-hidden border-neutral-200">
       <div className="h-full p-5 flex flex-col">
-        <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-900/5">
             <Globe2 className="h-4 w-4 text-neutral-700" />
           </div>
-          <span className="font-semibold">Lead Sources</span>
+          <span className="font-semibold">Contact Sources</span>
         </div>
 
         {/* Horizontal Bars */}
@@ -90,7 +90,7 @@ export function LeadSourceCard({ leadSources }: LeadSourceCardProps) {
         {/* Total */}
         <div className="pt-4 mt-auto border-t border-neutral-200">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-neutral-500">Total Leads</span>
+            <span className="text-sm text-neutral-500">Total Contacts</span>
             <span className="text-xl font-bold">{total}</span>
           </div>
         </div>

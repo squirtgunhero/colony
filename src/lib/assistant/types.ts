@@ -59,11 +59,11 @@ export const SLASH_COMMANDS: SlashCommand[] = [
 ];
 
 export const SUGGESTION_CHIPS = [
-  { id: "add-lead", label: "Add a lead", prompt: "Add a new lead" },
-  { id: "hot-leads", label: "Show hot leads", prompt: "Show me the hottest leads this week" },
-  { id: "log-call", label: "Log a call", prompt: "Log a call with the current lead" },
-  { id: "create-task", label: "Create a task", prompt: "Create a follow-up task for this lead" },
+  { id: "add-contact", label: "Add a contact", prompt: "Add a new contact" },
+  { id: "hot-contacts", label: "Show hot contacts", prompt: "Show me the hottest contacts this week" },
+  { id: "log-call", label: "Log a call", prompt: "Log a call with the current contact" },
+  { id: "create-task", label: "Create a task", prompt: "Create a follow-up task for this contact" },
   { id: "draft-email", label: "Draft an email", prompt: "Draft a follow-up email" },
-  { id: "summarize", label: "Summarize this lead", prompt: "Give me a summary of this lead" },
+  { id: "summarize", label: "Summarize this contact", prompt: "Give me a summary of this contact" },
 ];
 

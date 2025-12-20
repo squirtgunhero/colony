@@ -33,6 +33,7 @@ interface Contact {
   email: string | null;
   phone: string | null;
   type: string;
+  tags: string[];
   source: string | null;
   notes: string | null;
   isFavorite: boolean;
@@ -43,6 +44,12 @@ interface Contact {
     tasks: number;
   };
 }
+
+const tagColors: Record<string, string> = {
+  buyer: "bg-emerald-500/20 text-emerald-500",
+  seller: "bg-amber-500/20 text-amber-500",
+  renter: "bg-sky-500/20 text-sky-500",
+};
 
 const sourceLabels: Record<string, string> = {
   zillow: "Zillow",
@@ -97,6 +104,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
               <TableHead>Name</TableHead>
               <TableHead>Contact Info</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Tags</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Properties</TableHead>
               <TableHead>Deals</TableHead>
@@ -107,7 +115,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
           <TableBody>
             {filteredContacts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center">
+                <TableCell colSpan={10} className="h-24 text-center">
                   <p className="text-muted-foreground">No contacts found</p>
                 </TableCell>
               </TableRow>
@@ -151,6 +159,23 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                     >
                       {contact.type}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {contact.tags && contact.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {contact.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className={`capitalize text-xs ${tagColors[tag] || ""}`}
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/50">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {contact.source ? (

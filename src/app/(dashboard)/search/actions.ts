@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 
 export interface SearchResult {
   id: string;
@@ -14,13 +15,15 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
     return [];
   }
 
+  const userId = await requireUserId();
   const searchTerm = query.toLowerCase();
 
-  // Search in parallel
+  // Search in parallel - only user's own data
   const [contacts, properties, deals, tasks] = await Promise.all([
     // Search contacts
     prisma.contact.findMany({
       where: {
+        userId,
         OR: [
           { name: { contains: searchTerm } },
           { email: { contains: searchTerm } },
@@ -34,6 +37,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
     // Search properties
     prisma.property.findMany({
       where: {
+        userId,
         OR: [
           { address: { contains: searchTerm } },
           { city: { contains: searchTerm } },
@@ -46,6 +50,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
     // Search deals
     prisma.deal.findMany({
       where: {
+        userId,
         OR: [
           { title: { contains: searchTerm } },
           { notes: { contains: searchTerm } },
@@ -58,6 +63,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
     // Search tasks
     prisma.task.findMany({
       where: {
+        userId,
         OR: [
           { title: { contains: searchTerm } },
           { description: { contains: searchTerm } },

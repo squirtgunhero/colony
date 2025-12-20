@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { LeadCards } from "@/components/dashboard/lead-cards";
 import { TasksCalendar } from "@/components/dashboard/tasks-calendar";
 import { PipelineChart } from "@/components/dashboard/pipeline-chart";
@@ -9,9 +10,9 @@ import { LeadSourcesChart } from "@/components/dashboard/charts/lead-sources-cha
 import { DealsTrendChart } from "@/components/dashboard/charts/deals-trend-chart";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 
-async function getLeads() {
+async function getLeads(userId: string) {
   return prisma.contact.findMany({
-    where: { type: { in: ["lead", "client"] } },
+    where: { userId, type: { in: ["lead", "client"] } },
     orderBy: { createdAt: "desc" },
     take: 10,
     include: {
@@ -21,8 +22,9 @@ async function getLeads() {
   });
 }
 
-async function getDeals() {
+async function getDeals(userId: string) {
   return prisma.deal.findMany({
+    where: { userId },
     include: {
       contact: true,
       property: true,
@@ -30,30 +32,50 @@ async function getDeals() {
   });
 }
 
-async function getTasks() {
+async function getTasks(userId: string) {
   return prisma.task.findMany({
-    where: { completed: false },
+    where: { userId, completed: false },
     orderBy: { dueDate: "asc" },
     take: 20,
   });
 }
 
-async function getStats() {
-  const [totalValue, leadsCount, pendingTasks] = await Promise.all([
-    prisma.deal.aggregate({ _sum: { value: true } }),
-    prisma.contact.count({ where: { type: "lead" } }),
-    prisma.task.count({ where: { completed: false } }),
+async function getStats(userId: string) {
+  // Calculate date for previous month comparison
+  const now = new Date();
+  const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const [totalValue, previousMonthValue, leadsCount, pendingTasks] = await Promise.all([
+    // Current total pipeline value
+    prisma.deal.aggregate({ where: { userId }, _sum: { value: true } }),
+    // Pipeline value from deals that existed at start of current month
+    // (deals created before this month)
+    prisma.deal.aggregate({ 
+      where: { 
+        userId,
+        createdAt: { lt: startOfCurrentMonth }
+      }, 
+      _sum: { value: true } 
+    }),
+    prisma.contact.count({ where: { userId, type: "lead" } }),
+    prisma.task.count({ where: { userId, completed: false } }),
   ]);
 
+  const currentValue = totalValue._sum.value || 0;
+  const previousValue = previousMonthValue._sum.value || 0;
+
   return {
-    pipelineValue: totalValue._sum.value || 0,
+    pipelineValue: currentValue,
+    previousPipelineValue: previousValue,
     leadsCount,
     pendingTasks,
   };
 }
 
-async function getRecentActivities() {
+async function getRecentActivities(userId: string) {
   return prisma.activity.findMany({
+    where: { userId },
     take: 8,
     orderBy: { createdAt: "desc" },
     include: {
@@ -63,11 +85,11 @@ async function getRecentActivities() {
   });
 }
 
-async function getLeadSources() {
+async function getLeadSources(userId: string) {
   const sources = await prisma.contact.groupBy({
     by: ["source"],
     _count: { _all: true },
-    where: { source: { not: null } },
+    where: { userId, source: { not: null } },
   });
 
   return sources
@@ -79,13 +101,15 @@ async function getLeadSources() {
 }
 
 export default async function DashboardPage() {
+  const userId = await requireUserId();
+  
   const [leads, deals, tasks, stats, activities, leadSources] = await Promise.all([
-    getLeads(),
-    getDeals(),
-    getTasks(),
-    getStats(),
-    getRecentActivities(),
-    getLeadSources(),
+    getLeads(userId),
+    getDeals(userId),
+    getTasks(userId),
+    getStats(userId),
+    getRecentActivities(userId),
+    getLeadSources(userId),
   ]);
 
   const previewLead = leads[0] || null;
@@ -100,14 +124,14 @@ export default async function DashboardPage() {
         {/* Content Grid - Primary (60%) + Secondary (40%) */}
         <div className="px-6 lg:px-8 py-8 space-y-8">
           
-          {/* PRIMARY ZONE: Pipeline + Leads */}
+          {/* PRIMARY ZONE: Pipeline + Contacts */}
           <div className="dashboard-grid">
             {/* Primary Column */}
             <div className="space-y-8">
               {/* Pipeline Overview - Hero Chart */}
               <PipelineBarChart deals={deals} />
               
-              {/* Active Leads - Composite Surface */}
+              {/* Active Contacts - Composite Surface */}
               <LeadCards leads={leads} selectedLeadId={previewLead?.id} />
             </div>
 

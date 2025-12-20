@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
 
 interface PropertyData {
@@ -18,8 +19,11 @@ interface PropertyData {
 }
 
 export async function createProperty(data: PropertyData) {
+  const userId = await requireUserId();
+  
   const property = await prisma.property.create({
     data: {
+      userId,
       address: data.address,
       city: data.city,
       state: data.state || null,
@@ -40,8 +44,11 @@ export async function createProperty(data: PropertyData) {
 }
 
 export async function updateProperty(id: string, data: PropertyData) {
-  const property = await prisma.property.update({
-    where: { id },
+  const userId = await requireUserId();
+  
+  // Only update if user owns the property
+  const property = await prisma.property.updateMany({
+    where: { id, userId },
     data: {
       address: data.address,
       city: data.city,
@@ -63,8 +70,11 @@ export async function updateProperty(id: string, data: PropertyData) {
 }
 
 export async function deleteProperty(id: string) {
-  await prisma.property.delete({
-    where: { id },
+  const userId = await requireUserId();
+  
+  // Only delete if user owns the property
+  await prisma.property.deleteMany({
+    where: { id, userId },
   });
 
   revalidatePath("/properties");

@@ -168,7 +168,7 @@ export function DealDialog({
                   <SelectValue placeholder="Select stage" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="new_lead">New Lead</SelectItem>
+                  <SelectItem value="new_lead">New Contact</SelectItem>
                   <SelectItem value="qualified">Qualified</SelectItem>
                   <SelectItem value="showing">Showing</SelectItem>
                   <SelectItem value="offer">Offer</SelectItem>

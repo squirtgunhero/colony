@@ -66,8 +66,8 @@ export function LeadCards({ leads, selectedLeadId }: LeadCardsProps) {
           <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mb-5">
             <ArrowUpRight className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="text-title-sm text-foreground mb-1">No active leads</p>
-          <p className="text-caption">Create your first lead to get started</p>
+          <p className="text-title-sm text-foreground mb-1">No active contacts</p>
+          <p className="text-caption">Create your first contact to get started</p>
         </div>
       </div>
     );
@@ -78,9 +78,9 @@ export function LeadCards({ leads, selectedLeadId }: LeadCardsProps) {
       {/* Section Header - Clean, no border */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-title">Active Leads</h2>
+          <h2 className="text-title">Active Contacts</h2>
           <p className="text-caption mt-1">
-            {leads.length} lead{leads.length !== 1 ? "s" : ""} in pipeline
+            {leads.length} contact{leads.length !== 1 ? "s" : ""} in pipeline
           </p>
         </div>
         <Button 
@@ -171,7 +171,7 @@ export function LeadCards({ leads, selectedLeadId }: LeadCardsProps) {
             variant="ghost" 
             className="w-full h-10 text-[13px] text-muted-foreground hover:text-foreground"
           >
-            Show {leads.length - 6} more leads
+            Show {leads.length - 6} more contacts
           </Button>
         </div>
       )}

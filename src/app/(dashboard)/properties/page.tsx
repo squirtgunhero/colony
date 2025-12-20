@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { PageHeader } from "@/components/layout/page-header";
 import { PropertiesGrid } from "@/components/properties/properties-grid";
 import { PropertyDialog } from "@/components/properties/property-dialog";
@@ -6,8 +7,9 @@ import { PropertiesExport } from "@/components/properties/properties-export";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-async function getProperties() {
+async function getProperties(userId: string) {
   return prisma.property.findMany({
+    where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
       owner: true,
@@ -20,17 +22,19 @@ async function getProperties() {
   });
 }
 
-async function getContacts() {
+async function getContacts(userId: string) {
   return prisma.contact.findMany({
+    where: { userId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
 }
 
 export default async function PropertiesPage() {
+  const userId = await requireUserId();
   const [properties, contacts] = await Promise.all([
-    getProperties(),
-    getContacts(),
+    getProperties(userId),
+    getContacts(userId),
   ]);
 
   return (

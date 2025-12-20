@@ -36,11 +36,18 @@ const LEAD_SOURCES = [
   { value: "other", label: "Other" },
 ] as const;
 
+const CONTACT_TAGS = [
+  { value: "buyer", label: "Buyer" },
+  { value: "seller", label: "Seller" },
+  { value: "renter", label: "Renter" },
+] as const;
+
 const contactSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
   type: z.enum(["lead", "client", "agent", "vendor"]),
+  tags: z.array(z.string()).optional(),
   source: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -53,6 +60,7 @@ interface Contact {
   email: string | null;
   phone: string | null;
   type: string;
+  tags: string[];
   source: string | null;
   notes: string | null;
 }
@@ -80,13 +88,24 @@ export function ContactDialog({ contact, children }: ContactDialogProps) {
       email: contact?.email || "",
       phone: contact?.phone || "",
       type: (contact?.type as ContactFormData["type"]) || "lead",
+      tags: contact?.tags || [],
       source: contact?.source || "",
       notes: contact?.notes || "",
     },
   });
 
   const type = watch("type");
+  const tags = watch("tags") || [];
   const source = watch("source");
+
+  const toggleTag = (tag: string) => {
+    const currentTags = tags || [];
+    if (currentTags.includes(tag)) {
+      setValue("tags", currentTags.filter((t) => t !== tag));
+    } else {
+      setValue("tags", [...currentTags, tag]);
+    }
+  };
 
   const onSubmit = async (data: ContactFormData) => {
     setIsLoading(true);
@@ -183,7 +202,7 @@ export function ContactDialog({ contact, children }: ContactDialogProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="source">Lead Source</Label>
+              <Label htmlFor="source">Contact Source</Label>
               <Select
                 value={source || ""}
                 onValueChange={(value) => setValue("source", value)}
@@ -199,6 +218,26 @@ export function ContactDialog({ contact, children }: ContactDialogProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <div className="flex flex-wrap gap-2">
+              {CONTACT_TAGS.map((tag) => (
+                <button
+                  key={tag.value}
+                  type="button"
+                  onClick={() => toggleTag(tag.value)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    tags.includes(tag.value)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              ))}
             </div>
           </div>
 

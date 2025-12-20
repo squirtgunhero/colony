@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { PageHeader } from "@/components/layout/page-header";
 import { ContactsTable } from "@/components/contacts/contacts-table";
 import { ContactDialog } from "@/components/contacts/contact-dialog";
@@ -6,8 +7,9 @@ import { ContactsExport } from "@/components/contacts/contacts-export";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 
-async function getContacts() {
+async function getContacts(userId: string) {
   return prisma.contact.findMany({
+    where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
       _count: {
@@ -22,7 +24,8 @@ async function getContacts() {
 }
 
 export default async function ContactsPage() {
-  const contacts = await getContacts();
+  const userId = await requireUserId();
+  const contacts = await getContacts(userId);
 
   return (
     <div className="min-h-screen">

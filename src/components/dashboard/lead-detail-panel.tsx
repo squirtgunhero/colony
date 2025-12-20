@@ -76,8 +76,8 @@ export function LeadDetailPanel({ lead }: LeadDetailPanelProps) {
             <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto mb-4">
               <FileText className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-title-sm text-foreground mb-1">No lead selected</p>
-            <p className="text-caption">Select a lead from the list to view details</p>
+            <p className="text-title-sm text-foreground mb-1">No contact selected</p>
+            <p className="text-caption">Select a contact from the list to view details</p>
           </div>
         </div>
       </aside>
@@ -115,7 +115,7 @@ export function LeadDetailPanel({ lead }: LeadDetailPanelProps) {
             <div className="flex-1 min-w-0">
               <h2 className="text-title truncate">{lead.name}</h2>
               <p className="text-caption mt-0.5 truncate">
-                {lead.type === "lead" ? "Buyer Lead" : "Client"} • {property?.city || "No location"}
+                {lead.type === "lead" ? "Buyer" : "Client"} • {property?.city || "No location"}
               </p>
               
               {/* Status - Inline */}
@@ -252,7 +252,7 @@ export function LeadDetailPanel({ lead }: LeadDetailPanelProps) {
           variant="ghost" 
           className="w-full h-9 text-[12px] text-muted-foreground hover:text-destructive hover:bg-destructive/5"
         >
-          Archive Lead
+          Archive Contact
         </Button>
       </div>
     </aside>

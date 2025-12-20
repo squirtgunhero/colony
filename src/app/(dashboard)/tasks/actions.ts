@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
 
 interface TaskData {
@@ -14,8 +15,11 @@ interface TaskData {
 }
 
 export async function createTask(data: TaskData) {
+  const userId = await requireUserId();
+  
   const task = await prisma.task.create({
     data: {
+      userId,
       title: data.title,
       description: data.description || null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
@@ -32,8 +36,11 @@ export async function createTask(data: TaskData) {
 }
 
 export async function updateTask(id: string, data: TaskData) {
-  const task = await prisma.task.update({
-    where: { id },
+  const userId = await requireUserId();
+  
+  // Only update if user owns the task
+  const task = await prisma.task.updateMany({
+    where: { id, userId },
     data: {
       title: data.title,
       description: data.description || null,
@@ -51,8 +58,11 @@ export async function updateTask(id: string, data: TaskData) {
 }
 
 export async function toggleTask(id: string, completed: boolean) {
-  const task = await prisma.task.update({
-    where: { id },
+  const userId = await requireUserId();
+  
+  // Only toggle if user owns the task
+  const task = await prisma.task.updateMany({
+    where: { id, userId },
     data: { completed },
   });
 
@@ -62,8 +72,11 @@ export async function toggleTask(id: string, completed: boolean) {
 }
 
 export async function deleteTask(id: string) {
-  await prisma.task.delete({
-    where: { id },
+  const userId = await requireUserId();
+  
+  // Only delete if user owns the task
+  await prisma.task.deleteMany({
+    where: { id, userId },
   });
 
   revalidatePath("/tasks");

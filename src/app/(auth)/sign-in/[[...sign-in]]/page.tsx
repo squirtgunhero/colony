@@ -33,131 +33,306 @@ export default function SignInPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f8f6]">
-      <div className="w-full max-w-md px-4">
-        {/* Logo */}
-        <div className="flex flex-col items-center justify-center mb-10">
-          <Image
-            src="/colony-icon.svg"
-            alt="Colony Logo"
-            width={64}
-            height={64}
-            className="h-16 w-16 mb-4"
-            priority
-          />
-          <h1 className="text-3xl font-light tracking-[0.3em] text-neutral-900 uppercase">
-            Colony
-          </h1>
-          <p className="text-neutral-500 text-sm mt-2">Real Estate CRM</p>
-        </div>
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#1a1614]">
+      {/* Animated Mosaic Background */}
+      <div className="absolute inset-0">
+        {/* Base gradient */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(135deg, #1a1614 0%, #2d2420 50%, #1a1614 100%)",
+          }}
+        />
+        
+        {/* Floating orbs - Layer 1 (Large, background) */}
+        <div 
+          className="absolute w-[700px] h-[700px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(194,110,75,0.5) 0%, rgba(194,110,75,0.2) 40%, transparent 70%)",
+            top: "-15%",
+            left: "-5%",
+            animation: "float1 18s ease-in-out infinite",
+            filter: "blur(40px)",
+          }}
+        />
+        <div 
+          className="absolute w-[600px] h-[600px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(120,150,130,0.5) 0%, rgba(120,150,130,0.2) 40%, transparent 70%)",
+            top: "50%",
+            right: "-10%",
+            animation: "float2 22s ease-in-out infinite",
+            filter: "blur(50px)",
+          }}
+        />
+        <div 
+          className="absolute w-[550px] h-[550px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(210,175,140,0.6) 0%, rgba(210,175,140,0.2) 40%, transparent 70%)",
+            bottom: "-5%",
+            left: "15%",
+            animation: "float3 15s ease-in-out infinite",
+            filter: "blur(45px)",
+          }}
+        />
+        
+        {/* Floating orbs - Layer 2 (Medium, midground) */}
+        <div 
+          className="absolute w-[450px] h-[450px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(90,115,130,0.55) 0%, rgba(90,115,130,0.2) 40%, transparent 70%)",
+            top: "20%",
+            left: "50%",
+            animation: "float4 16s ease-in-out infinite",
+            filter: "blur(35px)",
+          }}
+        />
+        <div 
+          className="absolute w-[400px] h-[400px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(220,140,90,0.5) 0%, rgba(220,140,90,0.2) 40%, transparent 70%)",
+            top: "5%",
+            right: "15%",
+            animation: "float1 20s ease-in-out infinite reverse",
+            filter: "blur(40px)",
+          }}
+        />
+        <div 
+          className="absolute w-[500px] h-[500px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(240,220,195,0.45) 0%, rgba(240,220,195,0.15) 40%, transparent 70%)",
+            bottom: "15%",
+            right: "25%",
+            animation: "float3 25s ease-in-out infinite",
+            filter: "blur(50px)",
+          }}
+        />
+        
+        {/* Accent orb - smaller, more saturated */}
+        <div 
+          className="absolute w-[300px] h-[300px] rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(200,100,60,0.6) 0%, rgba(200,100,60,0.2) 50%, transparent 70%)",
+            top: "40%",
+            left: "30%",
+            animation: "float4 12s ease-in-out infinite",
+            filter: "blur(30px)",
+          }}
+        />
 
-        {/* Sign In Card */}
-        <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[rgba(0,0,0,0.04)] p-8">
-          <form onSubmit={handleSignIn} className="space-y-4">
-            {error && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm">
-                {error}
-              </div>
-            )}
+        {/* Subtle mesh overlay */}
+        <div 
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: "60px 60px",
+          }}
+        />
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-neutral-700 mb-1.5">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-11 px-4 rounded-xl border border-neutral-200 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 outline-none transition-colors"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
+        {/* Subtle vignette - don't obscure the orbs */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: "radial-gradient(ellipse at center, transparent 0%, rgba(26,22,20,0.2) 80%, rgba(26,22,20,0.5) 100%)",
+          }}
+        />
+      </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-neutral-700 mb-1.5">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full h-11 px-4 rounded-xl border border-neutral-200 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 outline-none transition-colors"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 bg-neutral-900 hover:bg-neutral-800 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-neutral-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-neutral-400">or continue with</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-full h-11 flex items-center justify-center gap-3 border border-neutral-200 rounded-xl hover:bg-neutral-50 transition-colors disabled:opacity-50"
+      {/* Centered Glass Panel */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4">
+        <div
+          className="w-full max-w-[380px]"
+          style={{
+            opacity: 0,
+            animation: "fadeInUp 0.7s ease-out 0.1s forwards",
+          }}
+        >
+          {/* Liquid Glass Card */}
+          <div
+            className="
+              relative rounded-2xl p-8
+              backdrop-blur-2xl
+              border border-[rgba(210,180,150,0.2)]
+              shadow-[inset_0_1px_1px_rgba(240,220,200,0.1),0_24px_80px_rgba(0,0,0,0.4)]
+            "
+            style={{
+              background: "linear-gradient(145deg, rgba(255,250,245,0.12) 0%, rgba(230,210,190,0.06) 100%)",
+            }}
           >
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-              />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-              />
-            </svg>
-            Google
-          </button>
+            {/* Inner edge highlight */}
+            <div 
+              className="absolute inset-0 rounded-2xl pointer-events-none"
+              style={{
+                background: "linear-gradient(145deg, rgba(255,250,245,0.2) 0%, transparent 40%)",
+                mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                maskComposite: "xor",
+                WebkitMaskComposite: "xor",
+                padding: "1px",
+              }}
+            />
 
-          <p className="mt-6 text-center text-sm text-neutral-500">
-            Don&apos;t have an account?{" "}
-            <Link href="/sign-up" className="text-neutral-900 hover:underline font-medium">
-              Sign up
-            </Link>
-          </p>
+            {/* Logo */}
+            <div className="flex flex-col items-center mb-8">
+              <div className="relative h-12 w-12 mb-4">
+                <Image
+                  src="/colony-icon.svg"
+                  alt="Colony"
+                  fill
+                  className="object-contain brightness-0 invert opacity-90"
+                  priority
+                />
+              </div>
+              <h1 
+                className="text-[11px] font-semibold tracking-[0.3em] uppercase text-[rgba(240,225,210,0.6)]"
+                style={{ fontFamily: "'Manrope', sans-serif" }}
+              >
+                Colony
+              </h1>
+            </div>
+
+            {/* Heading */}
+            <div className="text-center mb-8">
+              <h2 
+                className="text-[24px] leading-[32px] font-semibold tracking-[-0.015em] text-[#faf5ef]"
+                style={{ fontFamily: "'Manrope', sans-serif" }}
+              >
+                Welcome back
+              </h2>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSignIn} className="space-y-5">
+              {error && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-[13px]">
+                  {error}
+                </div>
+              )}
+
+              {/* Email */}
+              <div className="space-y-2">
+                <label 
+                  htmlFor="email" 
+                  className="block text-[12px] font-medium text-[rgba(240,225,210,0.6)] tracking-wide"
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="
+                    w-full h-12 px-4 rounded-xl
+                    bg-[rgba(255,250,245,0.06)] border border-[rgba(210,180,150,0.12)]
+                    text-white text-[14px] placeholder:text-[rgba(255,245,235,0.35)]
+                    outline-none
+                    transition-all duration-200 ease-out
+                    focus:bg-[rgba(255,250,245,0.1)] focus:border-[rgba(220,190,160,0.25)]
+                    focus:shadow-[0_0_0_3px_rgba(210,180,150,0.08)]
+                  "
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label 
+                    htmlFor="password" 
+                    className="block text-[12px] font-medium text-[rgba(240,225,210,0.6)] tracking-wide"
+                  >
+                    Password
+                  </label>
+                  <Link 
+                    href="/forgot-password"
+                    className="text-[12px] text-[rgba(240,225,210,0.5)] hover:text-[#faf5ef] transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="
+                    w-full h-12 px-4 rounded-xl
+                    bg-[rgba(255,250,245,0.06)] border border-[rgba(210,180,150,0.12)]
+                    text-white text-[14px] placeholder:text-[rgba(255,245,235,0.35)]
+                    outline-none
+                    transition-all duration-200 ease-out
+                    focus:bg-[rgba(255,250,245,0.1)] focus:border-[rgba(220,190,160,0.25)]
+                    focus:shadow-[0_0_0_3px_rgba(210,180,150,0.08)]
+                  "
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="
+                  w-full h-12 mt-2
+                  bg-[#f5ebe0] text-[#3d3025]
+                  font-semibold text-[14px] tracking-[-0.01em]
+                  rounded-xl
+                  transition-all duration-200 ease-out
+                  hover:bg-[#efe4d8] hover:shadow-[0_8px_24px_rgba(220,195,170,0.2)]
+                  active:scale-[0.98]
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none
+                "
+                style={{ fontFamily: "'Manrope', sans-serif" }}
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle 
+                        className="opacity-25" 
+                        cx="12" cy="12" r="10" 
+                        stroke="currentColor" 
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path 
+                        className="opacity-75" 
+                        fill="currentColor" 
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Entering...
+                  </span>
+                ) : (
+                  "Enter"
+                )}
+              </button>
+
+              {/* Sign up link */}
+              <div className="text-center pt-4">
+                <span className="text-[14px] text-[rgba(240,225,210,0.5)]">
+                  Don&apos;t have an account?{" "}
+                  <Link 
+                    href="/sign-up"
+                    className="text-[#f5ebe0] hover:underline"
+                  >
+                    Sign up
+                  </Link>
+                </span>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
+
     </div>
   );
 }
+

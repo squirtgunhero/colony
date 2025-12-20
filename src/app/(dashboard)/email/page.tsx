@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmailHistory } from "@/components/email/email-history";
 
-async function getEmailActivities() {
+async function getEmailActivities(userId: string) {
   return prisma.activity.findMany({
     where: {
+      userId,
       type: "email",
     },
     orderBy: { createdAt: "desc" },
@@ -15,11 +17,12 @@ async function getEmailActivities() {
   });
 }
 
-async function getEmailStats() {
+async function getEmailStats(userId: string) {
   const [total, thisWeek, thisMonth] = await Promise.all([
-    prisma.activity.count({ where: { type: "email" } }),
+    prisma.activity.count({ where: { userId, type: "email" } }),
     prisma.activity.count({
       where: {
+        userId,
         type: "email",
         createdAt: {
           gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
@@ -28,6 +31,7 @@ async function getEmailStats() {
     }),
     prisma.activity.count({
       where: {
+        userId,
         type: "email",
         createdAt: {
           gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
@@ -40,9 +44,10 @@ async function getEmailStats() {
 }
 
 export default async function EmailPage() {
+  const userId = await requireUserId();
   const [emailActivities, stats] = await Promise.all([
-    getEmailActivities(),
-    getEmailStats(),
+    getEmailActivities(userId),
+    getEmailStats(userId),
   ]);
 
   return (

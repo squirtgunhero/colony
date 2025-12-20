@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,19 +18,19 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/date-utils";
 
-async function getFavorites() {
+async function getFavorites(userId: string) {
   const [contacts, properties, deals] = await Promise.all([
     prisma.contact.findMany({
-      where: { isFavorite: true },
+      where: { userId, isFavorite: true },
       orderBy: { updatedAt: "desc" },
     }),
     prisma.property.findMany({
-      where: { isFavorite: true },
+      where: { userId, isFavorite: true },
       orderBy: { updatedAt: "desc" },
       include: { owner: true },
     }),
     prisma.deal.findMany({
-      where: { isFavorite: true },
+      where: { userId, isFavorite: true },
       orderBy: { updatedAt: "desc" },
       include: { contact: true, property: true },
     }),
@@ -62,7 +63,8 @@ const stageColors: Record<string, string> = {
 };
 
 export default async function FavoritesPage() {
-  const { contacts, properties, deals } = await getFavorites();
+  const userId = await requireUserId();
+  const { contacts, properties, deals } = await getFavorites(userId);
   const totalCount = contacts.length + properties.length + deals.length;
 
   return (

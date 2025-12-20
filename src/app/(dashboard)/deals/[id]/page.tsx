@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireUserId } from "@/lib/supabase/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,9 +45,9 @@ const stageLabels: Record<string, string> = {
   closed: "Closed",
 };
 
-async function getDeal(id: string) {
-  const deal = await prisma.deal.findUnique({
-    where: { id },
+async function getDeal(id: string, userId: string) {
+  const deal = await prisma.deal.findFirst({
+    where: { id, userId },
     include: {
       contact: true,
       property: true,
@@ -71,15 +72,17 @@ async function getDeal(id: string) {
   return deal;
 }
 
-async function getContacts() {
+async function getContacts(userId: string) {
   return prisma.contact.findMany({
+    where: { userId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
 }
 
-async function getProperties() {
+async function getProperties(userId: string) {
   return prisma.property.findMany({
+    where: { userId },
     select: { id: true, address: true, city: true },
     orderBy: { address: "asc" },
   });
@@ -87,10 +90,11 @@ async function getProperties() {
 
 export default async function DealPage({ params }: DealPageProps) {
   const { id } = await params;
+  const userId = await requireUserId();
   const [deal, contacts, properties] = await Promise.all([
-    getDeal(id),
-    getContacts(),
-    getProperties(),
+    getDeal(id, userId),
+    getContacts(userId),
+    getProperties(userId),
   ]);
 
   if (!deal) {

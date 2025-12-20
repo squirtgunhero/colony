@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getUserId } from "@/lib/supabase/auth";
+import { requireUserId } from "@/lib/supabase/auth";
 import { getGmailAuthUrl } from "@/lib/gmail";
 
 export async function GET() {
-  const userId = await getUserId();
+  const userId = await requireUserId();
 
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

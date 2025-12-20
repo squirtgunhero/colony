@@ -30,7 +30,7 @@ export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
     return (
       <Card>
         <CardHeader>
-          <p className="text-overline">Lead Sources</p>
+          <p className="text-overline">Contact Sources</p>
         </CardHeader>
         <CardContent>
           <div className="h-[200px] flex items-center justify-center">
@@ -44,9 +44,9 @@ export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
   return (
     <Card>
       <CardHeader className="pb-0">
-        <p className="text-overline mb-1">Lead Sources</p>
+        <p className="text-overline mb-1">Contact Sources</p>
         <p className="metric-value">{total}</p>
-        <p className="text-caption mt-0.5">Total leads tracked</p>
+        <p className="text-caption mt-0.5">Total contacts tracked</p>
       </CardHeader>
       
       <CardContent className="pt-4">
