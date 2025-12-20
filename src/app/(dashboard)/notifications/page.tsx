@@ -1,11 +1,15 @@
+"use client";
+
+import { useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, CheckCircle2, AlertCircle, Info, Calendar, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // Placeholder notifications - will be dynamic in a real implementation
-const notifications = [
+const initialNotifications = [
   {
     id: "1",
     type: "info",
@@ -49,15 +53,40 @@ const colorMap: Record<string, string> = {
 };
 
 export default function NotificationsPage() {
+  const [notifications, setNotifications] = useState(initialNotifications);
+  
+  const hasUnread = notifications.some(n => !n.read);
+  
+  const handleMarkAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    toast.success("All notifications marked as read");
+  };
+  
+  const handleClearAll = () => {
+    setNotifications([]);
+    toast.success("All notifications cleared");
+  };
+
   return (
     <div className="min-h-screen">
       <PageHeader
         title="Notifications"
         description="Stay updated on your activities and important alerts."
       >
-        <Button variant="outline" size="sm">
-          Mark all as read
-        </Button>
+        <div className="flex gap-2">
+          {notifications.length > 0 && (
+            <>
+              {hasUnread && (
+                <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
+                  Mark all as read
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={handleClearAll}>
+                Clear all
+              </Button>
+            </>
+          )}
+        </div>
       </PageHeader>
 
       <div className="p-4 sm:p-6 max-w-3xl">
