@@ -1,0 +1,7 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Two elegant interlocking O's -->
+  <!-- First O (muted gold) -->
+  <ellipse cx="11" cy="16" rx="7" ry="12" stroke="#a08a50" stroke-width="2" fill="none" opacity="0.8"/>
+  <!-- Second O (bright gold) -->
+  <ellipse cx="21" cy="16" rx="7" ry="12" stroke="#c9a962" stroke-width="2" fill="none"/>
+</svg>
