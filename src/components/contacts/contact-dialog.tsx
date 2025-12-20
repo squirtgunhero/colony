@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { ChevronDown, ChevronUp, Home } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { createContact, updateContact } from "@/app/(dashboard)/contacts/actions";
 
 const LEAD_SOURCES = [
@@ -42,6 +48,18 @@ const CONTACT_TAGS = [
   { value: "renter", label: "Renter" },
 ] as const;
 
+const propertySchema = z.object({
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  price: z.number().optional(),
+  status: z.string().optional(),
+  bedrooms: z.number().optional(),
+  bathrooms: z.number().optional(),
+  sqft: z.number().optional(),
+});
+
 const contactSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email().optional().or(z.literal("")),
@@ -50,6 +68,7 @@ const contactSchema = z.object({
   tags: z.array(z.string()).optional(),
   source: z.string().optional(),
   notes: z.string().optional(),
+  property: propertySchema.optional(),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -73,10 +92,14 @@ interface ContactDialogProps {
 
 export function ContactDialog({ contact, children, onOpenChange }: ContactDialogProps) {
   const [open, setOpen] = useState(false);
+  const [showPropertyFields, setShowPropertyFields] = useState(false);
   
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen);
     onOpenChange?.(newOpen);
+    if (!newOpen) {
+      setShowPropertyFields(false);
+    }
   };
   const [isLoading, setIsLoading] = useState(false);
 
@@ -97,12 +120,14 @@ export function ContactDialog({ contact, children, onOpenChange }: ContactDialog
       tags: contact?.tags || [],
       source: contact?.source || "",
       notes: contact?.notes || "",
+      property: undefined,
     },
   });
 
   const type = watch("type");
   const tags = watch("tags") || [];
   const source = watch("source");
+  const propertyStatus = watch("property.status");
 
   const toggleTag = (tag: string) => {
     const currentTags = tags || [];
@@ -128,6 +153,7 @@ export function ContactDialog({ contact, children, onOpenChange }: ContactDialog
         });
       }
       setOpen(false);
+      setShowPropertyFields(false);
       reset();
     } catch (error) {
       console.error("Failed to save contact:", error);
@@ -142,7 +168,7 @@ export function ContactDialog({ contact, children, onOpenChange }: ContactDialog
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {contact ? "Edit Contact" : "Add New Contact"}
@@ -256,6 +282,135 @@ export function ContactDialog({ contact, children, onOpenChange }: ContactDialog
               rows={3}
             />
           </div>
+
+          {/* Property Section - Only for new contacts */}
+          {!contact && (
+            <Collapsible open={showPropertyFields} onOpenChange={setShowPropertyFields}>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between"
+                >
+                  <span className="flex items-center gap-2">
+                    <Home className="h-4 w-4" />
+                    Add a Property
+                  </span>
+                  {showPropertyFields ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-4">
+                <div className="rounded-lg border border-border p-4 space-y-4 bg-muted/30">
+                  <p className="text-sm text-muted-foreground">
+                    Add a property that will be linked to this contact
+                  </p>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="property.address">Address *</Label>
+                    <Input
+                      id="property.address"
+                      {...register("property.address")}
+                      placeholder="123 Main Street"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="property.city">City *</Label>
+                      <Input
+                        id="property.city"
+                        {...register("property.city")}
+                        placeholder="Los Angeles"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="property.state">State</Label>
+                      <Input
+                        id="property.state"
+                        {...register("property.state")}
+                        placeholder="CA"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="property.zipCode">Zip Code</Label>
+                      <Input
+                        id="property.zipCode"
+                        {...register("property.zipCode")}
+                        placeholder="90210"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="property.price">Price</Label>
+                      <Input
+                        id="property.price"
+                        type="number"
+                        {...register("property.price", { valueAsNumber: true })}
+                        placeholder="500000"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="property.status">Status</Label>
+                      <Select
+                        value={propertyStatus || "available"}
+                        onValueChange={(value) => setValue("property.status", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="available">Available</SelectItem>
+                          <SelectItem value="under_contract">Under Contract</SelectItem>
+                          <SelectItem value="sold">Sold</SelectItem>
+                          <SelectItem value="off_market">Off Market</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="property.sqft">Square Feet</Label>
+                      <Input
+                        id="property.sqft"
+                        type="number"
+                        {...register("property.sqft", { valueAsNumber: true })}
+                        placeholder="1500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="property.bedrooms">Bedrooms</Label>
+                      <Input
+                        id="property.bedrooms"
+                        type="number"
+                        {...register("property.bedrooms", { valueAsNumber: true })}
+                        placeholder="3"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="property.bathrooms">Bathrooms</Label>
+                      <Input
+                        id="property.bathrooms"
+                        type="number"
+                        step="0.5"
+                        {...register("property.bathrooms", { valueAsNumber: true })}
+                        placeholder="2"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button

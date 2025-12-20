@@ -14,9 +14,27 @@ interface ContactData {
   notes?: string;
 }
 
-export async function createContact(data: ContactData) {
+interface PropertyData {
+  address: string;
+  city: string;
+  state?: string;
+  zipCode?: string;
+  price: number;
+  status?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  sqft?: number;
+  description?: string;
+}
+
+interface CreateContactWithPropertyData extends ContactData {
+  property?: PropertyData;
+}
+
+export async function createContact(data: CreateContactWithPropertyData) {
   const userId = await requireUserId();
   
+  // Create contact first
   const contact = await prisma.contact.create({
     data: {
       userId,
@@ -30,7 +48,28 @@ export async function createContact(data: ContactData) {
     },
   });
 
+  // If property data is provided, create the property and link it to the contact
+  if (data.property && data.property.address && data.property.city) {
+    await prisma.property.create({
+      data: {
+        userId,
+        address: data.property.address,
+        city: data.property.city,
+        state: data.property.state || null,
+        zipCode: data.property.zipCode || null,
+        price: data.property.price || 0,
+        status: data.property.status || "available",
+        bedrooms: data.property.bedrooms || null,
+        bathrooms: data.property.bathrooms || null,
+        sqft: data.property.sqft || null,
+        description: data.property.description || null,
+        ownerId: contact.id,
+      },
+    });
+  }
+
   revalidatePath("/contacts");
+  revalidatePath("/properties");
   revalidatePath("/dashboard");
   revalidatePath("/reports");
   return contact;

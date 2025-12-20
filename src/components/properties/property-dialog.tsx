@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { UserPlus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,13 @@ import {
 } from "@/components/ui/select";
 import { createProperty, updateProperty } from "@/app/(dashboard)/properties/actions";
 
+const newContactSchema = z.object({
+  name: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  type: z.string().optional(),
+});
+
 const propertySchema = z.object({
   address: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
@@ -38,6 +46,7 @@ const propertySchema = z.object({
   sqft: z.number().optional(),
   description: z.string().optional(),
   ownerId: z.string().optional(),
+  newContact: newContactSchema.optional(),
 });
 
 type PropertyFormData = z.infer<typeof propertySchema>;
@@ -75,6 +84,7 @@ export function PropertyDialog({
 }: PropertyDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showNewContactFields, setShowNewContactFields] = useState(false);
 
   const {
     register,
@@ -97,11 +107,24 @@ export function PropertyDialog({
       sqft: property?.sqft || undefined,
       description: property?.description || "",
       ownerId: property?.owner?.id || "",
+      newContact: undefined,
     },
   });
 
   const status = watch("status");
   const ownerId = watch("ownerId");
+  const newContactType = watch("newContact.type");
+  
+  const handleOwnerChange = (value: string) => {
+    if (value === "new") {
+      setShowNewContactFields(true);
+      setValue("ownerId", "");
+    } else {
+      setShowNewContactFields(false);
+      setValue("ownerId", value === "none" ? "" : value);
+      setValue("newContact", undefined);
+    }
+  };
 
   const onSubmit = async (data: PropertyFormData) => {
     setIsLoading(true);
@@ -118,6 +141,7 @@ export function PropertyDialog({
         });
       }
       setOpen(false);
+      setShowNewContactFields(false);
       reset();
     } catch (error) {
       console.error("Failed to save property:", error);
@@ -130,7 +154,10 @@ export function PropertyDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      setOpen(newOpen);
+      if (!newOpen) setShowNewContactFields(false);
+    }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -221,16 +248,20 @@ export function PropertyDialog({
             <div className="space-y-2">
               <Label htmlFor="ownerId">Owner</Label>
               <Select
-                value={ownerId || "none"}
-                onValueChange={(value) =>
-                  setValue("ownerId", value === "none" ? "" : value)
-                }
+                value={showNewContactFields ? "new" : (ownerId || "none")}
+                onValueChange={handleOwnerChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select owner" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No owner</SelectItem>
+                  <SelectItem value="new">
+                    <span className="flex items-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Add new contact
+                    </span>
+                  </SelectItem>
                   {contacts.map((contact) => (
                     <SelectItem key={contact.id} value={contact.id}>
                       {contact.name}
@@ -239,6 +270,64 @@ export function PropertyDialog({
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* New Contact Fields */}
+            {showNewContactFields && (
+              <div className="col-span-2 rounded-lg border border-border p-4 space-y-4 bg-muted/30">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  New contact details
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newContact.name">Name *</Label>
+                    <Input
+                      id="newContact.name"
+                      {...register("newContact.name")}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newContact.type">Type</Label>
+                    <Select
+                      value={newContactType || "client"}
+                      onValueChange={(value) => setValue("newContact.type", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lead">Lead</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                        <SelectItem value="agent">Agent</SelectItem>
+                        <SelectItem value="vendor">Vendor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newContact.email">Email</Label>
+                    <Input
+                      id="newContact.email"
+                      type="email"
+                      {...register("newContact.email")}
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newContact.phone">Phone</Label>
+                    <Input
+                      id="newContact.phone"
+                      {...register("newContact.phone")}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="bedrooms">Bedrooms</Label>

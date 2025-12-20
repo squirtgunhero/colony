@@ -4,6 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
 
+interface ContactData {
+  name: string;
+  email?: string;
+  phone?: string;
+  type?: string;
+}
+
 interface PropertyData {
   address: string;
   city: string;
@@ -18,8 +25,31 @@ interface PropertyData {
   ownerId?: string;
 }
 
-export async function createProperty(data: PropertyData) {
+interface CreatePropertyWithContactData extends PropertyData {
+  newContact?: ContactData;
+}
+
+export async function createProperty(data: CreatePropertyWithContactData) {
   const userId = await requireUserId();
+  
+  let ownerId = data.ownerId || null;
+  
+  // If new contact data is provided, create the contact first
+  if (data.newContact && data.newContact.name) {
+    const contact = await prisma.contact.create({
+      data: {
+        userId,
+        name: data.newContact.name,
+        email: data.newContact.email || null,
+        phone: data.newContact.phone || null,
+        type: data.newContact.type || "client",
+        tags: [],
+        source: null,
+        notes: null,
+      },
+    });
+    ownerId = contact.id;
+  }
   
   const property = await prisma.property.create({
     data: {
@@ -34,11 +64,12 @@ export async function createProperty(data: PropertyData) {
       bathrooms: data.bathrooms || null,
       sqft: data.sqft || null,
       description: data.description || null,
-      ownerId: data.ownerId || null,
+      ownerId,
     },
   });
 
   revalidatePath("/properties");
+  revalidatePath("/contacts");
   revalidatePath("/dashboard");
   return property;
 }
