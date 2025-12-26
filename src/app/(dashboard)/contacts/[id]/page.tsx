@@ -2,14 +2,12 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ActivityTimeline } from "@/components/activities/activity-timeline";
 import { ActivityDialog } from "@/components/activities/activity-dialog";
 import { ContactDialog } from "@/components/contacts/contact-dialog";
 import { SendEmailDialog } from "@/components/email/send-email-dialog";
 import { FavoriteContactButton } from "@/components/favorites/favorite-contact-button";
-import { formatCurrency, formatDistanceToNow } from "@/lib/date-utils";
+import { formatCurrency } from "@/lib/date-utils";
 import { ContactTasks } from "@/components/contacts/contact-tasks";
 import { 
   ArrowLeft, 
@@ -18,24 +16,19 @@ import {
   Users, 
   FileText, 
   Pencil,
-  Building2,
-  Target,
-  CalendarCheck2,
   Plus,
-  MapPin,
-  Clock,
-  TrendingUp,
+  MoreHorizontal,
 } from "lucide-react";
 
 interface ContactPageProps {
   params: Promise<{ id: string }>;
 }
 
-const typeColors: Record<string, string> = {
-  lead: "bg-blue-500/20 text-blue-600",
-  client: "bg-green-500/20 text-green-600",
-  agent: "bg-purple-500/20 text-purple-600",
-  vendor: "bg-amber-500/20 text-amber-600",
+const typeStyles: Record<string, string> = {
+  lead: "text-blue-600",
+  client: "text-emerald-600",
+  agent: "text-violet-600",
+  vendor: "text-amber-600",
 };
 
 const sourceLabels: Record<string, string> = {
@@ -48,21 +41,6 @@ const sourceLabels: Record<string, string> = {
   other: "Other",
 };
 
-const stageColors: Record<string, string> = {
-  new_lead: "bg-neutral-500/20 text-neutral-600",
-  qualified: "bg-blue-500/20 text-blue-600",
-  showing: "bg-amber-500/20 text-amber-600",
-  offer: "bg-orange-500/20 text-orange-600",
-  negotiation: "bg-purple-500/20 text-purple-600",
-  closed: "bg-green-500/20 text-green-600",
-};
-
-const statusColors: Record<string, string> = {
-  available: "bg-green-500/20 text-green-600",
-  under_contract: "bg-amber-500/20 text-amber-600",
-  sold: "bg-blue-500/20 text-blue-600",
-  off_market: "bg-neutral-500/20 text-neutral-600",
-};
 
 async function getContact(id: string) {
   const contact = await prisma.contact.findUnique({
@@ -110,314 +88,267 @@ export default async function ContactPage({ params }: ContactPageProps) {
   const activeDeals = contact.deals.filter(d => d.stage !== "closed");
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="border-b border-border bg-background">
-        <div className="px-4 py-4 sm:px-6">
-          <div className="flex items-start gap-4">
-            <Link href="/contacts">
-              <Button variant="ghost" size="icon" className="h-8 w-8 mt-1">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
+    <div className="min-h-screen bg-stone-50/50">
+      {/* Elegant Header */}
+      <header className="bg-white border-b border-stone-200/60">
+        <div className="max-w-6xl mx-auto">
+          {/* Top bar with back + actions */}
+          <div className="flex items-center justify-between px-6 py-4">
+            <Link 
+              href="/contacts" 
+              className="flex items-center gap-2 text-stone-400 hover:text-stone-600 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="text-sm font-medium">Contacts</span>
             </Link>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-semibold">
-                  {contact.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold">{contact.name}</h1>
-                    <FavoriteContactButton
-                      contactId={contact.id}
-                      isFavorite={contact.isFavorite}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <Badge
-                      variant="secondary"
-                      className={`capitalize ${typeColors[contact.type] || ""}`}
-                    >
-                      {contact.type}
-                    </Badge>
-                    {contact.source && (
-                      <span className="text-xs text-muted-foreground">
-                        via {sourceLabels[contact.source] || contact.source}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Contact Info */}
-              <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                {contact.email && (
-                  <a href={`mailto:${contact.email}`} className="flex items-center gap-1 hover:text-primary transition-colors">
-                    <Mail className="h-3.5 w-3.5" />
-                    {contact.email}
-                  </a>
-                )}
-                {contact.phone && (
-                  <a href={`tel:${contact.phone}`} className="flex items-center gap-1 hover:text-primary transition-colors">
-                    <Phone className="h-3.5 w-3.5" />
-                    {contact.phone}
-                  </a>
-                )}
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  Added {formatDistanceToNow(contact.createdAt)}
-                </span>
-              </div>
-            </div>
-            <ContactDialog contact={contact}>
-              <Button variant="outline" size="sm">
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            </ContactDialog>
-          </div>
-
-          {/* Stats Bar */}
-          <div className="flex flex-wrap gap-6 mt-6 pt-4 border-t border-border">
+            
             <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <TrendingUp className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xl font-bold">{formatCurrency(totalDealValue)}</p>
-                <p className="text-xs text-muted-foreground">Total Deal Value</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <Target className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-xl font-semibold">{activeDeals.length}</p>
-                <p className="text-xs text-muted-foreground">Active Deals</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-xl font-semibold">{contact.properties.length}</p>
-                <p className="text-xs text-muted-foreground">Properties</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <CalendarCheck2 className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-xl font-semibold">{contact.tasks.length}</p>
-                <p className="text-xs text-muted-foreground">Open Tasks</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2 mt-4 flex-wrap">
-            <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
-              <Button variant="outline" size="sm" className="rounded-full">
-                <Phone className="h-4 w-4 mr-2" />
-                Log Call
-              </Button>
-            </ActivityDialog>
-            {contact.email && (
-              <SendEmailDialog
-                contactEmail={contact.email}
+              <FavoriteContactButton
                 contactId={contact.id}
-                contactName={contact.name}
-              >
-                <Button variant="outline" size="sm" className="rounded-full">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send Email
+                isFavorite={contact.isFavorite}
+              />
+              <ContactDialog contact={contact}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-stone-400 hover:text-stone-600">
+                  <Pencil className="h-4 w-4" />
                 </Button>
-              </SendEmailDialog>
-            )}
-            <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="meeting">
-              <Button variant="outline" size="sm" className="rounded-full">
-                <Users className="h-4 w-4 mr-2" />
-                Log Meeting
+              </ContactDialog>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-stone-400 hover:text-stone-600">
+                <MoreHorizontal className="h-4 w-4" />
               </Button>
-            </ActivityDialog>
-            <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="note">
-              <Button variant="outline" size="sm" className="rounded-full">
-                <FileText className="h-4 w-4 mr-2" />
-                Add Note
-              </Button>
-            </ActivityDialog>
+            </div>
+          </div>
+
+          {/* Profile Section */}
+          <div className="px-6 pb-8 pt-2">
+            <div className="flex items-start gap-6">
+              {/* Avatar */}
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-stone-100 to-stone-200 flex items-center justify-center text-3xl font-light text-stone-500 tracking-tight">
+                {contact.name.charAt(0).toUpperCase()}
+              </div>
+
+              {/* Name + Type */}
+              <div className="flex-1 min-w-0 pt-1">
+                <h1 className="text-3xl font-light tracking-tight text-stone-900">
+                  {contact.name}
+                </h1>
+                <p className={`text-sm font-medium capitalize mt-1 ${typeStyles[contact.type] || "text-stone-500"}`}>
+                  {contact.type}
+                  {contact.source && (
+                    <span className="text-stone-400 font-normal"> · via {sourceLabels[contact.source] || contact.source}</span>
+                  )}
+                </p>
+                
+                {/* Contact details - clean inline */}
+                <div className="flex items-center gap-6 mt-4">
+                  {contact.email && (
+                    <a 
+                      href={`mailto:${contact.email}`} 
+                      className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
+                    >
+                      {contact.email}
+                    </a>
+                  )}
+                  {contact.phone && (
+                    <a 
+                      href={`tel:${contact.phone}`} 
+                      className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
+                    >
+                      {contact.phone}
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Stats - Minimal */}
+              <div className="hidden lg:flex items-center gap-8 pt-2">
+                {totalDealValue > 0 && (
+                  <div className="text-right">
+                    <p className="text-2xl font-light text-stone-900">{formatCurrency(totalDealValue)}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">deal value</p>
+                  </div>
+                )}
+                <div className="text-right">
+                  <p className="text-2xl font-light text-stone-900">{activeDeals.length}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">active deals</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Bar - Clean */}
+            <div className="flex items-center gap-3 mt-8">
+              <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
+                <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors">
+                  <Phone className="h-4 w-4" />
+                  Call
+                </button>
+              </ActivityDialog>
+              {contact.email && (
+                <SendEmailDialog
+                  contactEmail={contact.email}
+                  contactId={contact.id}
+                  contactName={contact.name}
+                >
+                  <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </button>
+                </SendEmailDialog>
+              )}
+              <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="meeting">
+                <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors">
+                  <Users className="h-4 w-4" />
+                  Meeting
+                </button>
+              </ActivityDialog>
+              <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="note">
+                <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors">
+                  <FileText className="h-4 w-4" />
+                  Note
+                </button>
+              </ActivityDialog>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Content */}
-      <div className="p-4 sm:p-6">
-        <div className="grid gap-6 lg:grid-cols-3">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="grid gap-8 lg:grid-cols-3">
           {/* Main Column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Activity Timeline */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Activity</CardTitle>
+            <section className="bg-white rounded-xl border border-stone-200/60 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-stone-100">
+                <h2 className="text-sm font-medium text-stone-900">Activity</h2>
                 <ActivityDialog contactId={contact.id} contactName={contact.name}>
-                  <Button variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Log Activity
-                  </Button>
+                  <button className="text-xs font-medium text-stone-400 hover:text-stone-600 transition-colors flex items-center gap-1">
+                    <Plus className="h-3.5 w-3.5" />
+                    Add
+                  </button>
                 </ActivityDialog>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="p-6">
                 {contact.activities.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    No activities logged yet. Start by logging a call, email, or meeting.
+                  <p className="text-sm text-stone-400 text-center py-8">
+                    No activities logged yet
                   </p>
                 ) : (
                   <ActivityTimeline activities={contact.activities} />
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
 
-            {/* Documents - placeholder for future contact documents */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Documents
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No documents attached to this contact yet.
+            {/* Documents */}
+            <section className="bg-white rounded-xl border border-stone-200/60 overflow-hidden">
+              <div className="px-6 py-4 border-b border-stone-100">
+                <h2 className="text-sm font-medium text-stone-900">Documents</h2>
+              </div>
+              <div className="p-6">
+                <p className="text-sm text-stone-400 text-center py-4">
+                  No documents yet
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Notes */}
             {contact.notes && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Notes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              <section className="bg-white rounded-xl border border-stone-200/60 overflow-hidden">
+                <div className="px-5 py-4 border-b border-stone-100">
+                  <h2 className="text-sm font-medium text-stone-900">Notes</h2>
+                </div>
+                <div className="p-5">
+                  <p className="text-sm text-stone-600 whitespace-pre-wrap leading-relaxed">
                     {contact.notes}
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             )}
 
             {/* Tasks */}
             <ContactTasks 
               contactId={contact.id}
-              contactName={contact.name}
               tasks={contact.tasks}
             />
 
             {/* Deals */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Target className="h-5 w-5" />
+            <section className="bg-white rounded-xl border border-stone-200/60 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
+                <h2 className="text-sm font-medium text-stone-900">
                   Deals
-                  <span className="text-sm font-normal text-muted-foreground">
-                    ({contact.deals.length})
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+                  {contact.deals.length > 0 && (
+                    <span className="text-stone-400 font-normal ml-1.5">{contact.deals.length}</span>
+                  )}
+                </h2>
+              </div>
+              <div className="divide-y divide-stone-50">
                 {contact.deals.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No deals yet</p>
+                  <p className="text-sm text-stone-400 p-5">No deals yet</p>
                 ) : (
-                  <div className="space-y-3">
-                    {contact.deals.map((deal) => (
-                      <Link 
-                        key={deal.id}
-                        href={`/deals/${deal.id}`}
-                        className="block p-3 -mx-3 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{deal.title}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className={`text-xs capitalize ${stageColors[deal.stage] || ""}`}>
-                                {deal.stage.replace("_", " ")}
-                              </Badge>
-                              {deal.property && (
-                                <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                                  {deal.property.address}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {deal.value && (
-                            <span className="text-sm font-semibold text-primary">
-                              {formatCurrency(deal.value)}
-                            </span>
-                          )}
+                  contact.deals.map((deal) => (
+                    <Link 
+                      key={deal.id}
+                      href={`/deals/${deal.id}`}
+                      className="block px-5 py-4 hover:bg-stone-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-stone-900 truncate">{deal.title}</p>
+                          <p className="text-xs text-stone-400 mt-0.5 capitalize">
+                            {deal.stage.replace("_", " ")}
+                          </p>
                         </div>
-                      </Link>
-                    ))}
-                  </div>
+                        {deal.value && (
+                          <span className="text-sm font-medium text-stone-900 ml-4">
+                            {formatCurrency(deal.value)}
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  ))
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
 
             {/* Properties */}
             {contact.properties.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
+              <section className="bg-white rounded-xl border border-stone-200/60 overflow-hidden">
+                <div className="px-5 py-4 border-b border-stone-100">
+                  <h2 className="text-sm font-medium text-stone-900">
                     Properties
-                    <span className="text-sm font-normal text-muted-foreground">
-                      ({contact.properties.length})
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {contact.properties.map((property) => (
-                      <Link 
-                        key={property.id}
-                        href={`/properties/${property.id}`}
-                        className="block p-3 -mx-3 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium">{property.address}</p>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                              <MapPin className="h-3 w-3" />
-                              <span>
-                                {property.city}
-                                {property.state && `, ${property.state}`}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold">
-                              {formatCurrency(property.price)}
-                            </p>
-                            <Badge variant="secondary" className={`text-xs capitalize ${statusColors[property.status] || ""}`}>
-                              {property.status.replace("_", " ")}
-                            </Badge>
-                          </div>
+                    <span className="text-stone-400 font-normal ml-1.5">{contact.properties.length}</span>
+                  </h2>
+                </div>
+                <div className="divide-y divide-stone-50">
+                  {contact.properties.map((property) => (
+                    <Link 
+                      key={property.id}
+                      href={`/properties/${property.id}`}
+                      className="block px-5 py-4 hover:bg-stone-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-stone-900 truncate">{property.address}</p>
+                          <p className="text-xs text-stone-400 mt-0.5">
+                            {property.city}{property.state && `, ${property.state}`}
+                          </p>
                         </div>
-                      </Link>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                        <div className="text-right ml-4">
+                          <p className="text-sm font-medium text-stone-900">
+                            {formatCurrency(property.price)}
+                          </p>
+                          <p className="text-xs text-stone-400 capitalize mt-0.5">
+                            {property.status.replace("_", " ")}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
             )}
-
           </div>
         </div>
       </div>
