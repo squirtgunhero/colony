@@ -44,7 +44,6 @@ interface Property {
   imageUrl: string | null;
   isFavorite: boolean;
   owner: { id: string; name: string } | null;
-  _count: { deals: number };
 }
 
 interface Contact {

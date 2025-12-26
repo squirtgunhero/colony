@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -123,6 +123,27 @@ export function PropertyDialog({
       newContact: undefined,
     },
   });
+
+  // Reset form when dialog opens with property data
+  useEffect(() => {
+    if (open) {
+      reset({
+        address: property?.address || "",
+        city: property?.city || "",
+        state: property?.state || "",
+        zipCode: property?.zipCode || "",
+        price: property?.price || 0,
+        status: normalizeStatus(property?.status),
+        bedrooms: property?.bedrooms || undefined,
+        bathrooms: property?.bathrooms || undefined,
+        sqft: property?.sqft || undefined,
+        description: property?.description || "",
+        ownerId: property?.owner?.id || "",
+        newContact: undefined,
+      });
+      setShowNewContactFields(false);
+    }
+  }, [open, property, reset]);
 
   const status = watch("status");
   const ownerId = watch("ownerId");

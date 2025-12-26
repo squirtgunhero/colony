@@ -117,30 +117,6 @@ export function TopNav() {
         </Link>
       </div>
 
-      {/* Center: Navigation Tabs (Desktop) */}
-      <nav className="hidden md:flex items-center" suppressHydrationWarning>
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-neutral-100 dark:bg-neutral-800/50" suppressHydrationWarning>
-          {navTabs.map((tab) => {
-            const isActive = pathname === tab.href || 
-              (tab.href !== "/dashboard" && pathname.startsWith(tab.href));
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150",
-                  isActive
-                    ? "bg-white dark:bg-neutral-700 text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                suppressHydrationWarning
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2" suppressHydrationWarning>
