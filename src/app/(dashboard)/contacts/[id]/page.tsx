@@ -10,6 +10,7 @@ import { ContactDialog } from "@/components/contacts/contact-dialog";
 import { SendEmailDialog } from "@/components/email/send-email-dialog";
 import { FavoriteContactButton } from "@/components/favorites/favorite-contact-button";
 import { formatCurrency, formatDistanceToNow } from "@/lib/date-utils";
+import { ContactTasks } from "@/components/contacts/contact-tasks";
 import { 
   ArrowLeft, 
   Phone, 
@@ -85,9 +86,10 @@ async function getContact(id: string) {
         orderBy: { createdAt: "desc" },
       },
       tasks: {
-        where: { completed: false },
-        orderBy: { dueDate: "asc" },
-        take: 5,
+        orderBy: [
+          { completed: "asc" },
+          { dueDate: "asc" },
+        ],
       },
     },
   });
@@ -313,6 +315,13 @@ export default async function ContactPage({ params }: ContactPageProps) {
               </Card>
             )}
 
+            {/* Tasks */}
+            <ContactTasks 
+              contactId={contact.id}
+              contactName={contact.name}
+              tasks={contact.tasks}
+            />
+
             {/* Deals */}
             <Card>
               <CardHeader>
@@ -409,32 +418,6 @@ export default async function ContactPage({ params }: ContactPageProps) {
               </Card>
             )}
 
-            {/* Open Tasks */}
-            {contact.tasks.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <CalendarCheck2 className="h-5 w-5" />
-                    Open Tasks
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {contact.tasks.map((task) => (
-                    <div key={task.id} className="flex items-start gap-2">
-                      <CalendarCheck2 className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm">{task.title}</p>
-                        {task.dueDate && (
-                          <p className="text-xs text-muted-foreground">
-                            Due {formatDistanceToNow(task.dueDate)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>

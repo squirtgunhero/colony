@@ -32,6 +32,10 @@ export async function createTask(data: TaskData) {
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
+  revalidatePath("/contacts");
+  if (data.contactId) {
+    revalidatePath(`/contacts/${data.contactId}`);
+  }
   return task;
 }
 
@@ -54,11 +58,21 @@ export async function updateTask(id: string, data: TaskData) {
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
+  revalidatePath("/contacts");
+  if (data.contactId) {
+    revalidatePath(`/contacts/${data.contactId}`);
+  }
   return task;
 }
 
 export async function toggleTask(id: string, completed: boolean) {
   const userId = await requireUserId();
+  
+  // Get task first for contactId
+  const existingTask = await prisma.task.findFirst({
+    where: { id, userId },
+    select: { contactId: true },
+  });
   
   // Only toggle if user owns the task
   const task = await prisma.task.updateMany({
@@ -68,11 +82,21 @@ export async function toggleTask(id: string, completed: boolean) {
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
+  revalidatePath("/contacts");
+  if (existingTask?.contactId) {
+    revalidatePath(`/contacts/${existingTask.contactId}`);
+  }
   return task;
 }
 
 export async function deleteTask(id: string) {
   const userId = await requireUserId();
+  
+  // Get task first for contactId
+  const existingTask = await prisma.task.findFirst({
+    where: { id, userId },
+    select: { contactId: true },
+  });
   
   // Only delete if user owns the task
   await prisma.task.deleteMany({
@@ -81,5 +105,9 @@ export async function deleteTask(id: string) {
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
+  revalidatePath("/contacts");
+  if (existingTask?.contactId) {
+    revalidatePath(`/contacts/${existingTask.contactId}`);
+  }
 }
 
