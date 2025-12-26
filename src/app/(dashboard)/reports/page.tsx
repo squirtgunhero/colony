@@ -65,20 +65,22 @@ async function getReportData(userId: string) {
     }),
   ]);
 
-  const totalRevenue = await prisma.deal.aggregate({
-    where: { userId, stage: "closed" },
-    _sum: { value: true },
+  // Total revenue from sold properties
+  const totalRevenue = await prisma.property.aggregate({
+    where: { userId, status: "sold" },
+    _sum: { price: true },
   });
 
-  const pipelineValue = await prisma.deal.aggregate({
-    where: { userId, stage: { not: "closed" } },
-    _sum: { value: true },
+  // Pipeline value from non-sold properties
+  const pipelineValue = await prisma.property.aggregate({
+    where: { userId, status: { not: "sold" } },
+    _sum: { price: true },
   });
 
   return {
     metrics: {
-      totalRevenue: totalRevenue._sum.value || 0,
-      pipelineValue: pipelineValue._sum.value || 0,
+      totalRevenue: totalRevenue._sum.price || 0,
+      pipelineValue: pipelineValue._sum.price || 0,
       totalDeals,
       closedDeals,
       conversionRate: totalDeals > 0 ? Math.round((closedDeals / totalDeals) * 100) : 0,

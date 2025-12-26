@@ -21,12 +21,15 @@ async function getLeads(userId: string) {
   });
 }
 
-async function getDeals(userId: string) {
-  return prisma.deal.findMany({
+async function getProperties(userId: string) {
+  return prisma.property.findMany({
     where: { userId },
-    include: {
-      contact: true,
-      property: true,
+    select: {
+      id: true,
+      address: true,
+      status: true,
+      price: true,
+      createdAt: true,
     },
   });
 }
@@ -43,26 +46,28 @@ async function getStats(userId: string) {
   // Calculate date for previous month comparison
   const now = new Date();
   const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
   const [totalValue, previousMonthValue, leadsCount, pendingTasks] = await Promise.all([
-    // Current total pipeline value
-    prisma.deal.aggregate({ where: { userId }, _sum: { value: true } }),
-    // Pipeline value from deals that existed at start of current month
-    // (deals created before this month)
-    prisma.deal.aggregate({ 
+    // Current total pipeline value from properties (excluding sold)
+    prisma.property.aggregate({ 
+      where: { userId, status: { not: "sold" } }, 
+      _sum: { price: true } 
+    }),
+    // Pipeline value from properties that existed at start of current month
+    prisma.property.aggregate({ 
       where: { 
         userId,
+        status: { not: "sold" },
         createdAt: { lt: startOfCurrentMonth }
       }, 
-      _sum: { value: true } 
+      _sum: { price: true } 
     }),
     prisma.contact.count({ where: { userId, type: "lead" } }),
     prisma.task.count({ where: { userId, completed: false } }),
   ]);
 
-  const currentValue = totalValue._sum.value || 0;
-  const previousValue = previousMonthValue._sum.value || 0;
+  const currentValue = totalValue._sum.price || 0;
+  const previousValue = previousMonthValue._sum.price || 0;
 
   return {
     pipelineValue: currentValue,
@@ -102,9 +107,9 @@ async function getLeadSources(userId: string) {
 export default async function DashboardPage() {
   const userId = await requireUserId();
   
-  const [leads, deals, tasks, stats, activities, leadSources] = await Promise.all([
+  const [leads, properties, tasks, stats, activities, leadSources] = await Promise.all([
     getLeads(userId),
-    getDeals(userId),
+    getProperties(userId),
     getTasks(userId),
     getStats(userId),
     getRecentActivities(userId),
@@ -126,7 +131,7 @@ export default async function DashboardPage() {
             {/* Primary Column */}
             <div className="space-y-8">
               {/* Pipeline Overview - Hero Chart */}
-              <PipelineBarChart deals={deals} />
+              <PipelineBarChart properties={properties} />
               
               {/* Active Contacts - Composite Surface */}
               <LeadCards leads={leads} />
@@ -146,7 +151,7 @@ export default async function DashboardPage() {
           <div className="dashboard-grid">
             {/* Primary Column */}
             <div className="space-y-8">
-              <DealsTrendChart deals={deals} />
+              <DealsTrendChart properties={properties} />
             </div>
 
             {/* Secondary Column */}
@@ -157,7 +162,7 @@ export default async function DashboardPage() {
 
           {/* Pipeline Stages - Full Width */}
           <div className="grid-full-bleed">
-            <PipelineChart deals={deals} />
+            <PipelineChart properties={properties} />
           </div>
         </div>
       </div>

@@ -13,19 +13,19 @@ import {
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 
-interface Deal {
+interface Property {
   id: string;
-  title: string;
-  stage: string;
-  value: number | null;
-  createdAt: Date;
+  address: string;
+  status: string;
+  price: number;
+  createdAt?: Date;
 }
 
 interface DealsTrendChartProps {
-  deals: Deal[];
+  properties: Property[];
 }
 
-export function DealsTrendChart({ deals }: DealsTrendChartProps) {
+export function DealsTrendChart({ properties }: DealsTrendChartProps) {
   const today = new Date();
   const currentMonthIndex = 5; // Last position in our 6-month array
 
@@ -41,18 +41,18 @@ export function DealsTrendChart({ deals }: DealsTrendChartProps) {
   });
 
   const data = months.map(({ month, start, end, isCurrentMonth }) => {
-    const monthDeals = deals.filter((deal) =>
-      isWithinInterval(new Date(deal.createdAt), { start, end })
+    const monthProperties = properties.filter((property) =>
+      property.createdAt ? isWithinInterval(new Date(property.createdAt), { start, end }) : false
     );
-    const closedDeals = monthDeals.filter((d) => d.stage === "closed");
-    const totalValue = monthDeals.reduce((sum, d) => sum + (d.value || 0), 0);
-    const closedValue = closedDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+    const soldProperties = monthProperties.filter((p) => p.status === "sold");
+    const totalValue = monthProperties.reduce((sum, p) => sum + (p.price || 0), 0);
+    const soldValue = soldProperties.reduce((sum, p) => sum + (p.price || 0), 0);
 
     return {
       name: month,
       pipeline: totalValue,
-      closed: closedValue,
-      deals: monthDeals.length,
+      closed: soldValue,
+      properties: monthProperties.length,
       isCurrentMonth,
     };
   });
@@ -68,7 +68,7 @@ export function DealsTrendChart({ deals }: DealsTrendChartProps) {
           <div>
             <p className="text-overline mb-1">Revenue Trend</p>
             <p className="metric-value-lg">{formatCurrency(totalClosed)}</p>
-            <p className="text-caption mt-0.5">Total closed (6 months)</p>
+            <p className="text-caption mt-0.5">Total sold (6 months)</p>
           </div>
           {/* Current month highlight */}
           <div className="text-right p-3 rounded-xl bg-muted/30">
@@ -119,7 +119,7 @@ export function DealsTrendChart({ deals }: DealsTrendChartProps) {
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2 text-[11px]">
                           <div className="h-2 w-2 rounded-full bg-[#171717]" />
-                          <span className="text-muted-foreground">Closed:</span>
+                          <span className="text-muted-foreground">Sold:</span>
                           <span className="font-semibold tabular-nums">{formatCurrency(d?.closed || 0)}</span>
                         </div>
                         <div className="flex items-center gap-2 text-[11px]">
@@ -163,7 +163,7 @@ export function DealsTrendChart({ deals }: DealsTrendChartProps) {
         <div className="mt-5 pt-4 border-t border-[rgba(0,0,0,0.04)] flex items-center gap-6">
           <div className="flex items-center gap-2 text-[11px]">
             <div className="h-0.5 w-4 rounded-full bg-[#171717]" />
-            <span className="text-muted-foreground">Closed Revenue</span>
+            <span className="text-muted-foreground">Sold Revenue</span>
           </div>
           <div className="flex items-center gap-2 text-[11px]">
             <div className="h-0.5 w-4 rounded-full bg-[#d4d4d4]" />

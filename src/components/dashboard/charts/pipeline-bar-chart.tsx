@@ -13,37 +13,35 @@ import {
   ReferenceLine,
 } from "recharts";
 
-interface Deal {
+interface Property {
   id: string;
-  title: string;
-  stage: string;
-  value: number | null;
+  address: string;
+  status: string;
+  price: number;
 }
 
 interface PipelineBarChartProps {
-  deals: Deal[];
+  properties: Property[];
 }
 
 // Sophisticated neutrals - ONE accent highlight
 const stages = [
-  { id: "new_lead", label: "New", color: "#e5e5e5" },
-  { id: "qualified", label: "Qualified", color: "#d4d4d4" },
-  { id: "showing", label: "Showing", color: "#a3a3a3" },
-  { id: "offer", label: "Offer", color: "#c2410c" },  // Accent: highlight key stage
-  { id: "negotiation", label: "Contract", color: "#525252" },
-  { id: "closed", label: "Closed", color: "#171717" },
+  { id: "pre_listing", label: "Pre-Listing", color: "#a855f7" },
+  { id: "listed", label: "Listed", color: "#22c55e" },
+  { id: "under_contract", label: "Contract", color: "#c2410c" },  // Accent
+  { id: "sold", label: "Sold", color: "#171717" },
 ];
 
-export function PipelineBarChart({ deals }: PipelineBarChartProps) {
+export function PipelineBarChart({ properties }: PipelineBarChartProps) {
   const data = stages.map((stage) => {
-    const stageDeals = deals.filter((d) => d.stage === stage.id);
-    const totalValue = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+    const stageProperties = properties.filter((p) => p.status === stage.id);
+    const totalValue = stageProperties.reduce((sum, p) => sum + (p.price || 0), 0);
     return {
       name: stage.label,
       value: totalValue,
-      count: stageDeals.length,
+      count: stageProperties.length,
       color: stage.color,
-      isAccent: stage.id === "offer",
+      isAccent: stage.id === "under_contract",
     };
   });
 
@@ -116,7 +114,7 @@ export function PipelineBarChart({ deals }: PipelineBarChartProps) {
                     <div className="bg-card border border-[rgba(0,0,0,0.06)] rounded-lg p-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
                       <p className="text-[13px] font-semibold text-foreground">{d.name}</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {d.count} deal{d.count !== 1 ? "s" : ""}
+                        {d.count} propert{d.count !== 1 ? "ies" : "y"}
                       </p>
                       <p className="metric-value mt-1.5">{formatCurrency(d.value)}</p>
                     </div>

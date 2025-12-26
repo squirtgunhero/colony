@@ -6,41 +6,39 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
-interface Deal {
+interface Property {
   id: string;
-  title: string;
-  stage: string;
-  value: number | null;
+  address: string;
+  status: string;
+  price: number;
 }
 
 interface PipelineChartProps {
-  deals: Deal[];
+  properties: Property[];
 }
 
 const stages = [
-  { id: "new_lead", label: "New Inquiries", shortLabel: "New" },
-  { id: "qualified", label: "Qualified", shortLabel: "Qual" },
-  { id: "showing", label: "Property Showings", shortLabel: "Show" },
-  { id: "offer", label: "Offers Made", shortLabel: "Offer" },
-  { id: "negotiation", label: "Under Contract", shortLabel: "Contract" },
-  { id: "closed", label: "Closed Sales", shortLabel: "Closed" },
+  { id: "pre_listing", label: "Pre-Listing", shortLabel: "Pre" },
+  { id: "listed", label: "Listed", shortLabel: "Listed" },
+  { id: "under_contract", label: "Under Contract", shortLabel: "Contract" },
+  { id: "sold", label: "Sold", shortLabel: "Sold" },
 ];
 
-export function PipelineChart({ deals }: PipelineChartProps) {
+export function PipelineChart({ properties }: PipelineChartProps) {
   const [viewMode, setViewMode] = useState<"value" | "count">("value");
 
   const stageStats = stages.map((stage) => {
-    const stageDeals = deals.filter((d) => d.stage === stage.id);
-    const totalValue = stageDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+    const stageProperties = properties.filter((p) => p.status === stage.id);
+    const totalValue = stageProperties.reduce((sum, p) => sum + (p.price || 0), 0);
     return {
       ...stage,
-      count: stageDeals.length,
+      count: stageProperties.length,
       value: totalValue,
     };
   });
 
   const totalPipelineValue = stageStats.reduce((sum, s) => sum + s.value, 0);
-  const totalDeals = stageStats.reduce((sum, s) => sum + s.count, 0);
+  const totalProperties = stageStats.reduce((sum, s) => sum + s.count, 0);
   const maxValue = Math.max(...stageStats.map((s) => s.value), 1);
   const maxCount = Math.max(...stageStats.map((s) => s.count), 1);
 
@@ -50,8 +48,8 @@ export function PipelineChart({ deals }: PipelineChartProps) {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-overline mb-1">Pipeline Breakdown</p>
-            <p className="metric-value-lg">{totalDeals}</p>
-            <p className="text-caption">deals in pipeline</p>
+            <p className="metric-value-lg">{totalProperties}</p>
+            <p className="text-caption">properties in pipeline</p>
           </div>
           
           {/* Toggle */}
@@ -95,7 +93,7 @@ export function PipelineChart({ deals }: PipelineChartProps) {
                 ? (stage.value / maxValue) * 100
                 : (stage.count / maxCount) * 100;
             
-            const isAccent = stage.id === "offer";
+            const isAccent = stage.id === "under_contract";
             const intensity = 1 - (index / (stages.length - 1)) * 0.6;
 
             return (
