@@ -13,11 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PropertyDialog } from "./property-dialog";
 import { deleteProperty } from "@/app/(dashboard)/properties/actions";
 import {
   MoreHorizontal,
-  Pencil,
   Trash2,
   Search,
   MapPin,
@@ -46,14 +44,8 @@ interface Property {
   owner: { id: string; name: string } | null;
 }
 
-interface Contact {
-  id: string;
-  name: string;
-}
-
 interface PropertiesGridProps {
   properties: Property[];
-  contacts: Contact[];
 }
 
 const statusColors: Record<string, string> = {
@@ -74,7 +66,7 @@ const statusLabels: Record<string, string> = {
   off_market: "Off Market",
 };
 
-export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
+export function PropertiesGrid({ properties }: PropertiesGridProps) {
   const [search, setSearch] = useState("");
 
   const filteredProperties = properties.filter(
@@ -128,12 +120,6 @@ export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <PropertyDialog property={property} contacts={contacts}>
-                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                      </PropertyDialog>
                       <DropdownMenuItem
                         className="text-destructive"
                         onClick={async () => {
