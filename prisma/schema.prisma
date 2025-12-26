@@ -86,7 +86,7 @@ model Property {
   state       String?
   zipCode     String?
   price       Float
-  status      String   @default("available") // available, under_contract, sold, off_market
+  status      String   @default("listed") // pre_listing, listed, under_contract, sold, off_market
   bedrooms    Int?
   bathrooms   Float?
   sqft        Float?

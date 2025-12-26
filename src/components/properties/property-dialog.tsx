@@ -40,7 +40,7 @@ const propertySchema = z.object({
   state: z.string().optional(),
   zipCode: z.string().optional(),
   price: z.number().min(0, "Price must be positive"),
-  status: z.enum(["available", "under_contract", "sold", "off_market"]),
+  status: z.enum(["pre_listing", "listed", "under_contract", "sold", "off_market"]),
   bedrooms: z.number().optional(),
   bathrooms: z.number().optional(),
   sqft: z.number().optional(),
@@ -77,6 +77,19 @@ interface PropertyDialogProps {
   children: React.ReactNode;
 }
 
+// Map old status values to new ones
+function normalizeStatus(status: string | undefined): PropertyFormData["status"] {
+  if (!status) return "listed";
+  // Map old "available" to new "listed"
+  if (status === "available") return "listed";
+  // Validate it's a known status
+  const validStatuses = ["pre_listing", "listed", "under_contract", "sold", "off_market"];
+  if (validStatuses.includes(status)) {
+    return status as PropertyFormData["status"];
+  }
+  return "listed";
+}
+
 export function PropertyDialog({
   property,
   contacts,
@@ -101,7 +114,7 @@ export function PropertyDialog({
       state: property?.state || "",
       zipCode: property?.zipCode || "",
       price: property?.price || 0,
-      status: (property?.status as PropertyFormData["status"]) || "available",
+      status: normalizeStatus(property?.status),
       bedrooms: property?.bedrooms || undefined,
       bathrooms: property?.bathrooms || undefined,
       sqft: property?.sqft || undefined,
@@ -237,7 +250,8 @@ export function PropertyDialog({
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="pre_listing">Pre-Listing</SelectItem>
+                  <SelectItem value="listed">Listed</SelectItem>
                   <SelectItem value="under_contract">Under Contract</SelectItem>
                   <SelectItem value="sold">Sold</SelectItem>
                   <SelectItem value="off_market">Off Market</SelectItem>

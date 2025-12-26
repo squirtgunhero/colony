@@ -58,14 +58,18 @@ interface PropertiesGridProps {
 }
 
 const statusColors: Record<string, string> = {
-  available: "bg-green-500/20 text-green-400",
+  pre_listing: "bg-purple-500/20 text-purple-400",
+  listed: "bg-green-500/20 text-green-400",
+  available: "bg-green-500/20 text-green-400", // Legacy fallback
   under_contract: "bg-amber-500/20 text-amber-400",
   sold: "bg-blue-500/20 text-blue-400",
   off_market: "bg-gray-500/20 text-gray-400",
 };
 
 const statusLabels: Record<string, string> = {
-  available: "Available",
+  pre_listing: "Pre-Listing",
+  listed: "Listed",
+  available: "Listed", // Legacy fallback
   under_contract: "Under Contract",
   sold: "Sold",
   off_market: "Off Market",

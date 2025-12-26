@@ -58,7 +58,7 @@ export async function createContact(data: CreateContactWithPropertyData) {
         state: data.property.state || null,
         zipCode: data.property.zipCode || null,
         price: data.property.price || 0,
-        status: data.property.status || "available",
+        status: data.property.status || "listed",
         bedrooms: data.property.bedrooms || null,
         bathrooms: data.property.bathrooms || null,
         sqft: data.property.sqft || null,

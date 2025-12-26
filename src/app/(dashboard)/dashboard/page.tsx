@@ -3,7 +3,6 @@ import { requireUserId } from "@/lib/supabase/auth";
 import { LeadCards } from "@/components/dashboard/lead-cards";
 import { TasksCalendar } from "@/components/dashboard/tasks-calendar";
 import { PipelineChart } from "@/components/dashboard/pipeline-chart";
-import { LeadDetailPanel } from "@/components/dashboard/lead-detail-panel";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { PipelineBarChart } from "@/components/dashboard/charts/pipeline-bar-chart";
 import { LeadSourcesChart } from "@/components/dashboard/charts/lead-sources-chart";
@@ -112,12 +111,10 @@ export default async function DashboardPage() {
     getLeadSources(userId),
   ]);
 
-  const previewLead = leads[0] || null;
-
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)]">
+    <div className="min-h-[calc(100vh-3.5rem)]">
       {/* Main Content Area */}
-      <div className="flex-1 overflow-auto xl:mr-[360px]">
+      <div className="flex-1 overflow-auto">
         {/* Hero Section - Full Bleed Pipeline Value */}
         <DashboardHeader stats={stats} />
 
@@ -132,7 +129,7 @@ export default async function DashboardPage() {
               <PipelineBarChart deals={deals} />
               
               {/* Active Contacts - Composite Surface */}
-              <LeadCards leads={leads} selectedLeadId={previewLead?.id} />
+              <LeadCards leads={leads} />
             </div>
 
             {/* Secondary Column */}
@@ -164,9 +161,6 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Inspector Drawer - Fixed Right */}
-      <LeadDetailPanel lead={previewLead} />
     </div>
   );
 }
