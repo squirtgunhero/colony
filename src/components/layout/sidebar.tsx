@@ -7,7 +7,6 @@ import {
   Users,
   Building2,
   Handshake,
-  CheckSquare,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -37,11 +36,6 @@ const navItems = [
     title: "Deals",
     href: "/deals",
     icon: Handshake,
-  },
-  {
-    title: "Tasks",
-    href: "/tasks",
-    icon: CheckSquare,
   },
 ];
 

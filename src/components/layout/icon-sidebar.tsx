@@ -8,8 +8,6 @@ import { UserMenu } from "@/components/auth/user-menu";
 import {
   Command,
   LayoutDashboard,
-  CalendarCheck2,
-  Bookmark,
   UserCircle2,
   MapPin,
   Target,
@@ -23,8 +21,6 @@ import { cn } from "@/lib/utils";
 
 const topNavItems = [
   { icon: LayoutDashboard, href: "/dashboard", label: "Dashboard" },
-  { icon: CalendarCheck2, href: "/tasks", label: "Tasks" },
-  { icon: Bookmark, href: "/favorites", label: "Favorites" },
   { icon: UserCircle2, href: "/contacts", label: "Contacts" },
   { icon: MapPin, href: "/properties", label: "Properties" },
   { icon: Target, href: "/deals", label: "Deals" },
