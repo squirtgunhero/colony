@@ -79,7 +79,7 @@ interface PropertyDialogProps {
 
 // Map old status values to new ones
 function normalizeStatus(status: string | undefined): PropertyFormData["status"] {
-  if (!status) return "listed";
+  if (!status) return "pre_listing";
   // Map old "available" to new "listed"
   if (status === "available") return "listed";
   // Validate it's a known status
@@ -87,7 +87,7 @@ function normalizeStatus(status: string | undefined): PropertyFormData["status"]
   if (validStatuses.includes(status)) {
     return status as PropertyFormData["status"];
   }
-  return "listed";
+  return "pre_listing";
 }
 
 export function PropertyDialog({

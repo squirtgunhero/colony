@@ -361,7 +361,7 @@ export function ContactDialog({ contact, children, onOpenChange }: ContactDialog
                     <div className="space-y-2">
                       <Label htmlFor="property.status">Status</Label>
                       <Select
-                        value={propertyStatus || "listed"}
+                        value={propertyStatus || "pre_listing"}
                         onValueChange={(value) => setValue("property.status", value)}
                       >
                         <SelectTrigger>
