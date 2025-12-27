@@ -2,8 +2,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  // Allow public access to OG image API
-  if (request.nextUrl.pathname.startsWith('/api/og')) {
+  // Allow public access to OG image routes
+  if (request.nextUrl.pathname.startsWith('/api/og') || 
+      request.nextUrl.pathname.startsWith('/opengraph-image')) {
     return NextResponse.next();
   }
   return await updateSession(request);

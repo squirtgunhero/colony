@@ -47,6 +47,7 @@ export async function updateSession(request: NextRequest) {
     "/auth/callback",
     "/auth/confirm",
     "/api/og",
+    "/opengraph-image",
   ];
   
   const isPublicRoute = publicRoutes.some(
@@ -56,7 +57,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/forgot-password") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||
     request.nextUrl.pathname.startsWith("/auth/") ||
-    request.nextUrl.pathname.startsWith("/api/og")
+    request.nextUrl.pathname.startsWith("/api/og") ||
+    request.nextUrl.pathname.startsWith("/opengraph-image")
   );
 
   if (!user && !isPublicRoute) {
