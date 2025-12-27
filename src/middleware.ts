@@ -1,7 +1,11 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
+  // Allow public access to OG image API
+  if (request.nextUrl.pathname.startsWith('/api/og')) {
+    return NextResponse.next();
+  }
   return await updateSession(request);
 }
 
