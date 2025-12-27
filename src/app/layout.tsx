@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "https://mycolonyhq.com/opengraph-image.png",
+        url: "https://mycolonyhq.com/og-image.png",
         width: 1000,
         height: 1000,
         alt: "Colony Real Estate CRM",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Colony | Real Estate CRM",
     description: "Modern real estate CRM for managing contacts, properties, and deals",
-    images: ["https://mycolonyhq.com/opengraph-image.png"],
+    images: ["https://mycolonyhq.com/og-image.png"],
   },
 };
 
