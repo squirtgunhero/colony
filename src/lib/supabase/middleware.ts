@@ -46,6 +46,7 @@ export async function updateSession(request: NextRequest) {
     "/reset-password",
     "/auth/callback",
     "/auth/confirm",
+    "/api/og",
   ];
   
   const isPublicRoute = publicRoutes.some(
@@ -54,7 +55,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/sign-up") ||
     request.nextUrl.pathname.startsWith("/forgot-password") ||
     request.nextUrl.pathname.startsWith("/reset-password") ||
-    request.nextUrl.pathname.startsWith("/auth/")
+    request.nextUrl.pathname.startsWith("/auth/") ||
+    request.nextUrl.pathname.startsWith("/api/og")
   );
 
   if (!user && !isPublicRoute) {
