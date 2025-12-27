@@ -22,8 +22,28 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://mycolonyhq.com'),
   title: "Colony | Real Estate CRM",
   description: "Modern real estate CRM for managing contacts, properties, and deals",
+  openGraph: {
+    title: "Colony | Real Estate CRM",
+    description: "Modern real estate CRM for managing contacts, properties, and deals",
+    type: "website",
+    images: [
+      {
+        url: "https://mycolonyhq.com/opengraph-image.png",
+        width: 1000,
+        height: 1000,
+        alt: "Colony Real Estate CRM",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Colony | Real Estate CRM",
+    description: "Modern real estate CRM for managing contacts, properties, and deals",
+    images: ["https://mycolonyhq.com/opengraph-image.png"],
+  },
 };
 
 export default function RootLayout({
