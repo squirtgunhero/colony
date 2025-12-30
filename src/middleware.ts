@@ -7,6 +7,15 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/opengraph-image')) {
     return NextResponse.next();
   }
+  
+  // Allow public access to widget-builder for demo purposes
+  // (uses hardcoded demo-user ID, no auth required)
+  if (request.nextUrl.pathname.startsWith('/widget-builder') ||
+      request.nextUrl.pathname.startsWith('/api/widget') ||
+      request.nextUrl.pathname.startsWith('/api/layout')) {
+    return NextResponse.next();
+  }
+  
   return await updateSession(request);
 }
 
