@@ -5,8 +5,8 @@
  * Three-region responsive grid layout with drag-and-drop support
  */
 
-import { useCallback, useMemo, useRef } from "react";
-import { GridLayout, type Layout } from "react-grid-layout";
+import { useCallback, useMemo } from "react";
+import { GridLayout, useContainerWidth, type Layout, type LayoutItem as RGLLayoutItem } from "react-grid-layout";
 import { GripVertical, X } from "lucide-react";
 import { WidgetRenderer } from "./WidgetRenderer";
 import { Button } from "@/components/ui/button";
@@ -62,10 +62,13 @@ function RegionGrid({
   onWidgetRemove: (widgetId: string) => void;
   cols: number;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const { width: containerWidth, mounted, containerRef } = useContainerWidth({
+    measureBeforeMount: true,
+    initialWidth: 400,
+  });
   
   // Build layout from widgets if empty
-  const gridLayout = useMemo(() => {
+  const gridLayout = useMemo((): RGLLayoutItem[] => {
     if (layout.length > 0) {
       return layout.map(item => ({
         i: item.i,
@@ -81,7 +84,7 @@ function RegionGrid({
     // Generate layout from widgets
     let currentY = 0;
     return widgets.map((widget) => {
-      const item: Layout = {
+      const item: RGLLayoutItem = {
         i: widget.id,
         x: 0,
         y: currentY,
@@ -95,7 +98,7 @@ function RegionGrid({
     });
   }, [layout, widgets, cols]);
 
-  const handleLayoutChange = useCallback((newLayout: Layout[]) => {
+  const handleLayoutChange = useCallback((newLayout: Layout) => {
     const layoutItems: LayoutItem[] = newLayout.map(item => ({
       i: item.i,
       x: item.x,
@@ -105,6 +108,25 @@ function RegionGrid({
     }));
     onLayoutChange(layoutItems);
   }, [onLayoutChange]);
+
+  // Grid configuration using new API
+  const gridConfig = useMemo(() => ({
+    cols,
+    rowHeight: ROW_HEIGHT,
+    margin: [12, 12] as const,
+    containerPadding: [0, 0] as const,
+    maxRows: Infinity,
+  }), [cols]);
+
+  const dragConfig = useMemo(() => ({
+    enabled: true,
+    handle: ".widget-drag-handle",
+  }), []);
+
+  const resizeConfig = useMemo(() => ({
+    enabled: true,
+    handles: ["se"] as const,
+  }), []);
 
   if (widgets.length === 0) {
     return (
@@ -116,21 +138,23 @@ function RegionGrid({
     );
   }
 
+  if (!mounted) {
+    return (
+      <div ref={containerRef} className="w-full min-h-[200px] animate-pulse bg-muted/20 rounded-xl" />
+    );
+  }
+
   return (
     <div ref={containerRef} className="w-full">
       <GridLayout
         className="layout"
         layout={gridLayout}
-        cols={cols}
-        rowHeight={ROW_HEIGHT}
-        width={containerRef.current?.clientWidth || 400}
-        margin={[12, 12]}
-        containerPadding={[0, 0]}
-        isDraggable={true}
-        isResizable={true}
+        width={containerWidth}
+        gridConfig={gridConfig}
+        dragConfig={dragConfig}
+        resizeConfig={resizeConfig}
         onLayoutChange={handleLayoutChange}
-        draggableHandle=".widget-drag-handle"
-        useCSSTransforms={true}
+        autoSize={true}
       >
         {widgets.map((widget) => (
           <div key={widget.id} className="group">

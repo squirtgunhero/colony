@@ -113,7 +113,7 @@ export function validateWidgetProps(
     return { success: true, data: validatedProps };
   } catch (e) {
     const error = e instanceof z.ZodError 
-      ? e.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
+      ? e.issues.map(err => `${err.path.join('.')}: ${err.message}`).join(', ')
       : 'Unknown validation error';
     return { success: false, error };
   }
