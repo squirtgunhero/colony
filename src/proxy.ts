@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Allow public access to OG image routes
   if (
     request.nextUrl.pathname.startsWith("/api/og") ||
@@ -28,3 +28,4 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|api/og|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
+
