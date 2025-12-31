@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Command, Sparkles, X, Loader2, Mic, MicOff } from "lucide-react";
+import { Command, X, Loader2, Mic, MicOff, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CommandPaletteProps {
@@ -181,7 +181,7 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-neutral-900 text-white rounded-full shadow-lg hover:bg-neutral-800 transition-all hover:scale-105 group"
       >
-        <Sparkles className="h-5 w-5" />
+        <MessageSquare className="h-5 w-5" />
         <span className="font-medium">Ask AI</span>
         <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-neutral-700 rounded ml-2">
           <Command className="h-3 w-3" />K
@@ -203,7 +203,7 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
         <div className="bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100">
-            <Sparkles className="h-5 w-5 text-amber-500" />
+            <MessageSquare className="h-5 w-5 text-amber-500" />
             <span className="text-sm font-medium text-neutral-600">AI Assistant</span>
             <div className="flex-1" />
             <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs text-neutral-500 bg-neutral-100 rounded">
@@ -229,7 +229,7 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
               {isLoading ? (
                 <Loader2 className="h-5 w-5 text-neutral-400 animate-spin" />
               ) : (
-                <Sparkles className={cn(
+                <MessageSquare className={cn(
                   "h-5 w-5",
                   error ? "text-red-500" : 
                   success ? "text-green-500" :
