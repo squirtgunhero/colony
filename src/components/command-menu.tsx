@@ -35,10 +35,10 @@ export function CommandMenu({ onSearch }: CommandMenuProps) {
   const [results, setResults] = React.useState<SearchResult[]>([]);
   const [loading, setLoading] = React.useState(false);
 
-  // Toggle with ⌘K or custom event
+  // Toggle with ⌘/ or custom event (⌘K is reserved for AI)
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "/" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((open) => !open);
       }

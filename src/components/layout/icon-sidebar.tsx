@@ -96,7 +96,7 @@ export function IconSidebar() {
           </span>
           {isExpanded && (
             <kbd className="ml-auto text-[10px] text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">
-              ⌘K
+              ⌘/
             </kbd>
           )}
         </button>
