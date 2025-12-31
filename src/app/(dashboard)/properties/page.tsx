@@ -14,9 +14,20 @@ async function getProperties(userId: string) {
   });
 }
 
+async function getContacts(userId: string) {
+  return prisma.contact.findMany({
+    where: { userId },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+}
+
 export default async function PropertiesPage() {
   const userId = await requireUserId();
-  const properties = await getProperties(userId);
+  const [properties, contacts] = await Promise.all([
+    getProperties(userId),
+    getContacts(userId),
+  ]);
 
   return (
     <div className="min-h-screen">
@@ -28,7 +39,7 @@ export default async function PropertiesPage() {
       </PageHeader>
 
       <div className="p-4 sm:p-8">
-        <PropertiesGrid properties={properties} />
+        <PropertiesGrid properties={properties} contacts={contacts} />
       </div>
     </div>
   );

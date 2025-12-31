@@ -11,9 +11,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteProperty } from "@/app/(dashboard)/properties/actions";
+import { PropertyDialog } from "@/components/properties/property-dialog";
 import {
   MoreHorizontal,
   Trash2,
@@ -23,6 +25,7 @@ import {
   Bath,
   Square,
   Building2,
+  Pencil,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/date-utils";
 import { FavoritePropertyButton } from "@/components/favorites/favorite-property-button";
@@ -44,8 +47,14 @@ interface Property {
   owner: { id: string; name: string } | null;
 }
 
+interface Contact {
+  id: string;
+  name: string;
+}
+
 interface PropertiesGridProps {
   properties: Property[];
+  contacts: Contact[];
 }
 
 const statusColors: Record<string, string> = {
@@ -66,7 +75,7 @@ const statusLabels: Record<string, string> = {
   off_market: "Off Market",
 };
 
-export function PropertiesGrid({ properties }: PropertiesGridProps) {
+export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
   const [search, setSearch] = useState("");
 
   const filteredProperties = properties.filter(
@@ -120,6 +129,13 @@ export function PropertiesGrid({ properties }: PropertiesGridProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <PropertyDialog property={property} contacts={contacts}>
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                      </PropertyDialog>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive"
                         onClick={async () => {
@@ -192,9 +208,12 @@ export function PropertiesGrid({ properties }: PropertiesGridProps) {
                 </div>
 
                 {property.owner && (
-                  <p className="text-xs text-muted-foreground">
+                  <Link 
+                    href={`/contacts/${property.owner.id}`}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
                     Owner: {property.owner.name}
-                  </p>
+                  </Link>
                 )}
               </CardContent>
             </Card>

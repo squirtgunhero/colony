@@ -93,6 +93,7 @@ export async function updateProperty(id: string, data: PropertyData) {
   });
 
   revalidatePath("/properties");
+  revalidatePath("/contacts");
   revalidatePath("/dashboard");
   return property;
 }
@@ -106,6 +107,7 @@ export async function deleteProperty(id: string) {
   });
 
   revalidatePath("/properties");
+  revalidatePath("/contacts");
   revalidatePath("/dashboard");
 }
 
