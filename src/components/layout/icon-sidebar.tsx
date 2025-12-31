@@ -12,7 +12,6 @@ import {
   Target,
   PieChart,
   Download,
-  Mail,
   Bell,
   Settings,
   Inbox,
@@ -27,7 +26,6 @@ const topNavItems = [
   { icon: UserCircle2, href: "/contacts", label: "Contacts" },
   { icon: MapPin, href: "/properties", label: "Properties" },
   { icon: Target, href: "/deals", label: "Deals" },
-  { icon: Mail, href: "/email", label: "Email" },
   { icon: PieChart, href: "/reports", label: "Reports" },
   { icon: Download, href: "/export", label: "Export" },
 ];
