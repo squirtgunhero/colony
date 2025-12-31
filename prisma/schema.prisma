@@ -229,3 +229,78 @@ model InboxParticipant {
   @@index([userId, lastReadAt])
   @@map("inbox_participants")
 }
+
+// ============================================================================
+// REFERRALS - Industry-agnostic referral exchange with embedded conversation
+// ============================================================================
+
+model Referral {
+  id              String   @id @default(cuid())
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  orgId           String?  @map("org_id") // For future team/org support
+  visibility      String   @default("public") // org | network | public
+  status          String   @default("open") // open | claimed | assigned | closed
+  category        String // e.g., "real_estate", "plumbing", "finance", "legal"
+  title           String
+  description     String?
+  locationText    String?  @map("location_text")
+  valueEstimate   Float?   @map("value_estimate")
+  currency        String?  @default("USD")
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  participants ReferralParticipant[]
+  messages     ReferralMessage[]
+  claims       ReferralClaim[]
+
+  @@index([visibility, status, updatedAt(sort: Desc)])
+  @@index([createdByUserId, status])
+  @@index([category, status])
+  @@map("referrals")
+}
+
+model ReferralParticipant {
+  referralId String   @map("referral_id")
+  referral   Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  userId     String   @map("user_id") @db.Uuid
+  role       String // creator | claimant | collaborator | observer
+  joinedAt   DateTime @default(now()) @map("joined_at")
+
+  @@id([referralId, userId])
+  @@index([userId, role])
+  @@map("referral_participants")
+}
+
+model ReferralMessage {
+  id              String   @id @default(cuid())
+  referralId      String   @map("referral_id")
+  referral        Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  createdByUserId String   @map("created_by_user_id") @db.Uuid
+  messageType     String   @default("comment") @map("message_type") // comment | system | private
+  bodyText        String?  @map("body_text")
+  bodyHtml        String?  @map("body_html")
+  visibility      String   @default("public") // public | participants_only
+  metadata        Json?    @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([referralId, createdAt(sort: Asc)])
+  @@index([createdByUserId])
+  @@map("referral_messages")
+}
+
+model ReferralClaim {
+  id              String   @id @default(cuid())
+  referralId      String   @map("referral_id")
+  referral        Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  claimantUserId  String   @map("claimant_user_id") @db.Uuid
+  message         String? // Optional message with claim request
+  status          String   @default("requested") // requested | accepted | rejected
+  createdAt       DateTime @default(now()) @map("created_at")
+  resolvedAt      DateTime? @map("resolved_at")
+
+  @@index([referralId, status])
+  @@index([claimantUserId, status])
+  @@map("referral_claims")
+}

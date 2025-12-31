@@ -16,11 +16,13 @@ import {
   Bell,
   Settings,
   Inbox,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const topNavItems = [
   { icon: LayoutDashboard, href: "/dashboard", label: "Dashboard" },
+  { icon: Share2, href: "/referrals", label: "Referrals" },
   { icon: Inbox, href: "/inbox", label: "Inbox" },
   { icon: UserCircle2, href: "/contacts", label: "Contacts" },
   { icon: MapPin, href: "/properties", label: "Properties" },
