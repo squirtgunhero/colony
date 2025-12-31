@@ -2,8 +2,9 @@
 
 /**
  * Command Palette Component
- * A floating ⌘K-style assistant for natural language widget creation
+ * A floating ⌘J-style AI assistant for natural language widget creation
  * Integrates directly into the dashboard experience
+ * Note: ⌘K is reserved for search, ⌘J is for AI
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -32,11 +33,11 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<WebkitSpeechRecognition | null>(null);
 
-  // Keyboard shortcut handler
+  // Keyboard shortcut handler - ⌘J for AI (⌘K is used for search)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // ⌘K or Ctrl+K to open
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      // ⌘J or Ctrl+J to open AI assistant
+      if ((e.metaKey || e.ctrlKey) && e.key === "j") {
         e.preventDefault();
         setIsOpen(true);
       }
@@ -183,7 +184,7 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
         <Sparkles className="h-5 w-5" />
         <span className="font-medium">Ask AI</span>
         <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-neutral-700 rounded ml-2">
-          <Command className="h-3 w-3" />K
+          <Command className="h-3 w-3" />J
         </kbd>
       </button>
     );
