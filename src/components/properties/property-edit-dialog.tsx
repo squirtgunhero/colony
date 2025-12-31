@@ -381,12 +381,9 @@ export function PropertyEditDialog({
               <Label htmlFor="sqft">Square Feet</Label>
               <Input
                 id="sqft"
-                type="text"
-                inputMode="numeric"
-                {...register("sqft", { 
-                  setValueAs: (v) => v === "" ? undefined : parseInt(v.replace(/,/g, ""), 10) || undefined
-                })}
-                placeholder="1,500"
+                type="number"
+                {...register("sqft", { valueAsNumber: true })}
+                placeholder="1500"
               />
             </div>
           </div>
