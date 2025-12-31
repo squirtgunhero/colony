@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { deleteProperty } from "@/app/(dashboard)/properties/actions";
-import { PropertyDialog } from "@/components/properties/property-dialog";
+import { PropertyEditDialog } from "@/components/properties/property-edit-dialog";
 import {
   MoreHorizontal,
   Trash2,
@@ -77,6 +77,7 @@ const statusLabels: Record<string, string> = {
 
 export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
   const [search, setSearch] = useState("");
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
 
   const filteredProperties = properties.filter(
     (property) =>
@@ -129,12 +130,10 @@ export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <PropertyDialog property={property} contacts={contacts}>
-                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                      </PropertyDialog>
+                      <DropdownMenuItem onClick={() => setEditingProperty(property)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive"
@@ -220,6 +219,16 @@ export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
           ))}
         </div>
       )}
+
+      {/* Edit Dialog - rendered outside dropdown to avoid Radix conflicts */}
+      <PropertyEditDialog
+        property={editingProperty}
+        contacts={contacts}
+        open={!!editingProperty}
+        onOpenChange={(open) => {
+          if (!open) setEditingProperty(null);
+        }}
+      />
     </div>
   );
 }
