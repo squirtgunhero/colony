@@ -44,6 +44,39 @@ A modern real estate CRM built with Next.js 14, featuring contact management, pr
 - Task completion with checkbox toggle
 - Separate tabs for pending and completed tasks
 
+### Inbox (Unified Communications Hub)
+A Follow Up Boss–style inbox that centralizes all communication with contacts.
+
+**Features:**
+- **Multi-channel support**: Email, SMS (Phase 2), and Call events (Phase 2)
+- **Thread-based conversations**: Messages grouped by contact into conversation threads
+- **Split-pane layout**: Thread list on left, conversation detail on right
+- **Read/unread tracking**: Per-user read state for accurate unread counts
+- **Thread actions**:
+  - Mark as read/unread
+  - Assign to user
+  - Archive (remove from default view)
+  - Snooze until specific date/time
+  - Add internal notes
+- **Filtering**: By status (open/archived/snoozed), channel, unread only
+- **Search**: Search across contact names, emails, phones, and message content
+- **Inbox Zero workflow**: Replying, archiving, or snoozing clears threads from default view
+
+**Thread Matching:**
+- Email messages match by sender/recipient email → contact email
+- SMS/Call messages match by phone number (E.164 normalized)
+- Unknown senders create threads labeled "Unknown" until linked to a contact
+- Archived/snoozed threads auto-reopen on new inbound messages
+
+**Integration:**
+- Outbound emails sent from anywhere in the CRM automatically create inbox messages
+- Activities are logged to contact timeline when messages are sent
+
+**Data Model:**
+- `inbox_threads`: Conversation threads linked to contacts
+- `inbox_messages`: Individual messages (email, SMS, call events)
+- `inbox_participants`: Per-user read state tracking
+
 ## Getting Started
 
 ### Prerequisites
@@ -75,19 +108,25 @@ npm run dev
 /src
   /app
     /dashboard        # Main dashboard
+    /inbox            # Unified communications inbox
     /contacts         # Contact management
     /properties       # Property listings
     /deals            # Sales pipeline
     /tasks            # Task management
+    /api/inbox        # Inbox API routes
   /components
     /ui               # shadcn components
     /layout           # Sidebar, page header
+    /inbox            # Inbox components (ThreadList, ThreadDetail, etc.)
     /dashboard        # Dashboard-specific components
     /contacts         # Contact components
     /properties       # Property components
     /deals            # Deal/pipeline components
     /tasks            # Task components
   /lib
+    /db
+      inbox.ts        # Inbox data access layer
+      user-data.ts    # User-scoped database operations
     prisma.ts         # Prisma client
     utils.ts          # Utility functions
     date-utils.ts     # Date formatting utilities

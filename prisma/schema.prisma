@@ -31,26 +31,27 @@ model Contact {
   phone      String?
   type       String   @default("lead") // lead, client, agent, vendor
   tags       String[] @default([]) // buyer, seller, renter
-  source     String?  // zillow, website, referral, social, cold_call, open_house, other
+  source     String? // zillow, website, referral, social, cold_call, open_house, other
   notes      String?
   isFavorite Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   // Relations
-  properties Property[]
-  deals      Deal[]
-  tasks      Task[]
-  activities Activity[]
+  properties   Property[]
+  deals        Deal[]
+  tasks        Task[]
+  activities   Activity[]
+  inboxThreads InboxThread[]
 }
 
 model Activity {
   id          String   @id @default(cuid())
   userId      String?  @map("user_id") @db.Uuid // Owner of this activity
-  type        String   // call, email, meeting, note, task_completed, deal_update
+  type        String // call, email, meeting, note, task_completed, deal_update
   title       String
   description String?
-  metadata    String?  // JSON string for extra data (email subject, call duration, etc.)
+  metadata    String? // JSON string for extra data (email subject, call duration, etc.)
   createdAt   DateTime @default(now())
 
   // Relations
@@ -63,13 +64,13 @@ model Activity {
 }
 
 model Document {
-  id          String   @id @default(cuid())
-  userId      String?  @map("user_id") @db.Uuid // Owner of this document
-  name        String
-  type        String   // contract, disclosure, inspection, photo, other
-  url         String   // file path or URL
-  size        Int?     // file size in bytes
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id") @db.Uuid // Owner of this document
+  name      String
+  type      String // contract, disclosure, inspection, photo, other
+  url       String // file path or URL
+  size      Int? // file size in bytes
+  createdAt DateTime @default(now())
 
   // Relations
   propertyId String?
@@ -150,8 +151,8 @@ model Task {
 model EmailAccount {
   id           String   @id @default(cuid())
   userId       String   @map("user_id") @db.Uuid // Supabase auth user ID
-  provider     String   // gmail, outlook
-  email        String   // The connected email address
+  provider     String // gmail, outlook
+  email        String // The connected email address
   accessToken  String   @map("access_token") // OAuth access token
   refreshToken String   @map("refresh_token") // OAuth refresh token
   expiresAt    DateTime @map("expires_at") // Token expiration
@@ -161,4 +162,70 @@ model EmailAccount {
 
   @@unique([userId, email])
   @@index([userId])
+}
+
+// ============================================================================
+// INBOX - Unified communication hub (email, SMS, calls)
+// ============================================================================
+
+model InboxThread {
+  id                 String    @id @default(cuid())
+  contactId          String?   @map("contact_id")
+  contact            Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  teamId             String?   @map("team_id") // For future team inbox support
+  assignedUserId     String?   @map("assigned_user_id") @db.Uuid
+  status             String    @default("open") // open, archived, snoozed
+  snoozedUntil       DateTime? @map("snoozed_until")
+  lastMessageAt      DateTime  @map("last_message_at")
+  lastMessagePreview String?   @map("last_message_preview")
+  // For unknown senders (no contact match)
+  unknownEmail       String?   @map("unknown_email")
+  unknownPhone       String?   @map("unknown_phone")
+  unknownName        String?   @map("unknown_name")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  messages     InboxMessage[]
+  participants InboxParticipant[]
+
+  @@index([assignedUserId, status, lastMessageAt(sort: Desc)])
+  @@index([teamId, status, lastMessageAt(sort: Desc)])
+  @@index([contactId])
+  @@map("inbox_threads")
+}
+
+model InboxMessage {
+  id                String      @id @default(cuid())
+  threadId          String      @map("thread_id")
+  thread            InboxThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  channel           String // email, sms, call
+  direction         String // inbound, outbound
+  status            String      @default("sent") // sent, delivered, failed, missed, completed, voicemail
+  occurredAt        DateTime    @map("occurred_at")
+  subject           String? // email only
+  fromAddress       String      @map("from_address")
+  toAddress         String      @map("to_address")
+  bodyText          String?     @map("body_text")
+  bodyHtml          String?     @map("body_html")
+  providerMessageId String?     @map("provider_message_id")
+  metadata          Json? // Extra provider-specific data
+  createdByUserId   String?     @map("created_by_user_id") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  @@index([threadId, occurredAt(sort: Desc)])
+  @@index([providerMessageId])
+  @@map("inbox_messages")
+}
+
+model InboxParticipant {
+  threadId   String      @map("thread_id")
+  thread     InboxThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     String      @map("user_id") @db.Uuid
+  lastReadAt DateTime?   @map("last_read_at")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  @@id([threadId, userId])
+  @@index([userId, lastReadAt])
+  @@map("inbox_participants")
 }

@@ -6,7 +6,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
 import {
-  Command,
   LayoutDashboard,
   UserCircle2,
   MapPin,
@@ -16,11 +15,13 @@ import {
   Mail,
   Bell,
   Settings,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const topNavItems = [
   { icon: LayoutDashboard, href: "/dashboard", label: "Dashboard" },
+  { icon: Inbox, href: "/inbox", label: "Inbox" },
   { icon: UserCircle2, href: "/contacts", label: "Contacts" },
   { icon: MapPin, href: "/properties", label: "Properties" },
   { icon: Target, href: "/deals", label: "Deals" },
@@ -76,32 +77,6 @@ export function IconSidebar() {
 
       {/* Main Navigation */}
       <nav className="flex flex-1 flex-col gap-1 py-3 px-2" suppressHydrationWarning>
-        {/* Search Button */}
-        <button
-          onClick={() => {
-            document.dispatchEvent(new CustomEvent("open-command-menu"));
-          }}
-          className={cn(
-            "flex items-center gap-3 rounded-lg text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-neutral-100",
-            isExpanded ? "h-9 px-2.5" : "h-9 w-10 justify-center"
-          )}
-          suppressHydrationWarning
-        >
-          <Command className="h-[18px] w-[18px] shrink-0" />
-          <span className={cn(
-            "text-sm whitespace-nowrap transition-all duration-200",
-            isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-          )}>
-            Search
-          </span>
-          {isExpanded && (
-            <kbd className="ml-auto text-[10px] text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">
-              ⌘/
-            </kbd>
-          )}
-        </button>
-        
-        <div className="h-px bg-neutral-800 my-2" />
         
         {topNavItems.map((item) => {
           const isActive = item.href !== "#" && (pathname === item.href || pathname.startsWith(`${item.href}/`));

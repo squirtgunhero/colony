@@ -4,6 +4,7 @@ import { requireUserId } from "@/lib/supabase/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { sendGmailEmail } from "@/lib/gmail";
+import { findOrCreateThread, createOutboundMessage } from "@/lib/db/inbox";
 
 interface SendEmailData {
   to: string;
@@ -84,6 +85,41 @@ export async function sendEmail(data: SendEmailData) {
       });
 
       revalidatePath(`/contacts/${data.contactId}`);
+    }
+
+    // Create inbox thread and message
+    try {
+      const { threadId } = await findOrCreateThread({
+        channel: "email",
+        address: data.to,
+        direction: "outbound",
+        userId,
+      });
+
+      // If we have a contact ID, ensure the thread is linked
+      if (data.contactId) {
+        await prisma.inboxThread.update({
+          where: { id: threadId },
+          data: { contactId: data.contactId },
+        });
+      }
+
+      await createOutboundMessage({
+        threadId,
+        channel: "email",
+        toAddress: data.to,
+        fromAddress: fromEmail,
+        subject: data.subject,
+        bodyText: data.body,
+        bodyHtml: `<p>${data.body.replace(/\n/g, "<br>")}</p>`,
+        providerMessageId: messageId,
+        metadata: { provider: "gmail" },
+      });
+
+      revalidatePath("/inbox");
+    } catch (inboxError) {
+      // Log but don't fail the email send if inbox integration fails
+      console.error("Failed to create inbox message:", inboxError);
     }
 
     revalidatePath("/dashboard");
