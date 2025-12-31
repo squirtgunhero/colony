@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
 import { cn } from "@/lib/utils";
-import { Bell, RefreshCw, Menu, Plus } from "lucide-react";
+import { Bell, RefreshCw, Menu, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { ContactDialog } from "@/components/contacts/contact-dialog";
+import { globalSearch } from "@/app/(dashboard)/search/actions";
 
 const navTabs = [
   { label: "Dashboard", href: "/dashboard" },
@@ -20,14 +21,66 @@ const navTabs = [
   { label: "Reports", href: "/reports" },
 ];
 
+interface SearchResult {
+  id: string;
+  type: "contact" | "property" | "deal" | "task";
+  title: string;
+  subtitle?: string;
+}
+
 export function TopNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await globalSearch(searchQuery);
+        setSearchResults(results);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  const handleResultClick = useCallback((result: SearchResult) => {
+    const routes: Record<string, string> = {
+      contact: "/contacts",
+      property: "/properties",
+      deal: "/deals",
+      task: "/tasks",
+    };
+    router.push(`${routes[result.type]}/${result.id}`);
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearchFocused(false);
+  }, [router]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults([]);
   }, []);
 
   return (
@@ -117,6 +170,64 @@ export function TopNav() {
         </Link>
       </div>
 
+      {/* Center: Search Box */}
+      <div className="hidden md:flex flex-1 max-w-md mx-4 relative">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+            placeholder="Search contacts, properties, deals..."
+            className="w-full h-9 pl-9 pr-8 rounded-lg border border-border bg-muted/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded"
+            >
+              <X className="h-3 w-3 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Search Results Dropdown */}
+        {isSearchFocused && (searchResults.length > 0 || isSearching || searchQuery.length >= 2) && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50">
+            {isSearching ? (
+              <div className="p-3 text-sm text-muted-foreground text-center">
+                Searching...
+              </div>
+            ) : searchResults.length > 0 ? (
+              <div className="max-h-64 overflow-y-auto">
+                {searchResults.map((result) => (
+                  <button
+                    key={`${result.type}-${result.id}`}
+                    onClick={() => handleResultClick(result)}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-accent transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{result.title}</p>
+                      {result.subtitle && (
+                        <p className="text-xs text-muted-foreground truncate">{result.subtitle}</p>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground capitalize px-2 py-0.5 bg-muted rounded">
+                      {result.type}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : searchQuery.length >= 2 ? (
+              <div className="p-3 text-sm text-muted-foreground text-center">
+                No results found
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2" suppressHydrationWarning>

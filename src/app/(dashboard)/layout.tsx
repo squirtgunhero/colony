@@ -1,6 +1,5 @@
 import { IconSidebar } from "@/components/layout/icon-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
-import { CommandMenuWrapper } from "@/components/command-menu-wrapper";
 import { AICommandPalette } from "@/components/widget-builder/AICommandPalette";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { Toaster } from "sonner";
@@ -14,7 +13,6 @@ export default function DashboardLayout({
     <CRMContextProvider>
       <div className="min-h-screen bg-background" suppressHydrationWarning>
         <IconSidebar />
-        <CommandMenuWrapper />
         <AICommandPalette />
         <div className="md:pl-14 min-h-screen flex flex-col" suppressHydrationWarning>
           <TopNav />
