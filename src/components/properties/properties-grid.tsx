@@ -130,14 +130,19 @@ export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setEditingProperty(property)}>
+                      <DropdownMenuItem 
+                        onSelect={() => {
+                          // Use setTimeout to ensure dropdown closes first
+                          setTimeout(() => setEditingProperty(property), 0);
+                        }}
+                      >
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive"
-                        onClick={async () => {
+                        onSelect={async () => {
                           await deleteProperty(property.id);
                           toast.success("Property deleted", {
                             description: `${property.address} has been removed.`,
