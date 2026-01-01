@@ -33,6 +33,17 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<WebkitSpeechRecognition | null>(null);
 
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    setCommand("");
+    setError(null);
+    setSuccess(null);
+    setIsListening(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+  }, []);
+
   // Keyboard shortcut handler - ⌘K for AI assistant
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,7 +61,7 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   // Focus input when opened
   useEffect(() => {
@@ -82,17 +93,6 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
       recognitionRef.current.onerror = () => {
         setIsListening(false);
       };
-    }
-  }, []);
-
-  const handleClose = useCallback(() => {
-    setIsOpen(false);
-    setCommand("");
-    setError(null);
-    setSuccess(null);
-    setIsListening(false);
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
     }
   }, []);
 
