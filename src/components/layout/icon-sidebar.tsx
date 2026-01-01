@@ -16,6 +16,7 @@ import {
   Settings,
   Inbox,
   Share2,
+  Hexagon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ const topNavItems = [
   { icon: UserCircle2, href: "/contacts", label: "Contacts" },
   { icon: MapPin, href: "/properties", label: "Properties" },
   { icon: Target, href: "/deals", label: "Deals" },
+  { icon: Hexagon, href: "/honeycomb", label: "Honeycomb" },
   { icon: PieChart, href: "/reports", label: "Reports" },
   { icon: Download, href: "/export", label: "Export" },
 ];
