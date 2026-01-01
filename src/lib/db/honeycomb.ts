@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
+import type { Prisma } from "@prisma/client";
 
 // ============================================================================
 // TYPES
@@ -526,7 +527,7 @@ export async function createSegment(input: CreateSegmentInput): Promise<SegmentL
       name: input.name,
       description: input.description,
       type: input.type || "custom",
-      criteria: input.criteria || {},
+      criteria: (input.criteria ?? undefined) as Prisma.InputJsonValue | undefined,
     },
     include: {
       _count: {

@@ -85,7 +85,7 @@ export default function HoneycombDashboardPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-white">{campaign.impressions.toLocaleString()} impressions</p>
-                  <p className="text-sm text-neutral-400">{campaign.ctr}% CTR</p>
+                  <p className="text-sm text-neutral-400">{campaign.impressions > 0 ? ((campaign.clicks / campaign.impressions) * 100).toFixed(2) : 0}% CTR</p>
                 </div>
               </div>
             ))}
