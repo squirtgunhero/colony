@@ -304,3 +304,116 @@ model ReferralClaim {
   @@index([claimantUserId, status])
   @@map("referral_claims")
 }
+
+// ============================================================================
+// HONEYCOMB - Marketing Suite (Campaigns, Creatives, Segments)
+// ============================================================================
+
+model HoneycombCampaign {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id") @db.Uuid // Owner of this campaign
+  name        String
+  description String?
+  status      String    @default("draft") // draft | active | paused | completed | archived
+  objective   String?   // awareness | traffic | engagement | leads | sales
+  budget      Float?
+  dailyBudget Float?    @map("daily_budget")
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  
+  // Performance metrics (updated via integrations, null until connected)
+  impressions Int       @default(0)
+  clicks      Int       @default(0)
+  conversions Int       @default(0)
+  spend       Float     @default(0)
+  
+  metadata    Json?     @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  creatives CampaignCreative[]
+  segments  CampaignSegment[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("honeycomb_campaigns")
+}
+
+model HoneycombCreative {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id") @db.Uuid // Owner of this creative
+  name         String
+  description  String?
+  type         String   @default("image") // image | video | carousel | html
+  format       String?  // 1080x1080, 1200x628, 1080x1920, 300x250, 728x90
+  status       String   @default("draft") // draft | approved | rejected | archived
+  fileUrl      String?  @map("file_url")
+  thumbnailUrl String?  @map("thumbnail_url")
+  fileSize     Int?     @map("file_size") // bytes
+  headline     String?
+  bodyText     String?  @map("body_text")
+  ctaText      String?  @map("cta_text")
+  ctaUrl       String?  @map("cta_url")
+  metadata     Json?    @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  campaigns CampaignCreative[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("honeycomb_creatives")
+}
+
+model HoneycombSegment {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id") @db.Uuid // Owner of this segment
+  name        String
+  description String?
+  type        String   @default("custom") // saved | custom | lookalike
+  
+  // Audience size estimate (null until calculated)
+  size        Int?
+  
+  // Targeting criteria stored as JSON
+  criteria    Json     @default("{}")
+  
+  metadata    Json?    @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  campaigns CampaignSegment[]
+
+  @@index([userId, type])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("honeycomb_segments")
+}
+
+// Join table: Campaign <-> Creative (many-to-many)
+model CampaignCreative {
+  campaignId String            @map("campaign_id")
+  campaign   HoneycombCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  creativeId String            @map("creative_id")
+  creative   HoneycombCreative @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  addedAt    DateTime          @default(now()) @map("added_at")
+
+  @@id([campaignId, creativeId])
+  @@index([creativeId])
+  @@map("honeycomb_campaign_creatives")
+}
+
+// Join table: Campaign <-> Segment (many-to-many)
+model CampaignSegment {
+  campaignId String            @map("campaign_id")
+  campaign   HoneycombCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  segmentId  String            @map("segment_id")
+  segment    HoneycombSegment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  addedAt    DateTime          @default(now()) @map("added_at")
+
+  @@id([campaignId, segmentId])
+  @@index([segmentId])
+  @@map("honeycomb_campaign_segments")
+}
