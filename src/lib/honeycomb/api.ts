@@ -18,10 +18,14 @@ import type {
   CreateSegmentInput,
   KeywordsResponse,
   PublishersResponse,
+  Publisher,
+  CreatePublisherInput,
   AnalyticsSummaryResponse,
   BillingSummaryResponse,
   SettingsResponse,
   ChatBotsResponse,
+  ChatBot,
+  CreateChatBotInput,
   DateRange,
 } from "./types";
 
@@ -172,6 +176,19 @@ export async function getPublishers(): Promise<PublishersResponse> {
   return honeycombFetch<PublishersResponse>("/publishers");
 }
 
+export async function createPublisher(input: CreatePublisherInput): Promise<Publisher> {
+  return honeycombFetch<Publisher>("/publishers", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deletePublisher(id: string): Promise<{ success: boolean }> {
+  return honeycombFetch<{ success: boolean }>(`/publishers/${id}`, {
+    method: "DELETE",
+  });
+}
+
 // ============================================
 // Analytics API
 // ============================================
@@ -213,5 +230,18 @@ export async function updateSettings(
 
 export async function getChatBots(): Promise<ChatBotsResponse> {
   return honeycombFetch<ChatBotsResponse>("/chat-studio");
+}
+
+export async function createChatBot(input: CreateChatBotInput): Promise<ChatBot> {
+  return honeycombFetch<ChatBot>("/chat-studio", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteChatBot(id: string): Promise<{ success: boolean }> {
+  return honeycombFetch<{ success: boolean }>(`/chat-studio/${id}`, {
+    method: "DELETE",
+  });
 }
 

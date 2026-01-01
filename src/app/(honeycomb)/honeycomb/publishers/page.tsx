@@ -1,18 +1,69 @@
 "use client";
 
 import { PageShell, KpiCard, DataTableShell } from "@/components/honeycomb/page-shell";
-import { Globe, Plus, Link2 } from "lucide-react";
+import { Globe, Plus, Link2, Trash2 } from "lucide-react";
 import { usePublishers } from "@/lib/honeycomb/hooks";
+import { createPublisher, deletePublisher } from "@/lib/honeycomb/api";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
+
+type PublisherType = "ad_network" | "direct" | "programmatic";
 
 export default function PublishersPage() {
-  const { data, loading } = usePublishers();
+  const { data, loading, refetch } = usePublishers();
   const publishers = data?.publishers ?? [];
   const placements = data?.placements ?? [];
+
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newPublisherName, setNewPublisherName] = useState("");
+  const [newPublisherType, setNewPublisherType] = useState<PublisherType>("ad_network");
+  const [isCreating, setIsCreating] = useState(false);
 
   // Calculate KPIs
   const connectedPublishers = publishers.filter(p => p.status === "connected").length;
   const totalPlacements = placements.length;
-  const totalRevenue = placements.reduce((sum, p) => sum + p.revenue, 0);
+  const totalRevenue = publishers.reduce((sum, p) => sum + (p.revenue ?? 0), 0);
+
+  const handleCreatePublisher = async () => {
+    if (!newPublisherName) return;
+    setIsCreating(true);
+    try {
+      await createPublisher({
+        name: newPublisherName,
+        type: newPublisherType,
+      });
+      setIsCreateDialogOpen(false);
+      setNewPublisherName("");
+      setNewPublisherType("ad_network");
+      refetch();
+    } catch (error) {
+      console.error("Failed to create publisher:", error);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleDeletePublisher = async (id: string) => {
+    if (window.confirm("Are you sure you want to remove this publisher?")) {
+      try {
+        await deletePublisher(id);
+        refetch();
+      } catch (error) {
+        console.error("Failed to delete publisher:", error);
+      }
+    }
+  };
 
   return (
     <PageShell
@@ -20,6 +71,7 @@ export default function PublishersPage() {
       subtitle="Manage publisher integrations and ad placements"
       ctaLabel="Add Publisher"
       ctaIcon={Plus}
+      onCtaClick={() => setIsCreateDialogOpen(true)}
     >
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -60,14 +112,29 @@ export default function PublishersPage() {
                 <Link2 className="h-7 w-7 text-neutral-500" />
               </div>
               <h3 className="text-base font-medium text-white mb-1">No publishers connected</h3>
-              <p className="text-sm text-neutral-400 text-center max-w-sm">
+              <p className="text-sm text-neutral-400 text-center max-w-sm mb-4">
                 Connect to ad networks and publishers to distribute your campaigns.
               </p>
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                className="bg-amber-500 hover:bg-amber-600 text-black font-medium"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Publisher
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               {publishers.map((publisher) => (
-                <div key={publisher.id} className="bg-[#1f1f1f] rounded-lg p-4 text-center">
+                <div key={publisher.id} className="bg-[#1f1f1f] rounded-lg p-4 text-center relative group">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeletePublisher(publisher.id)}
+                    className="absolute top-2 right-2 text-neutral-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                   <div className="h-12 w-12 mx-auto mb-2 rounded-lg bg-[#2a2a2a] flex items-center justify-center">
                     <Globe className="h-6 w-6 text-neutral-400" />
                   </div>
@@ -93,6 +160,7 @@ export default function PublishersPage() {
           emptyDescription="Connect a publisher to start managing ad placements."
           ctaLabel="Add Publisher"
           ctaIcon={Plus}
+          onCtaClick={() => setIsCreateDialogOpen(true)}
         />
       ) : (
         <div className="bg-[#161616] border border-[#1f1f1f] rounded-xl overflow-hidden">
@@ -120,6 +188,59 @@ export default function PublishersPage() {
           </div>
         </div>
       )}
+
+      {/* Create Publisher Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-[#161616] border-[#1f1f1f] text-white">
+          <DialogHeader>
+            <DialogTitle>Add Publisher</DialogTitle>
+            <DialogDescription>
+              Connect a new publisher or ad network.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Publisher Name *</Label>
+              <Input
+                id="name"
+                value={newPublisherName}
+                onChange={(e) => setNewPublisherName(e.target.value)}
+                placeholder="e.g., Google Ads, Meta, Zillow"
+                className="bg-[#0c0c0c] border-[#1f1f1f] text-white"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="type">Type</Label>
+              <Select onValueChange={(value: PublisherType) => setNewPublisherType(value)} value={newPublisherType}>
+                <SelectTrigger className="bg-[#0c0c0c] border-[#1f1f1f] text-white">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#161616] border-[#1f1f1f] text-white">
+                  <SelectItem value="ad_network">Ad Network</SelectItem>
+                  <SelectItem value="direct">Direct</SelectItem>
+                  <SelectItem value="programmatic">Programmatic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateDialogOpen(false)}
+              className="border-[#1f1f1f] text-neutral-300 hover:bg-[#1f1f1f]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreatePublisher}
+              disabled={!newPublisherName || isCreating}
+              className="bg-amber-500 hover:bg-amber-600 text-black font-medium"
+            >
+              {isCreating ? "Adding..." : "Add Publisher"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }

@@ -622,3 +622,196 @@ export async function getDashboardKpis() {
   };
 }
 
+// ============================================================================
+// CHAT BOTS
+// ============================================================================
+
+export type ChatBotStatus = "draft" | "active" | "paused";
+
+export interface ChatBotListItem {
+  id: string;
+  name: string;
+  description: string | null;
+  status: ChatBotStatus;
+  conversationCount: number;
+  welcomeMessage: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateChatBotInput {
+  name: string;
+  description?: string;
+  welcomeMessage?: string;
+  systemPrompt?: string;
+}
+
+/**
+ * Get all chat bots for the current user
+ */
+export async function getChatBots(): Promise<ChatBotListItem[]> {
+  const userId = await requireUserId();
+
+  const chatBots = await prisma.honeycombChatBot.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return chatBots.map((bot) => ({
+    id: bot.id,
+    name: bot.name,
+    description: bot.description,
+    status: bot.status as ChatBotStatus,
+    conversationCount: bot.conversationCount,
+    welcomeMessage: bot.welcomeMessage,
+    createdAt: bot.createdAt,
+    updatedAt: bot.updatedAt,
+  }));
+}
+
+/**
+ * Create a new chat bot
+ */
+export async function createChatBot(input: CreateChatBotInput): Promise<ChatBotListItem> {
+  const userId = await requireUserId();
+
+  const chatBot = await prisma.honeycombChatBot.create({
+    data: {
+      userId,
+      name: input.name,
+      description: input.description,
+      welcomeMessage: input.welcomeMessage,
+      systemPrompt: input.systemPrompt,
+    },
+  });
+
+  return {
+    id: chatBot.id,
+    name: chatBot.name,
+    description: chatBot.description,
+    status: chatBot.status as ChatBotStatus,
+    conversationCount: chatBot.conversationCount,
+    welcomeMessage: chatBot.welcomeMessage,
+    createdAt: chatBot.createdAt,
+    updatedAt: chatBot.updatedAt,
+  };
+}
+
+/**
+ * Delete a chat bot
+ */
+export async function deleteChatBot(id: string): Promise<boolean> {
+  const userId = await requireUserId();
+
+  const existing = await prisma.honeycombChatBot.findFirst({
+    where: { id, userId },
+  });
+
+  if (!existing) return false;
+
+  await prisma.honeycombChatBot.delete({
+    where: { id },
+  });
+
+  return true;
+}
+
+// ============================================================================
+// PUBLISHERS
+// ============================================================================
+
+export type PublisherType = "ad_network" | "direct" | "programmatic";
+export type PublisherStatus = "connected" | "pending" | "disconnected";
+
+export interface PublisherListItem {
+  id: string;
+  name: string;
+  type: PublisherType;
+  status: PublisherStatus;
+  logoUrl: string | null;
+  placements: number;
+  impressions: number;
+  revenue: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreatePublisherInput {
+  name: string;
+  type?: PublisherType;
+  logoUrl?: string;
+}
+
+/**
+ * Get all publishers for the current user
+ */
+export async function getPublishers(): Promise<PublisherListItem[]> {
+  const userId = await requireUserId();
+
+  const publishers = await prisma.honeycombPublisher.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return publishers.map((pub) => ({
+    id: pub.id,
+    name: pub.name,
+    type: pub.type as PublisherType,
+    status: pub.status as PublisherStatus,
+    logoUrl: pub.logoUrl,
+    placements: pub.placements,
+    impressions: pub.impressions,
+    revenue: pub.revenue,
+    createdAt: pub.createdAt,
+    updatedAt: pub.updatedAt,
+  }));
+}
+
+/**
+ * Create a new publisher
+ */
+export async function createPublisher(input: CreatePublisherInput): Promise<PublisherListItem> {
+  const userId = await requireUserId();
+
+  const publisher = await prisma.honeycombPublisher.create({
+    data: {
+      userId,
+      name: input.name,
+      type: input.type || "ad_network",
+      logoUrl: input.logoUrl,
+    },
+  });
+
+  return {
+    id: publisher.id,
+    name: publisher.name,
+    type: publisher.type as PublisherType,
+    status: publisher.status as PublisherStatus,
+    logoUrl: publisher.logoUrl,
+    placements: publisher.placements,
+    impressions: publisher.impressions,
+    revenue: publisher.revenue,
+    createdAt: publisher.createdAt,
+    updatedAt: publisher.updatedAt,
+  };
+}
+
+/**
+ * Delete a publisher
+ */
+export async function deletePublisher(id: string): Promise<boolean> {
+  const userId = await requireUserId();
+
+  const existing = await prisma.honeycombPublisher.findFirst({
+    where: { id, userId },
+  });
+
+  if (!existing) return false;
+
+  await prisma.honeycombPublisher.delete({
+    where: { id },
+  });
+
+  return true;
+}
+

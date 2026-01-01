@@ -323,11 +323,25 @@ export interface ChatBot {
   description?: string;
   status: "draft" | "active" | "paused";
   conversationCount: number;
+  welcomeMessage?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ChatBotsResponse {
   chatBots: ChatBot[];
+}
+
+export interface CreateChatBotInput {
+  name: string;
+  description?: string;
+  welcomeMessage?: string;
+  systemPrompt?: string;
+}
+
+export interface CreatePublisherInput {
+  name: string;
+  type?: "ad_network" | "direct" | "programmatic";
+  logoUrl?: string;
 }
 

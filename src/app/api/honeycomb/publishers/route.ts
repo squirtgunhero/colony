@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/auth";
-import type { PublishersResponse } from "@/lib/honeycomb/types";
+import { getPublishers, createPublisher } from "@/lib/db/honeycomb";
+import type { PublishersResponse, CreatePublisherInput } from "@/lib/honeycomb/types";
 
 /**
  * GET /api/honeycomb/publishers
@@ -13,10 +14,21 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Return empty arrays - no publishers connected yet
+    const publishers = await getPublishers();
+
     const response: PublishersResponse = {
-      publishers: [],
-      placements: [],
+      publishers: publishers.map((pub) => ({
+        id: pub.id,
+        name: pub.name,
+        type: pub.type,
+        status: pub.status,
+        logoUrl: pub.logoUrl ?? undefined,
+        placements: pub.placements,
+        impressions: pub.impressions,
+        revenue: pub.revenue,
+        createdAt: pub.createdAt.toISOString(),
+      })),
+      placements: [], // Placements would come from a separate table if needed
     };
 
     return NextResponse.json(response);
@@ -29,3 +41,36 @@ export async function GET() {
   }
 }
 
+/**
+ * POST /api/honeycomb/publishers
+ * Creates a new publisher
+ */
+export async function POST(request: Request) {
+  try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const input: CreatePublisherInput = await request.json();
+    const publisher = await createPublisher(input);
+
+    return NextResponse.json({
+      id: publisher.id,
+      name: publisher.name,
+      type: publisher.type,
+      status: publisher.status,
+      logoUrl: publisher.logoUrl ?? undefined,
+      placements: publisher.placements,
+      impressions: publisher.impressions,
+      revenue: publisher.revenue,
+      createdAt: publisher.createdAt.toISOString(),
+    }, { status: 201 });
+  } catch (error) {
+    console.error("Failed to create honeycomb publisher:", error);
+    return NextResponse.json(
+      { error: "Failed to create publisher" },
+      { status: 500 }
+    );
+  }
+}

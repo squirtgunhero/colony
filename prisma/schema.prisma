@@ -417,3 +417,52 @@ model CampaignSegment {
   @@index([segmentId])
   @@map("honeycomb_campaign_segments")
 }
+
+// Chat Studio - AI-powered chat experiences
+model HoneycombChatBot {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id") @db.Uuid // Owner of this chatbot
+  name              String
+  description       String?
+  status            String   @default("draft") // draft | active | paused
+  conversationCount Int      @default(0) @map("conversation_count")
+  
+  // Configuration
+  welcomeMessage    String?  @map("welcome_message")
+  systemPrompt      String?  @map("system_prompt")
+  
+  metadata          Json?    @default("{}")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("honeycomb_chat_bots")
+}
+
+// Publishers - Ad network integrations
+model HoneycombPublisher {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id") @db.Uuid // Owner of this publisher connection
+  name       String
+  type       String   @default("ad_network") // ad_network | direct | programmatic
+  status     String   @default("pending") // connected | pending | disconnected
+  logoUrl    String?  @map("logo_url")
+  
+  // Performance metrics
+  placements  Int     @default(0)
+  impressions Int     @default(0)
+  revenue     Float   @default(0)
+  
+  // Connection details
+  apiKey      String? @map("api_key")
+  externalId  String? @map("external_id")
+  
+  metadata    Json?   @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("honeycomb_publishers")
+}

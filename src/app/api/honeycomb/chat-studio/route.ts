@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/auth";
-import type { ChatBotsResponse } from "@/lib/honeycomb/types";
+import { getChatBots, createChatBot } from "@/lib/db/honeycomb";
+import type { ChatBotsResponse, CreateChatBotInput } from "@/lib/honeycomb/types";
 
 /**
  * GET /api/honeycomb/chat-studio
@@ -13,9 +14,19 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Return empty array - no chat bots created yet
+    const chatBots = await getChatBots();
+    
     const response: ChatBotsResponse = {
-      chatBots: [],
+      chatBots: chatBots.map((bot) => ({
+        id: bot.id,
+        name: bot.name,
+        description: bot.description ?? undefined,
+        status: bot.status,
+        conversationCount: bot.conversationCount,
+        welcomeMessage: bot.welcomeMessage ?? undefined,
+        createdAt: bot.createdAt.toISOString(),
+        updatedAt: bot.updatedAt.toISOString(),
+      })),
     };
 
     return NextResponse.json(response);
@@ -28,3 +39,35 @@ export async function GET() {
   }
 }
 
+/**
+ * POST /api/honeycomb/chat-studio
+ * Creates a new chat bot
+ */
+export async function POST(request: Request) {
+  try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const input: CreateChatBotInput = await request.json();
+    const chatBot = await createChatBot(input);
+
+    return NextResponse.json({
+      id: chatBot.id,
+      name: chatBot.name,
+      description: chatBot.description ?? undefined,
+      status: chatBot.status,
+      conversationCount: chatBot.conversationCount,
+      welcomeMessage: chatBot.welcomeMessage ?? undefined,
+      createdAt: chatBot.createdAt.toISOString(),
+      updatedAt: chatBot.updatedAt.toISOString(),
+    }, { status: 201 });
+  } catch (error) {
+    console.error("Failed to create honeycomb chat bot:", error);
+    return NextResponse.json(
+      { error: "Failed to create chat bot" },
+      { status: 500 }
+    );
+  }
+}
