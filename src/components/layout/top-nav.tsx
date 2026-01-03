@@ -14,11 +14,16 @@ import { globalSearch } from "@/app/(dashboard)/search/actions";
 
 const navTabs = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "Referrals", href: "/referrals" },
+  { label: "Inbox", href: "/inbox" },
   { label: "Contacts", href: "/contacts" },
   { label: "Properties", href: "/properties" },
   { label: "Deals", href: "/deals" },
+  { label: "Honeycomb", href: "/honeycomb" },
   { label: "Tasks", href: "/tasks" },
   { label: "Reports", href: "/reports" },
+  { label: "Export", href: "/export" },
+  { label: "Settings", href: "/settings" },
 ];
 
 interface SearchResult {
