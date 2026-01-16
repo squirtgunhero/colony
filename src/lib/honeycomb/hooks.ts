@@ -17,6 +17,75 @@ import type {
 } from "./types";
 
 // ============================================
+// Meta Ads Types
+// ============================================
+
+interface MetaAdAccount {
+  id: string;
+  adAccountId: string;
+  adAccountName: string | null;
+  currency: string;
+  timezone: string;
+  status: string;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  _count: { campaigns: number };
+}
+
+interface MetaCampaign {
+  id: string;
+  metaCampaignId: string;
+  name: string;
+  objective: string | null;
+  status: string;
+  effectiveStatus: string | null;
+  dailyBudget: number | null;
+  lifetimeBudget: number | null;
+  startTime: string | null;
+  stopTime: string | null;
+  impressions: number;
+  clicks: number;
+  spend: number;
+  reach: number;
+  conversions: number;
+  ctr: string;
+  cpc: string;
+  cpm: string;
+  adSetCount: number;
+  accountName: string | null;
+  currency: string;
+  updatedAt: string;
+}
+
+interface MetaInsights {
+  totals: {
+    impressions: number;
+    clicks: number;
+    spend: string;
+    reach: number;
+    conversions: number;
+  };
+  averages: {
+    ctr: string;
+    cpc: string;
+    cpm: string;
+    costPerConversion: string;
+  };
+  chartData: Array<{
+    date: string;
+    impressions: number;
+    clicks: number;
+    spend: number;
+    reach: number;
+    conversions: number;
+  }>;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}
+
+// ============================================
 // Generic Hook State
 // ============================================
 
@@ -322,3 +391,162 @@ export function useChatBots(): UseApiState<ChatBotsResponse> {
   return { data, loading, error, refetch: fetchData };
 }
 
+// ============================================
+// META ADS HOOKS
+// ============================================
+
+/**
+ * Hook to fetch connected Meta ad accounts
+ */
+export function useMetaAccounts(): UseApiState<{ accounts: MetaAdAccount[] }> {
+  const [data, setData] = useState<{ accounts: MetaAdAccount[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch("/api/meta/accounts");
+      if (!response.ok) throw new Error("Failed to fetch Meta accounts");
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to fetch Meta accounts"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
+}
+
+/**
+ * Hook to fetch Meta campaigns
+ */
+export function useMetaCampaigns(accountId?: string): UseApiState<{ campaigns: MetaCampaign[] }> {
+  const [data, setData] = useState<{ campaigns: MetaCampaign[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params = new URLSearchParams();
+      if (accountId) params.set("accountId", accountId);
+      const response = await fetch(`/api/meta/campaigns?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch Meta campaigns");
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to fetch Meta campaigns"));
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
+}
+
+/**
+ * Hook to fetch Meta insights/analytics
+ */
+export function useMetaInsights(
+  options?: { accountId?: string; campaignId?: string; range?: string }
+): UseApiState<MetaInsights> {
+  const [data, setData] = useState<MetaInsights | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params = new URLSearchParams();
+      if (options?.accountId) params.set("accountId", options.accountId);
+      if (options?.campaignId) params.set("campaignId", options.campaignId);
+      if (options?.range) params.set("range", options.range);
+      const response = await fetch(`/api/meta/insights?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch Meta insights");
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to fetch Meta insights"));
+    } finally {
+      setLoading(false);
+    }
+  }, [options?.accountId, options?.campaignId, options?.range]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
+}
+
+/**
+ * Hook to sync Meta data
+ */
+export function useMetaSync() {
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const sync = useCallback(async (accountId?: string) => {
+    try {
+      setSyncing(true);
+      setError(null);
+      const response = await fetch("/api/meta/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId }),
+      });
+      if (!response.ok) throw new Error("Failed to sync Meta data");
+      return await response.json();
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to sync Meta data"));
+      throw err;
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  return { sync, syncing, error };
+}
+
+/**
+ * Hook to disconnect a Meta account
+ */
+export function useMetaDisconnect() {
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const disconnect = useCallback(async (accountId: string) => {
+    try {
+      setDisconnecting(true);
+      setError(null);
+      const response = await fetch("/api/meta/accounts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId }),
+      });
+      if (!response.ok) throw new Error("Failed to disconnect account");
+      return await response.json();
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to disconnect account"));
+      throw err;
+    } finally {
+      setDisconnecting(false);
+    }
+  }, []);
+
+  return { disconnect, disconnecting, error };
+}

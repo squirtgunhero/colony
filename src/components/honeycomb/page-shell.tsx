@@ -10,6 +10,7 @@ interface PageShellProps {
   ctaLabel?: string;
   ctaIcon?: LucideIcon;
   onCtaClick?: () => void;
+  actions?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -19,6 +20,7 @@ export function PageShell({
   ctaLabel,
   ctaIcon: CtaIcon,
   onCtaClick,
+  actions,
   children,
 }: PageShellProps) {
   return (
@@ -33,15 +35,18 @@ export function PageShell({
               </h1>
               <p className="mt-1 text-sm text-neutral-400">{subtitle}</p>
             </div>
-            {ctaLabel && (
-              <Button
-                onClick={onCtaClick}
-                className="bg-amber-500 hover:bg-amber-600 text-black font-medium shrink-0"
-              >
-                {CtaIcon && <CtaIcon className="h-4 w-4 mr-2" />}
-                {ctaLabel}
-              </Button>
-            )}
+            <div className="flex items-center gap-3">
+              {actions}
+              {ctaLabel && (
+                <Button
+                  onClick={onCtaClick}
+                  className="bg-amber-500 hover:bg-amber-600 text-black font-medium shrink-0"
+                >
+                  {CtaIcon && <CtaIcon className="h-4 w-4 mr-2" />}
+                  {ctaLabel}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

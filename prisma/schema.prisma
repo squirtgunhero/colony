@@ -649,3 +649,174 @@ model Note {
   @@index([dealId])
   @@map("notes")
 }
+
+// ============================================================================
+// META ADS INTEGRATION - Facebook/Instagram Ads
+// ============================================================================
+
+// Connected Meta Ad Accounts
+model MetaAdAccount {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id") @db.Uuid
+  metaUserId      String    @map("meta_user_id") // Facebook user ID
+  adAccountId     String    @map("ad_account_id") // act_XXXXX format
+  adAccountName   String?   @map("ad_account_name")
+  accessToken     String    @map("access_token") // Long-lived access token
+  tokenExpiresAt  DateTime? @map("token_expires_at")
+  currency        String    @default("USD")
+  timezone        String    @default("America/New_York")
+  status          String    @default("active") // active | paused | disconnected
+  lastSyncedAt    DateTime? @map("last_synced_at")
+  metadata        Json?     @default("{}")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  campaigns MetaCampaign[]
+  insights  MetaInsight[]
+
+  @@unique([userId, adAccountId])
+  @@index([userId, status])
+  @@map("meta_ad_accounts")
+}
+
+// Synced Meta Campaigns
+model MetaCampaign {
+  id              String         @id @default(cuid())
+  adAccountId     String         @map("ad_account_id")
+  adAccount       MetaAdAccount  @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  metaCampaignId  String         @map("meta_campaign_id") // Meta's campaign ID
+  name            String
+  objective       String?        // AWARENESS, TRAFFIC, ENGAGEMENT, LEADS, etc.
+  status          String         @default("PAUSED") // ACTIVE, PAUSED, DELETED, ARCHIVED
+  effectiveStatus String?        @map("effective_status") // Computed status from Meta
+  dailyBudget     Float?         @map("daily_budget") // In cents
+  lifetimeBudget  Float?         @map("lifetime_budget") // In cents
+  startTime       DateTime?      @map("start_time")
+  stopTime        DateTime?      @map("stop_time")
+  
+  // Aggregated metrics (updated on sync)
+  impressions     Int            @default(0)
+  clicks          Int            @default(0)
+  spend           Float          @default(0) // Total spend
+  reach           Int            @default(0)
+  conversions     Int            @default(0)
+  
+  metadata        Json?          @default("{}")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  adSets   MetaAdSet[]
+  insights MetaInsight[]
+
+  @@unique([adAccountId, metaCampaignId])
+  @@index([adAccountId, status])
+  @@map("meta_campaigns")
+}
+
+// Synced Meta Ad Sets
+model MetaAdSet {
+  id              String        @id @default(cuid())
+  campaignId      String        @map("campaign_id")
+  campaign        MetaCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  metaAdSetId     String        @map("meta_ad_set_id") // Meta's ad set ID
+  name            String
+  status          String        @default("PAUSED")
+  effectiveStatus String?       @map("effective_status")
+  dailyBudget     Float?        @map("daily_budget")
+  lifetimeBudget  Float?        @map("lifetime_budget")
+  targetingJson   Json?         @map("targeting_json") // Targeting specification
+  
+  // Aggregated metrics
+  impressions     Int           @default(0)
+  clicks          Int           @default(0)
+  spend           Float         @default(0)
+  reach           Int           @default(0)
+  conversions     Int           @default(0)
+  
+  metadata        Json?         @default("{}")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  ads      MetaAd[]
+  insights MetaInsight[]
+
+  @@unique([campaignId, metaAdSetId])
+  @@index([campaignId, status])
+  @@map("meta_ad_sets")
+}
+
+// Synced Meta Ads
+model MetaAd {
+  id              String      @id @default(cuid())
+  adSetId         String      @map("ad_set_id")
+  adSet           MetaAdSet   @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  metaAdId        String      @map("meta_ad_id") // Meta's ad ID
+  name            String
+  status          String      @default("PAUSED")
+  effectiveStatus String?     @map("effective_status")
+  creativeId      String?     @map("creative_id") // Meta creative ID
+  previewUrl      String?     @map("preview_url")
+  
+  // Aggregated metrics
+  impressions     Int         @default(0)
+  clicks          Int         @default(0)
+  spend           Float       @default(0)
+  reach           Int         @default(0)
+  conversions     Int         @default(0)
+  
+  metadata        Json?       @default("{}")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  insights MetaInsight[]
+
+  @@unique([adSetId, metaAdId])
+  @@index([adSetId, status])
+  @@map("meta_ads")
+}
+
+// Meta Insights (Performance Data)
+model MetaInsight {
+  id            String         @id @default(cuid())
+  adAccountId   String         @map("ad_account_id")
+  adAccount     MetaAdAccount  @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  campaignId    String?        @map("campaign_id")
+  campaign      MetaCampaign?  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adSetId       String?        @map("ad_set_id")
+  adSet         MetaAdSet?     @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  adId          String?        @map("ad_id")
+  ad            MetaAd?        @relation(fields: [adId], references: [id], onDelete: Cascade)
+  
+  date          DateTime       // Date of the insight data
+  level         String         // account, campaign, adset, ad
+  
+  // Core metrics
+  impressions   Int            @default(0)
+  clicks        Int            @default(0)
+  spend         Float          @default(0)
+  reach         Int            @default(0)
+  frequency     Float          @default(0)
+  
+  // Engagement metrics
+  ctr           Float          @default(0) // Click-through rate
+  cpc           Float          @default(0) // Cost per click
+  cpm           Float          @default(0) // Cost per 1000 impressions
+  
+  // Conversion metrics
+  conversions   Int            @default(0)
+  costPerResult Float          @default(0) @map("cost_per_result")
+  
+  // Additional breakdown data
+  actionsJson   Json?          @map("actions_json") // Detailed action breakdown
+  
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  @@unique([adAccountId, campaignId, adSetId, adId, date, level])
+  @@index([adAccountId, date])
+  @@index([campaignId, date])
+  @@map("meta_insights")
+}
