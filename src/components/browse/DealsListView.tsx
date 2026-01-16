@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 interface Deal {
   id: string;
   title: string;
-  value: number;
+  value: number | null;
   stage: string;
   probability?: number | null;
   expectedCloseDate?: Date | null;
@@ -43,9 +43,9 @@ export function DealsListView({ deals }: DealsListViewProps) {
   const stages = ["all", ...STAGES];
 
   // Calculate totals
-  const totalValue = filteredDeals.reduce((sum, deal) => sum + deal.value, 0);
+  const totalValue = filteredDeals.reduce((sum, deal) => sum + (deal.value || 0), 0);
   const weightedValue = filteredDeals.reduce(
-    (sum, deal) => sum + deal.value * ((deal.probability || 0) / 100),
+    (sum, deal) => sum + (deal.value || 0) * ((deal.probability || 0) / 100),
     0
   );
 
@@ -163,7 +163,7 @@ export function DealsListView({ deals }: DealsListViewProps) {
               <div className="text-right">
                 <div className="flex items-center gap-1 text-lg font-semibold text-primary">
                   <DollarSign className="h-4 w-4" />
-                  {formatCurrency(deal.value).replace("$", "")}
+                  {formatCurrency(deal.value || 0).replace("$", "")}
                 </div>
                 {deal.probability && (
                   <p className="text-xs text-muted-foreground">{deal.probability}% probability</p>

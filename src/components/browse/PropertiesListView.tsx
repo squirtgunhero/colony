@@ -21,7 +21,7 @@ interface Property {
   price: number;
   status: string;
   updatedAt: Date;
-  contacts: Array<{ id: string; name: string }>;
+  owner?: { id: string; name: string } | null;
   _count: {
     deals: number;
   };

@@ -12,7 +12,7 @@ async function getProperties(userId: string) {
     where: { userId },
     orderBy: { updatedAt: "desc" },
     include: {
-      contacts: { take: 3 },
+      owner: true,
       _count: {
         select: {
           deals: true,
