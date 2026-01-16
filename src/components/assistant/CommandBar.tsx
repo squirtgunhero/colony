@@ -2,42 +2,80 @@
 
 // ============================================
 // COLONY ASSISTANT - Command Bar
-// Premium ChatGPT-style input fixed to bottom
+// Premium ChatGPT-style input with voice support
+// Now powered by LAM (Large Action Model)
 // ============================================
 
-import { useRef, useEffect, useCallback, type KeyboardEvent } from "react";
-import { Send, Command, MessageSquare, ChevronUp } from "lucide-react";
+import { useRef, useEffect, useCallback, useState, type KeyboardEvent } from "react";
+import { Send, Command, MessageSquare, ChevronUp, Mic, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { useCRMContext } from "@/lib/context/CRMContext";
 import { SuggestionChips } from "./SuggestionChips";
 import { SlashCommandMenu } from "./SlashCommandMenu";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 export function CommandBar() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { getContext } = useCRMContext();
+  const [showUndoHint, setShowUndoHint] = useState(false);
 
   const {
     input,
     setInput,
     isLoading,
-    setLoading,
     isSlashMenuOpen,
     closeSlashMenu,
-    addMessage,
     messages,
     openDrawer,
     isDrawerOpen,
+    sendToLam,
+    undoLastRun,
+    canUndo,
+    lastRunId,
   } = useAssistantStore();
 
+  // Voice input hook
+  const {
+    isSupported: voiceSupported,
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    clearTranscript,
+  } = useVoiceInput({
+    language: "en-US",
+    continuous: false,
+    onResult: (text) => {
+      // When voice input is finalized, set it as input and optionally auto-submit
+      setInput(text);
+      clearTranscript();
+      // Auto-focus the input
+      textareaRef.current?.focus();
+    },
+    onInterimResult: (text) => {
+      // Show interim results in the input
+      setInput(text);
+    },
+  });
+
   const hasMessages = messages.length > 0;
+
+  // Show undo hint after action completes
+  useEffect(() => {
+    if (canUndo && lastRunId) {
+      setShowUndoHint(true);
+      const timer = setTimeout(() => setShowUndoHint(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [canUndo, lastRunId]);
 
   // Auto-grow textarea
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = "auto";
-      const newHeight = Math.min(textarea.scrollHeight, 144); // Max 6 lines (~24px each)
+      const newHeight = Math.min(textarea.scrollHeight, 144);
       textarea.style.height = `${newHeight}px`;
     }
   }, [input]);
@@ -49,61 +87,25 @@ export function CommandBar() {
         e.preventDefault();
         textareaRef.current?.focus();
       }
+      // Cmd+Z for undo when assistant is focused
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && canUndo) {
+        // Only if no text is selected and we're in the assistant context
+        if (document.activeElement === textareaRef.current && !input) {
+          e.preventDefault();
+          undoLastRun();
+        }
+      }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [canUndo, undoLastRun, input]);
 
   const handleSubmit = useCallback(async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage = input.trim();
-    setInput("");
-    closeSlashMenu();
-
-    // Add user message
-    const userMsgId = `user-${Date.now()}`;
-    addMessage({
-      id: userMsgId,
-      role: "user",
-      content: userMessage,
-      timestamp: new Date(),
-    });
-
-    setLoading(true);
-
-    try {
-      const context = getContext();
-      const res = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage, context }),
-      });
-
-      if (!res.ok) throw new Error("Failed to get response");
-
-      const data = await res.json();
-
-      // Add assistant message
-      addMessage({
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: data.reply,
-        actions: data.actions,
-        followups: data.followups,
-        timestamp: new Date(),
-      });
-    } catch (error) {
-      addMessage({
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
-        timestamp: new Date(),
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [input, isLoading, setInput, closeSlashMenu, addMessage, setLoading, getContext]);
+    const context = getContext();
+    await sendToLam(input.trim(), context);
+  }, [input, isLoading, getContext, sendToLam]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter sends, Shift+Enter newline
@@ -111,8 +113,12 @@ export function CommandBar() {
       e.preventDefault();
       handleSubmit();
     }
-    // Escape closes slash menu
+    // Escape closes slash menu or stops listening
     if (e.key === "Escape") {
+      if (isListening) {
+        stopListening();
+        clearTranscript();
+      }
       closeSlashMenu();
     }
   };
@@ -128,10 +134,36 @@ export function CommandBar() {
     textareaRef.current?.focus();
   };
 
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-[60] md:pl-14" suppressHydrationWarning>
       <div className="mx-auto max-w-[860px] px-4 pb-4" suppressHydrationWarning>
-        {/* Conversation indicator - shows when there are messages but drawer is closed */}
+        {/* Undo hint - shows briefly after action */}
+        {showUndoHint && canUndo && (
+          <div className="flex items-center justify-center mb-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <button
+              onClick={undoLastRun}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-full",
+                "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400",
+                "text-xs font-medium",
+                "transition-colors duration-150"
+              )}
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              <span>Undo last action</span>
+            </button>
+          </div>
+        )}
+
+        {/* Conversation indicator */}
         {hasMessages && !isDrawerOpen && (
           <button
             onClick={openDrawer}
@@ -147,9 +179,30 @@ export function CommandBar() {
           </button>
         )}
 
-        {/* Suggestion Chips - Show when input empty and no messages */}
-        {!input && !hasMessages && (
+        {/* Suggestion Chips */}
+        {!input && !hasMessages && !isListening && (
           <SuggestionChips onChipClick={handleChipClick} />
+        )}
+
+        {/* Listening indicator */}
+        {isListening && (
+          <div className="flex items-center justify-center gap-2 mb-3 animate-in fade-in duration-200">
+            <div className="relative">
+              <Mic className="h-5 w-5 text-red-500" />
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            </div>
+            <span className="text-sm font-medium text-red-500">Listening...</span>
+            <button
+              onClick={() => {
+                stopListening();
+                clearTranscript();
+                setInput("");
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground ml-2"
+            >
+              Cancel
+            </button>
+          </div>
         )}
 
         {/* Slash Command Menu */}
@@ -170,7 +223,8 @@ export function CommandBar() {
             "shadow-[0_-4px_24px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)]",
             "dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.05)]",
             "p-2 pl-4",
-            "transition-all duration-200"
+            "transition-all duration-200",
+            isListening && "ring-2 ring-red-500/50"
           )}
         >
           {/* AI Indicator */}
@@ -192,7 +246,9 @@ export function CommandBar() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              hasMessages
+              isListening
+                ? "Listening..."
+                : hasMessages
                 ? "Continue the conversation..."
                 : "Ask anything or type / for commands..."
             }
@@ -207,6 +263,33 @@ export function CommandBar() {
             )}
             aria-label="Assistant command input"
           />
+
+          {/* Voice Input Button */}
+          {voiceSupported && (
+            <button
+              type="button"
+              onClick={handleVoiceToggle}
+              disabled={isLoading}
+              className={cn(
+                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                "transition-all duration-200",
+                isListening
+                  ? "bg-red-500 text-white hover:bg-red-600 scale-110"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                isLoading && "opacity-50 cursor-not-allowed"
+              )}
+              aria-label={isListening ? "Stop voice input" : "Start voice input"}
+              title={isListening ? "Stop listening" : "Voice input"}
+            >
+              {isListening && (
+                <>
+                  <span className="absolute inset-0 rounded-xl bg-red-500 animate-ping opacity-30" />
+                  <span className="absolute inset-0 rounded-xl bg-red-500/20 animate-pulse" />
+                </>
+              )}
+              <Mic className={cn("h-4 w-4 relative z-10", isListening && "animate-pulse")} />
+            </button>
+          )}
 
           {/* Send Button */}
           <button
@@ -229,8 +312,8 @@ export function CommandBar() {
           </button>
         </div>
 
-        {/* Keyboard Hint - only show when no messages */}
-        {!hasMessages && (
+        {/* Keyboard Hints */}
+        {!hasMessages && !isListening && (
           <div className="flex items-center justify-center gap-4 mt-2 text-[11px] text-muted-foreground/60">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px]">
@@ -242,6 +325,12 @@ export function CommandBar() {
               <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px]">/</kbd>
               <span>for commands</span>
             </span>
+            {voiceSupported && (
+              <span className="flex items-center gap-1">
+                <Mic className="h-3 w-3" />
+                <span>for voice</span>
+              </span>
+            )}
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px]">↵</kbd>
               <span>to send</span>

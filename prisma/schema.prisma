@@ -20,12 +20,80 @@ model Profile {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @map("updated_at")
 
+  // Team relations
+  ownedTeams      Team[]           @relation("TeamOwner")
+  teamMemberships TeamMember[]
+  sentInvitations TeamInvitation[] @relation("InvitationSender")
+
   @@map("profiles")
+}
+
+// ============================================================================
+// TEAMS - Multi-user CRM sharing with roles
+// ============================================================================
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String   @map("owner_id") @db.Uuid
+  owner       Profile  @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  members     TeamMember[]
+  invitations TeamInvitation[]
+  contacts    Contact[]
+  deals       Deal[]
+  tasks       Task[]
+  properties  Property[]
+  activities  Activity[]
+
+  @@index([ownerId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String   @map("team_id")
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("member") // owner, admin, member, viewer
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model TeamInvitation {
+  id           String    @id @default(cuid())
+  teamId       String    @map("team_id")
+  team         Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  email        String    // Email of the invited person
+  role         String    @default("member") // admin, member, viewer
+  invitedById  String    @map("invited_by_id") @db.Uuid
+  invitedBy    Profile   @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  token        String    @unique // Unique invite token for accepting
+  status       String    @default("pending") // pending, accepted, declined, expired
+  expiresAt    DateTime  @map("expires_at")
+  acceptedAt   DateTime? @map("accepted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([teamId, status])
+  @@index([email, status])
+  @@index([token])
+  @@map("team_invitations")
 }
 
 model Contact {
   id         String   @id @default(cuid())
   userId     String?  @map("user_id") @db.Uuid // Owner of this contact
+  teamId     String?  @map("team_id") // Team this contact belongs to (for shared CRMs)
+  team       Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
   name       String
   email      String?
   phone      String?
@@ -43,11 +111,16 @@ model Contact {
   tasks        Task[]
   activities   Activity[]
   inboxThreads InboxThread[]
+  noteRecords  Note[]
+
+  @@index([teamId])
 }
 
 model Activity {
   id          String   @id @default(cuid())
   userId      String?  @map("user_id") @db.Uuid // Owner of this activity
+  teamId      String?  @map("team_id")
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
   type        String // call, email, meeting, note, task_completed, deal_update
   title       String
   description String?
@@ -61,6 +134,8 @@ model Activity {
   deal       Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
   propertyId String?
   property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
 }
 
 model Document {
@@ -82,6 +157,8 @@ model Document {
 model Property {
   id          String   @id @default(cuid())
   userId      String?  @map("user_id") @db.Uuid // Owner of this property record
+  teamId      String?  @map("team_id")
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
   address     String
   city        String
   state       String?
@@ -104,11 +181,15 @@ model Property {
   tasks      Task[]
   activities Activity[]
   documents  Document[]
+
+  @@index([teamId])
 }
 
 model Deal {
   id                String    @id @default(cuid())
   userId            String?   @map("user_id") @db.Uuid // Owner of this deal
+  teamId            String?   @map("team_id")
+  team              Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
   title             String
   stage             String    @default("new_lead") // new_lead, qualified, showing, offer, negotiation, closed
   value             Float?
@@ -126,11 +207,15 @@ model Deal {
   tasks      Task[]
   activities Activity[]
   documents  Document[]
+
+  @@index([teamId])
 }
 
 model Task {
   id          String    @id @default(cuid())
   userId      String?   @map("user_id") @db.Uuid // Owner of this task
+  teamId      String?   @map("team_id")
+  team        Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
   title       String
   description String?
   dueDate     DateTime?
@@ -146,6 +231,8 @@ model Task {
   property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   dealId     String?
   deal       Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
 }
 
 model EmailAccount {
@@ -465,4 +552,100 @@ model HoneycombPublisher {
   @@index([userId, status])
   @@index([userId, createdAt(sort: Desc)])
   @@map("honeycomb_publishers")
+}
+
+// ============================================================================
+// LAM - Large Action Model (AI Action Runtime)
+// ============================================================================
+
+// Tracks each LAM execution run
+model LamRun {
+  id           String      @id @default(cuid())
+  userId       String      @map("user_id") @db.Uuid
+  message      String      // Original user message
+  planJson     Json        @map("plan_json") // Full ActionPlan JSON
+  status       String      @default("pending") // pending | executing | completed | failed | approval_required
+  resultJson   Json?       @map("result_json") // ExecutionResult JSON
+  verifyJson   Json?       @map("verify_json") // VerificationResult JSON
+  userSummary  String?     @map("user_summary") // Plain language summary
+  createdAt    DateTime    @default(now()) @map("created_at")
+  completedAt  DateTime?   @map("completed_at")
+
+  // Relations
+  actions         LamAction[]
+  idempotencyKeys LamIdempotencyKey[]
+  changeLogs      LamChangeLog[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("lam_runs")
+}
+
+// Individual actions within a run
+model LamAction {
+  id             String   @id @default(cuid())
+  runId          String   @map("run_id")
+  run            LamRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  actionId       String   @map("action_id") // UUID from action schema
+  actionType     String   @map("action_type") // lead.create, deal.update, etc.
+  idempotencyKey String   @map("idempotency_key")
+  riskTier       Int      @default(0) @map("risk_tier") // 0, 1, or 2
+  payloadJson    Json     @map("payload_json")
+  status         String   @default("pending") // pending | executed | failed | skipped | approval_required
+  resultJson     Json?    @map("result_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+  executedAt     DateTime? @map("executed_at")
+
+  @@index([runId])
+  @@index([actionType])
+  @@index([idempotencyKey])
+  @@map("lam_actions")
+}
+
+// Idempotency tracking to prevent duplicate operations
+model LamIdempotencyKey {
+  id        String   @id @default(cuid())
+  key       String   @unique // The idempotency key
+  runId     String   @map("run_id")
+  run       LamRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  resultJson Json?   @map("result_json") // Cached result for idempotent replay
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([key])
+  @@map("lam_idempotency_keys")
+}
+
+// Change log for undo functionality
+model LamChangeLog {
+  id          String   @id @default(cuid())
+  runId       String   @map("run_id")
+  run         LamRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  actionId    String   @map("action_id") // Reference to the action that caused change
+  entityType  String   @map("entity_type") // Contact, Deal, Task, Activity
+  entityId    String   @map("entity_id") // ID of the affected entity
+  operation   String   // create | update | delete
+  beforeJson  Json?    @map("before_json") // State before change (null for create)
+  afterJson   Json?    @map("after_json") // State after change (null for delete)
+  undone      Boolean  @default(false) // Whether this change has been undone
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([runId])
+  @@index([entityType, entityId])
+  @@index([undone])
+  @@map("lam_change_logs")
+}
+
+// Note model for LAM (Activity already exists but this is more specific)
+model Note {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id") @db.Uuid
+  body      String
+  contactId String?  @map("contact_id")
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  dealId    String?  @map("deal_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([contactId])
+  @@index([dealId])
+  @@map("notes")
 }

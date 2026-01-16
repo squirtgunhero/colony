@@ -55,6 +55,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} ${geist.variable} font-sans antialiased`}
+        suppressHydrationWarning
       >
         <ThemeProvider defaultTheme="system" storageKey="colony-theme">
           {children}

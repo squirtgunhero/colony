@@ -1,9 +1,16 @@
 // ============================================
 // COLONY ASSISTANT - Zustand Store
+// Updated for LAM integration with auto-execute + undo
 // ============================================
 
 import { create } from "zustand";
-import type { AssistantMessage, PendingAction, Action, AssistantContext } from "./types";
+import type { 
+  AssistantMessage, 
+  PendingAction, 
+  Action, 
+  AssistantContext,
+  LamResponse,
+} from "./types";
 
 interface AssistantState {
   // UI State
@@ -12,11 +19,20 @@ interface AssistantState {
   input: string;
   isSlashMenuOpen: boolean;
   slashMenuIndex: number;
+  isListening: boolean;
+  interimTranscript: string;
   
   // Messages
   messages: AssistantMessage[];
   
-  // Pending Actions (mutations awaiting confirmation)
+  // Last executed run (for undo)
+  lastRunId: string | null;
+  canUndo: boolean;
+  
+  // Pending Actions (for Tier 2 approval)
+  pendingApprovalRunId: string | null;
+  
+  // Pending Actions (mutations awaiting confirmation - legacy)
   pendingActions: PendingAction[];
   
   // Actions
@@ -26,6 +42,10 @@ interface AssistantState {
   toggleDrawer: () => void;
   setLoading: (loading: boolean) => void;
   
+  // Voice State
+  setListening: (listening: boolean) => void;
+  setInterimTranscript: (transcript: string) => void;
+  
   // Slash Menu
   openSlashMenu: () => void;
   closeSlashMenu: () => void;
@@ -34,9 +54,13 @@ interface AssistantState {
   // Messages
   addMessage: (message: AssistantMessage) => void;
   clearMessages: () => void;
-  sendMessage: (message: string, context?: AssistantContext) => Promise<void>;
   
-  // Pending Actions
+  // LAM Integration
+  sendToLam: (message: string, context?: AssistantContext) => Promise<void>;
+  approveRun: (runId: string) => Promise<void>;
+  undoLastRun: () => Promise<void>;
+  
+  // Legacy: Pending Actions
   addPendingAction: (action: Action) => void;
   applyAction: (id: string) => void;
   cancelAction: (id: string) => void;
@@ -50,7 +74,12 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   input: "",
   isSlashMenuOpen: false,
   slashMenuIndex: 0,
+  isListening: false,
+  interimTranscript: "",
   messages: [],
+  lastRunId: null,
+  canUndo: false,
+  pendingApprovalRunId: null,
   pendingActions: [],
   
   // UI Actions
@@ -68,24 +97,43 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   toggleDrawer: () => set((state) => ({ isDrawerOpen: !state.isDrawerOpen })),
   setLoading: (loading) => set({ isLoading: loading }),
   
+  // Voice State
+  setListening: (listening) => set({ isListening: listening }),
+  setInterimTranscript: (transcript) => set({ interimTranscript: transcript }),
+  
   // Slash Menu
   openSlashMenu: () => set({ isSlashMenuOpen: true, slashMenuIndex: 0 }),
   closeSlashMenu: () => set({ isSlashMenuOpen: false }),
   setSlashMenuIndex: (index) => set({ slashMenuIndex: index }),
   
-  // Messages
+  // Messages - doesn't auto-open drawer (users want quick commands, not chat)
   addMessage: (message) => set((state) => ({ 
     messages: [...state.messages, message],
-    isDrawerOpen: true, // Auto-open drawer on first message
   })),
   
-  clearMessages: () => set({ messages: [], pendingActions: [] }),
+  clearMessages: () => set({ 
+    messages: [], 
+    pendingActions: [],
+    lastRunId: null,
+    canUndo: false,
+    pendingApprovalRunId: null,
+  }),
 
-  // Send a message and get response from API
-  sendMessage: async (message: string, context?: AssistantContext) => {
+  // ============================================
+  // LAM Integration - Send to AI
+  // ============================================
+  sendToLam: async (message: string, context?: AssistantContext) => {
     const { addMessage, setLoading, closeSlashMenu, setInput } = get();
     
     if (!message.trim()) return;
+
+    // Handle /undo command
+    if (message.trim().toLowerCase() === "/undo") {
+      setInput("");
+      closeSlashMenu();
+      await get().undoLastRun();
+      return;
+    }
 
     // Clear input and close slash menu
     setInput("");
@@ -103,30 +151,186 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     setLoading(true);
 
     try {
-      const res = await fetch("/api/assistant", {
+      // Build recent context from selected entity
+      const recentContext = context?.selectedEntity ? [{
+        entity_type: context.selectedEntity.type as "contact" | "deal" | "task" | "property",
+        entity_id: context.selectedEntity.id,
+        entity_name: context.selectedEntity.name,
+        last_touched: new Date().toISOString(),
+      }] : undefined;
+
+      const res = await fetch("/api/lam/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: message.trim(), context }),
+        body: JSON.stringify({ 
+          message: message.trim(),
+          recent_context: recentContext,
+        }),
       });
 
-      if (!res.ok) throw new Error("Failed to get response");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to get response");
+      }
 
-      const data = await res.json();
+      const data: LamResponse = await res.json();
+
+      // Build response message
+      let responseContent = data.response.message;
       
+      // Add execution details
+      if (data.execution_result) {
+        const exec = data.execution_result;
+        if (exec.actions_executed > 0) {
+          responseContent += `\n\n✓ ${exec.actions_executed} action${exec.actions_executed > 1 ? "s" : ""} completed`;
+        }
+        if (exec.actions_failed > 0) {
+          responseContent += `\n✗ ${exec.actions_failed} action${exec.actions_failed > 1 ? "s" : ""} failed`;
+        }
+        if (exec.actions_pending_approval > 0) {
+          responseContent += `\n⏳ ${exec.actions_pending_approval} action${exec.actions_pending_approval > 1 ? "s" : ""} awaiting approval`;
+        }
+      }
+
+      // Add follow-up question if any
+      if (data.response.follow_up_question) {
+        responseContent += `\n\n${data.response.follow_up_question}`;
+      }
+
+      // Update state for undo capability
+      if (data.response.can_undo) {
+        set({ lastRunId: data.run_id, canUndo: true });
+      }
+
+      // Track pending approval
+      if (data.response.requires_approval) {
+        set({ pendingApprovalRunId: data.run_id });
+      }
+
       // Add assistant message
       addMessage({
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: data.reply,
-        actions: data.actions,
-        followups: data.followups,
+        content: responseContent,
         timestamp: new Date(),
+        lamResponse: data,
+        isExecuted: data.execution_result?.status === "completed",
+        canUndo: data.response.can_undo,
+        runId: data.run_id,
       });
+
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       addMessage({
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
+        content: `Sorry, I encountered an error: ${errorMessage}. Please try again.`,
+        timestamp: new Date(),
+      });
+    } finally {
+      setLoading(false);
+    }
+  },
+
+  // ============================================
+  // Approve Tier 2 Actions
+  // ============================================
+  approveRun: async (runId: string) => {
+    const { addMessage, setLoading } = get();
+    
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/lam/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: runId }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to approve");
+      }
+
+      const data = await res.json();
+
+      addMessage({
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: `✓ Approved! ${data.execution_result?.actions_executed || 0} action(s) executed.`,
+        timestamp: new Date(),
+      });
+
+      set({ pendingApprovalRunId: null });
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      addMessage({
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: `Failed to approve: ${errorMessage}`,
+        timestamp: new Date(),
+      });
+    } finally {
+      setLoading(false);
+    }
+  },
+
+  // ============================================
+  // Undo Last Run
+  // ============================================
+  undoLastRun: async () => {
+    const { addMessage, setLoading, lastRunId, canUndo } = get();
+    
+    if (!canUndo || !lastRunId) {
+      addMessage({
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: "Nothing to undo. You can undo actions right after they're executed.",
+        timestamp: new Date(),
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/lam/undo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: lastRunId }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to undo");
+      }
+
+      const data = await res.json();
+
+      if (data.success) {
+        addMessage({
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: `↩️ Undone! Reverted ${data.changes_reverted} change${data.changes_reverted > 1 ? "s" : ""}.`,
+          timestamp: new Date(),
+        });
+        set({ lastRunId: null, canUndo: false });
+      } else {
+        addMessage({
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: `Could not undo: ${data.errors?.join(", ") || "Unknown error"}`,
+          timestamp: new Date(),
+        });
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      addMessage({
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: `Failed to undo: ${errorMessage}`,
         timestamp: new Date(),
       });
     } finally {
@@ -134,7 +338,9 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     }
   },
   
-  // Pending Actions
+  // ============================================
+  // Legacy Pending Actions (for backwards compat)
+  // ============================================
   addPendingAction: (action) => {
     const id = `action-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     set((state) => ({
@@ -156,4 +362,3 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   
   clearPendingActions: () => set({ pendingActions: [] }),
 }));
-

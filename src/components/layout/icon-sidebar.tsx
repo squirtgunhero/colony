@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
+import { TeamSwitcher } from "@/components/team";
 import {
   LayoutDashboard,
   UserCircle2,
@@ -76,6 +77,13 @@ export function IconSidebar() {
           Colony
         </span>
       </div>
+
+      {/* Team Switcher */}
+      {mounted && (
+        <div className="border-b border-neutral-800 py-2 px-2">
+          <TeamSwitcher expanded={isExpanded} />
+        </div>
+      )}
 
       {/* Main Navigation */}
       <nav className="flex flex-1 flex-col gap-1 py-3 px-2" suppressHydrationWarning>
