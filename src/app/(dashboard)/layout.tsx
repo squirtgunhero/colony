@@ -1,3 +1,4 @@
+// Dashboard Layout - Last updated: 2026-01-16
 import { IconSidebar } from "@/components/layout/icon-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { CommandBar, ChatDrawer } from "@/components/assistant";
