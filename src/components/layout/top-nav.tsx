@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { ContactDialog } from "@/components/contacts/contact-dialog";
 import { globalSearch } from "@/app/(dashboard)/search/actions";
+import { ViewToggle } from "./ViewToggle";
 
 const navTabs = [
   { label: "Dashboard", href: "/dashboard" },
@@ -234,19 +235,22 @@ export function TopNav() {
         )}
       </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-2" suppressHydrationWarning>
-        <Button variant="ghost" size="icon" className="h-8 w-8 hidden sm:flex" suppressHydrationWarning>
-          <RefreshCw className="h-4 w-4 text-muted-foreground" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative" asChild suppressHydrationWarning>
-          <Link href="/notifications">
-            <Bell className="h-4 w-4 text-muted-foreground" />
-            <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-          </Link>
-        </Button>
-        <div className="ml-2 pl-2 border-l border-border" suppressHydrationWarning>
-          {mounted && <UserMenu />}
+      {/* Right: View Toggle + Actions */}
+      <div className="flex items-center gap-3" suppressHydrationWarning>
+        <ViewToggle className="hidden md:flex" />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 hidden sm:flex" suppressHydrationWarning>
+            <RefreshCw className="h-4 w-4 text-muted-foreground" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 relative" asChild suppressHydrationWarning>
+            <Link href="/notifications">
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+            </Link>
+          </Button>
+          <div className="ml-2 pl-2 border-l border-border" suppressHydrationWarning>
+            {mounted && <UserMenu />}
+          </div>
         </div>
       </div>
     </header>

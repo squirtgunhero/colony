@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
   Mail,
@@ -53,6 +54,13 @@ export function InboxFilters({
   searchQuery,
   onSearchChange,
 }: InboxFiltersProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   const activeTab = filters.assignedToMe 
     ? "assigned" 
     : filters.status === "archived" 
@@ -131,31 +139,38 @@ export function InboxFilters({
 
       {/* Secondary filters */}
       <div className="flex items-center gap-2">
-        {/* Channel filter */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8">
-              {activeChannelConfig && (
-                <activeChannelConfig.icon className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              {activeChannelConfig?.label || "All channels"}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>Filter by channel</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {channelFilters.map((channel) => (
-              <DropdownMenuItem
-                key={channel.id}
-                onClick={() => handleChannelChange(channel.id)}
-                className={cn(activeChannel === channel.id && "bg-accent")}
-              >
-                <channel.icon className="h-4 w-4 mr-2" />
-                {channel.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Channel filter - only render after mount to prevent hydration mismatch */}
+        {mounted ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                {activeChannelConfig && (
+                  <activeChannelConfig.icon className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                {activeChannelConfig?.label || "All channels"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Filter by channel</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {channelFilters.map((channel) => (
+                <DropdownMenuItem
+                  key={channel.id}
+                  onClick={() => handleChannelChange(channel.id)}
+                  className={cn(activeChannel === channel.id && "bg-accent")}
+                >
+                  <channel.icon className="h-4 w-4 mr-2" />
+                  {channel.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button variant="outline" size="sm" className="h-8">
+            <Mail className="h-3.5 w-3.5 mr-1.5" />
+            All channels
+          </Button>
+        )}
 
         {/* Unread filter */}
         <Button

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function Home() {
-  redirect("/dashboard");
+  // Default to Chat Mode - the new primary interface
+  redirect("/chat");
 }
