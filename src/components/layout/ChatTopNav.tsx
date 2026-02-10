@@ -16,9 +16,10 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { ViewToggle } from "./ViewToggle";
 
 const mobileNavItems = [
-  { label: "Chat", href: "/chat" },
+  { label: "Home", href: "/chat" },
   { label: "Browse", href: "/browse" },
-  { label: "Analyze", href: "/analyze" },
+  { label: "Referrals", href: "/referrals" },
+  { label: "Inbox", href: "/inbox" },
   { label: "Settings", href: "/settings" },
 ];
 

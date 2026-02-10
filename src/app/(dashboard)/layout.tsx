@@ -1,5 +1,5 @@
-// Dashboard Layout - Last updated: 2026-01-16
-import { IconSidebar } from "@/components/layout/icon-sidebar";
+// Dashboard Layout - Uses unified ModeSidebar (same nav as Chat/Browse)
+import { ModeSidebar } from "@/components/layout/ModeSidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { CommandBar, ChatDrawer } from "@/components/assistant";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
@@ -13,15 +13,15 @@ export default function DashboardLayout({
   return (
     <CRMContextProvider>
       <div className="min-h-screen bg-background" suppressHydrationWarning>
-        <IconSidebar />
+        <ModeSidebar />
         <div className="md:pl-14 min-h-screen flex flex-col" suppressHydrationWarning>
           <TopNav />
           <main className="flex-1 pb-24" suppressHydrationWarning>
             {children}
           </main>
         </div>
-        
-        {/* AI Assistant */}
+
+        {/* AI Assistant - persists on all pages */}
         <ChatDrawer />
         <CommandBar />
         

@@ -28,7 +28,7 @@ export default function SignInPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      router.push("/chat");
       router.refresh();
     }
   };

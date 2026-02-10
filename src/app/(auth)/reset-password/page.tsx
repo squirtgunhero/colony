@@ -55,9 +55,9 @@ export default function ResetPasswordPage() {
     } else {
       setSuccess(true);
       setLoading(false);
-      // Redirect to dashboard after 2 seconds
+      // Redirect to Home after 2 seconds
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push("/chat");
       }, 2000);
     }
   };

@@ -13,17 +13,12 @@ import { ContactDialog } from "@/components/contacts/contact-dialog";
 import { globalSearch } from "@/app/(dashboard)/search/actions";
 import { ViewToggle } from "./ViewToggle";
 
+// Unified nav: matches ModeSidebar (mobile sheet — 5 items per Step 7)
 const navTabs = [
-  { label: "Dashboard", href: "/dashboard" },
+  { label: "Home", href: "/chat" },
+  { label: "Browse", href: "/browse" },
   { label: "Referrals", href: "/referrals" },
   { label: "Inbox", href: "/inbox" },
-  { label: "Contacts", href: "/contacts" },
-  { label: "Properties", href: "/properties" },
-  { label: "Deals", href: "/deals" },
-  { label: "Honeycomb", href: "/honeycomb" },
-  { label: "Tasks", href: "/tasks" },
-  { label: "Reports", href: "/reports" },
-  { label: "Export", href: "/export" },
   { label: "Settings", href: "/settings" },
 ];
 
@@ -123,8 +118,9 @@ export function TopNav() {
 
               <nav className="flex-1 p-3 space-y-1">
                 {navTabs.map((tab) => {
-                  const isActive = pathname === tab.href || 
-                    (tab.href !== "/dashboard" && pathname.startsWith(tab.href));
+                  const isActive =
+                    pathname === tab.href ||
+                    (tab.href !== "/chat" && pathname.startsWith(tab.href));
                   return (
                     <Link
                       key={tab.href}
@@ -164,7 +160,7 @@ export function TopNav() {
           </Button>
         )}
 
-        <Link href="/dashboard" className="flex items-center gap-2 md:hidden" suppressHydrationWarning>
+        <Link href="/chat" className="flex items-center gap-2 md:hidden" suppressHydrationWarning>
           <Image
             src="/colony-icon.svg"
             alt="Colony"

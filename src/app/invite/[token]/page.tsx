@@ -93,9 +93,9 @@ export default function AcceptInvitePage() {
       setSuccess(true);
       toast.success(data.message || "You've joined the team!");
       
-      // Redirect to dashboard after a short delay
+      // Redirect to Home after a short delay
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push("/chat");
       }, 2000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to accept invitation");

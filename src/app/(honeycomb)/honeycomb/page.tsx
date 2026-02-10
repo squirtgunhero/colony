@@ -1,5 +1,7 @@
 "use client";
 
+// HIDDEN: Phase 2 - /honeycomb removed from main nav; still accessible via URL.
+
 import { useState } from "react";
 import { PageShell, KpiCard, EmptyState } from "@/components/honeycomb/page-shell";
 import { Megaphone, Plus, Activity, TrendingUp, TrendingDown, RefreshCw, Link2 } from "lucide-react";

@@ -1,9 +1,9 @@
 "use client";
 
 // ============================================
-// COLONY - Mode Sidebar
-// Simplified navigation for mode-based UI
-// Shows: Chat, Browse, Analyze, Settings
+// COLONY - Unified primary navigation
+// Single nav for all authenticated app routes.
+// Top: Home, Browse, Referrals, Inbox. Bottom: Notifications, Settings.
 // ============================================
 
 import { useState, useEffect } from "react";
@@ -13,42 +13,29 @@ import { usePathname } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
 import { TeamSwitcher } from "@/components/team";
 import {
-  MessageSquare,
+  Home,
   Layers,
-  BarChart3,
+  Share2,
+  Inbox,
+  Bell,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useModeStore } from "@/lib/mode";
 
-const modeNavItems = [
-  { 
-    icon: MessageSquare, 
-    href: "/chat", 
-    label: "Chat",
-    description: "Conversation-first CRM"
-  },
-  { 
-    icon: Layers, 
-    href: "/browse", 
-    label: "Browse",
-    description: "Contacts, properties, deals"
-  },
-  { 
-    icon: BarChart3, 
-    href: "/analyze", 
-    label: "Analyze",
-    description: "Dashboard & reports"
-  },
+const topNavItems = [
+  { icon: Home, href: "/chat", label: "Home", description: "AI-first interface" },
+  { icon: Layers, href: "/browse", label: "Browse", description: "Contacts, properties, deals" },
+  { icon: Share2, href: "/referrals", label: "Referrals", description: "Lead sharing" },
+  { icon: Inbox, href: "/inbox", label: "Inbox", description: "Messages" },
 ];
 
 const bottomNavItems = [
+  { icon: Bell, href: "/notifications", label: "Notifications" },
   { icon: Settings, href: "/settings", label: "Settings" },
 ];
 
 export function ModeSidebar() {
   const pathname = usePathname();
-  const mode = useModeStore((state) => state.mode);
   const [isExpanded, setIsExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -60,7 +47,6 @@ export function ModeSidebar() {
   const isActive = (href: string) => {
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
     if (href === "/browse") return pathname.startsWith("/browse");
-    if (href === "/analyze") return pathname === "/analyze" || pathname.startsWith("/analyze/");
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -101,9 +87,9 @@ export function ModeSidebar() {
         </div>
       )}
 
-      {/* Mode Navigation */}
+      {/* Main Navigation */}
       <nav className="flex flex-1 flex-col gap-1 py-3 px-2" suppressHydrationWarning>
-        {modeNavItems.map((item) => {
+        {topNavItems.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
@@ -118,24 +104,19 @@ export function ModeSidebar() {
               )}
               suppressHydrationWarning
             >
-              {/* Active indicator */}
               {active && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r" />
               )}
-              
               <item.icon className={cn(
                 "h-[18px] w-[18px] shrink-0",
                 active && "text-primary"
               )} />
-              
               <div className={cn(
                 "flex flex-col transition-all duration-200",
                 isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
               )}>
-                <span className="text-sm whitespace-nowrap">
-                  {item.label}
-                </span>
-                {isExpanded && (
+                <span className="text-sm whitespace-nowrap">{item.label}</span>
+                {isExpanded && item.description && (
                   <span className="text-[10px] text-neutral-500 whitespace-nowrap">
                     {item.description}
                   </span>
@@ -163,14 +144,15 @@ export function ModeSidebar() {
               )}
               suppressHydrationWarning
             >
-              <item.icon className={cn(
-                "h-[18px] w-[18px] shrink-0",
-                active && "text-primary"
-              )} />
-              <span className={cn(
-                "text-sm whitespace-nowrap transition-all duration-200",
-                isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-              )}>
+              <item.icon
+                className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")}
+              />
+              <span
+                className={cn(
+                  "text-sm whitespace-nowrap transition-all duration-200",
+                  isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
+                )}
+              >
                 {item.label}
               </span>
             </Link>

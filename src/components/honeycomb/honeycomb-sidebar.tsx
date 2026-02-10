@@ -1,5 +1,7 @@
 "use client";
 
+// HIDDEN: Phase 2 - Honeycomb and all sub-routes removed from main nav; still accessible via URL.
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -112,10 +114,10 @@ export function HoneycombSidebar() {
         })}
       </nav>
 
-      {/* Back to Colony CRM */}
+      {/* Back to Home */}
       <div className="border-t border-[#1f1f1f] py-3 px-2">
         <Link
-          href="/dashboard"
+          href="/chat"
           className={cn(
             "flex items-center gap-3 rounded-lg transition-colors text-neutral-500 hover:bg-white/5 hover:text-neutral-300",
             isExpanded ? "h-9 px-2.5" : "h-9 w-10 justify-center"
@@ -138,7 +140,7 @@ export function HoneycombSidebar() {
               isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
             )}
           >
-            Back to CRM
+            Back to Home
           </span>
         </Link>
       </div>

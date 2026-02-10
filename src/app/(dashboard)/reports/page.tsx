@@ -1,3 +1,4 @@
+// HIDDEN: Phase 2 - /reports removed from nav; still accessible via URL.
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
 import { PageHeader } from "@/components/layout/page-header";

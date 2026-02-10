@@ -1,3 +1,4 @@
+// HIDDEN: Phase 2 - /dashboard removed from nav; still accessible via URL and AI ("show me my dashboard")
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
 import { LeadCards } from "@/components/dashboard/lead-cards";

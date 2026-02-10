@@ -68,15 +68,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If user is signed in and tries to access auth pages (except reset-password), redirect to dashboard
+  // If user is signed in and tries to access auth pages (except reset-password), redirect to Home (/chat)
   const authPagesForLoggedInRedirect = ["/sign-in", "/sign-up", "/forgot-password"];
-  const shouldRedirectToDashboard = user && authPagesForLoggedInRedirect.some(
+  const shouldRedirectToHome = user && authPagesForLoggedInRedirect.some(
     (route) => request.nextUrl.pathname.startsWith(route)
   );
-  
-  if (shouldRedirectToDashboard) {
+
+  if (shouldRedirectToHome) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/chat";
     return NextResponse.redirect(url);
   }
 

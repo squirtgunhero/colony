@@ -1,5 +1,7 @@
 "use client";
 
+// HIDDEN: Phase 2 - Replaced by unified ModeSidebar. Kept for reference; not used in any layout.
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";

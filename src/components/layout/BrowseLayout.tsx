@@ -2,14 +2,15 @@
 
 // ============================================
 // COLONY - Browse Mode Layout
-// Lists and detail pages for CRM entities
-// Uses the full IconSidebar with all navigation options
+// Lists and detail pages for CRM entities; keeps Contacts/Properties/Deals tabs in header
+// Uses unified ModeSidebar
 // ============================================
 
 import { useEffect } from "react";
 import { Toaster } from "sonner";
-import { IconSidebar } from "./icon-sidebar";
+import { ModeSidebar } from "./ModeSidebar";
 import { BrowseTopNav } from "./BrowseTopNav";
+import { CommandBar, ChatDrawer } from "@/components/assistant";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { useModeStore } from "@/lib/mode";
 
@@ -19,8 +20,7 @@ interface BrowseLayoutProps {
 
 export function BrowseLayout({ children }: BrowseLayoutProps) {
   const { setMode } = useModeStore();
-  
-  // Ensure mode is set to browse
+
   useEffect(() => {
     setMode("browse");
   }, [setMode]);
@@ -28,17 +28,16 @@ export function BrowseLayout({ children }: BrowseLayoutProps) {
   return (
     <CRMContextProvider>
       <div className="min-h-screen bg-background" suppressHydrationWarning>
-        <IconSidebar />
-        
+        <ModeSidebar />
         <div className="md:pl-14 min-h-screen flex flex-col" suppressHydrationWarning>
           <BrowseTopNav />
-          
-          <main className="flex-1" suppressHydrationWarning>
+          <main className="flex-1 pb-24" suppressHydrationWarning>
             {children}
           </main>
         </div>
-        
-        <Toaster 
+        <ChatDrawer />
+        <CommandBar />
+        <Toaster
           position="bottom-right"
           toastOptions={{
             classNames: {
