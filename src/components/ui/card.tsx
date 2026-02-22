@@ -7,32 +7,27 @@ interface CardProps extends React.ComponentProps<"div"> {
   selected?: boolean;
 }
 
-function Card({ className, interactive = false, selected = false, ...props }: CardProps) {
+function Card({ className, interactive = false, selected = false, style, ...props }: CardProps & { style?: React.CSSProperties }) {
   return (
     <div
       data-slot="card"
       className={cn(
         "bg-card text-card-foreground rounded-2xl",
-        // Refined border - hairline, barely visible
-        "border border-[rgba(0,0,0,0.04)] dark:border-[rgba(255,255,255,0.04)]",
-        // Subtle elevation
-        "shadow-[0_1px_3px_rgba(0,0,0,0.02),0_1px_2px_rgba(0,0,0,0.04)]",
-        "dark:shadow-[0_2px_4px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.02)]",
-        // Interactive variant
+        "border",
         interactive && [
           "transition-all duration-200 ease-out cursor-pointer",
           "hover:translate-y-[-2px]",
-          "hover:shadow-[0_8px_24px_rgba(0,0,0,0.06),0_2px_6px_rgba(0,0,0,0.03)]",
-          "hover:border-[rgba(0,0,0,0.06)]",
-          "dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)]",
-          "dark:hover:border-[rgba(255,255,255,0.08)]",
         ],
-        // Selected state
         selected && [
           "ring-2 ring-primary/20 border-primary/20",
         ],
         className
       )}
+      style={{
+        borderColor: "var(--border)",
+        boxShadow: "var(--shadow-sm)",
+        ...style,
+      }}
       {...props}
     />
   )

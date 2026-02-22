@@ -1,17 +1,13 @@
 "use client";
 
-// ============================================
-// COLONY - Analyze Mode Layout
 // HIDDEN: Phase 2 - /analyze not in nav; still accessible via URL and AI ("show me my dashboard")
-// Uses unified ModeSidebar
-// ============================================
 
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { ModeSidebar } from "./ModeSidebar";
 import { TopNav } from "./top-nav";
-import { CommandBar, ChatDrawer } from "@/components/assistant";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
 
 interface AnalyzeLayoutProps {
@@ -20,6 +16,7 @@ interface AnalyzeLayoutProps {
 
 export function AnalyzeLayout({ children }: AnalyzeLayoutProps) {
   const { setMode } = useModeStore();
+  const { theme } = useColonyTheme();
 
   useEffect(() => {
     setMode("analyze");
@@ -27,16 +24,18 @@ export function AnalyzeLayout({ children }: AnalyzeLayoutProps) {
 
   return (
     <CRMContextProvider>
-      <div className="min-h-screen bg-background" suppressHydrationWarning>
+      <div
+        className="min-h-screen transition-colors duration-500"
+        style={{ backgroundColor: theme.bg, color: theme.text }}
+        suppressHydrationWarning
+      >
         <ModeSidebar />
-        <div className="md:pl-14 min-h-screen flex flex-col" suppressHydrationWarning>
+        <div className="md:pl-52 min-h-screen flex flex-col" suppressHydrationWarning>
           <TopNav />
-          <main className="flex-1 pb-24" suppressHydrationWarning>
+          <main className="flex-1" suppressHydrationWarning>
             {children}
           </main>
         </div>
-        <ChatDrawer />
-        <CommandBar />
         <Toaster
           position="bottom-right"
           toastOptions={{

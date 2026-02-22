@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { useModeStore } from "@/lib/mode";
-import { useChatTheme } from "@/lib/chat-theme-context";
+import { useColonyTheme } from "@/lib/chat-theme-context";
+import { withAlpha } from "@/lib/themes";
 import { WaveformVisualizer, type WaveformState } from "./WaveformVisualizer";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { ChatSuggestionChips } from "./ChatSuggestionChips";
@@ -15,11 +16,15 @@ interface Summary {
   pipelineValue: number;
 }
 
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function getGreeting(name: string | null): string {
   const hour = new Date().getHours();
   const timeWord =
     hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
-  return name ? `Good ${timeWord}, ${name}.` : `Good ${timeWord}.`;
+  return name ? `Good ${timeWord}, ${capitalize(name)}.` : `Good ${timeWord}.`;
 }
 
 function formatPipeline(value: number): string {
@@ -51,7 +56,7 @@ export function ChatCanvas() {
   } = useAssistantStore();
 
   const { activeChips, clearChips } = useModeStore();
-  const { theme } = useChatTheme();
+  const { theme } = useColonyTheme();
   const [summary, setSummary] = useState<Summary | null>(null);
 
   useEffect(() => {
@@ -98,38 +103,6 @@ export function ChatCanvas() {
         transition: "background 500ms ease-in-out, color 500ms ease-in-out",
       }}
     >
-      {/* Floating ambient orbs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
-        <div
-          className="absolute w-[500px] h-[500px] rounded-full blur-[120px]"
-          style={{
-            background: theme.accentGlow,
-            top: "10%",
-            left: "20%",
-            animation: "colonyOrb1 10s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute w-[400px] h-[400px] rounded-full blur-[100px]"
-          style={{
-            background: theme.accentGlow,
-            bottom: "20%",
-            right: "15%",
-            animation: "colonyOrb2 8s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="absolute w-[300px] h-[300px] rounded-full blur-[80px]"
-          style={{
-            background: theme.surface,
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            animation: "colonyOrb3 9s ease-in-out infinite",
-          }}
-        />
-      </div>
-
       <div className="mx-auto w-full max-w-2xl px-4 py-8 flex-1 flex flex-col relative z-10">
         {/* Empty State */}
         {!hasMessages && (
@@ -146,6 +119,7 @@ export function ChatCanvas() {
                 fontFamily: "var(--font-spectral), Georgia, serif",
                 fontWeight: 300,
                 color: theme.text,
+                opacity: 1,
               }}
             >
               {summary ? getGreeting(summary.firstName) : "Welcome back."}
@@ -157,7 +131,8 @@ export function ChatCanvas() {
                 className="text-sm max-w-md mb-8"
                 style={{
                   fontFamily: "var(--font-dm-sans), sans-serif",
-                  color: theme.textMuted,
+                  color: theme.text,
+                  opacity: 0.6,
                 }}
               >
                 {summary.leadsCount} active lead
@@ -168,33 +143,48 @@ export function ChatCanvas() {
               </p>
             )}
 
-            {/* Quick action chips */}
-            <div className="flex flex-wrap justify-center gap-2">
-              {quickActions.map((action) => (
-                <button
-                  key={action.label}
-                  onClick={() => setInput(action.prompt)}
-                  className="px-4 py-2 rounded-full text-sm transition-all duration-200"
-                  style={{
-                    fontFamily: "var(--font-dm-sans), sans-serif",
-                    color: theme.textMuted,
-                    backgroundColor: "transparent",
-                    border: `1px solid ${theme.accentSoft}`,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = theme.accent;
-                    e.currentTarget.style.backgroundColor = theme.accentGlow;
-                    e.currentTarget.style.color = theme.text;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = theme.accentSoft;
-                    e.currentTarget.style.backgroundColor = "transparent";
-                    e.currentTarget.style.color = theme.textMuted;
-                  }}
-                >
-                  {action.label}
-                </button>
-              ))}
+            {/* Quick action chips — neumorphic */}
+            <div className="flex flex-wrap justify-center gap-3">
+              {quickActions.map((action) => {
+                const raised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+                const hover = `2px 2px 4px rgba(0,0,0,0.3), -2px -2px 4px rgba(255,255,255,0.03), 0 0 12px ${withAlpha(theme.accent, 0.1)}`;
+                const pressed = `inset 3px 3px 6px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(255,255,255,0.04)`;
+                return (
+                  <button
+                    key={action.label}
+                    onClick={() => setInput(action.prompt)}
+                    className="px-6 py-3 rounded-3xl text-sm transition-all duration-300"
+                    style={{
+                      fontFamily: "var(--font-dm-sans), sans-serif",
+                      color: theme.text,
+                      opacity: 0.7,
+                      backgroundColor: theme.bgGlow,
+                      border: "none",
+                      boxShadow: raised,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.boxShadow = hover;
+                      e.currentTarget.style.opacity = "0.9";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.boxShadow = raised;
+                      e.currentTarget.style.opacity = "0.7";
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.boxShadow = pressed;
+                      e.currentTarget.style.color = theme.accent;
+                      e.currentTarget.style.opacity = "1";
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.boxShadow = hover;
+                      e.currentTarget.style.color = theme.text;
+                      e.currentTarget.style.opacity = "0.9";
+                    }}
+                  >
+                    {action.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

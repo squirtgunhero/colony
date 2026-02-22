@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
-import { useChatTheme } from "@/lib/chat-theme-context";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 
 export type WaveformState = "idle" | "thinking" | "listening" | "responding";
 
@@ -97,10 +97,10 @@ export function WaveformVisualizer({
   const timeRef = useRef(0);
   const lastFrameRef = useRef(0);
   const micEnergyRef = useRef(0);
-  const { theme } = useChatTheme();
+  const { theme } = useColonyTheme();
 
-  const width = mini ? 80 : 280;
-  const height = mini ? 32 : 120;
+  const width = mini ? 160 : 280;
+  const height = mini ? 60 : 120;
 
   const lines = useMemo(() => createWaveLines(state), [state]);
   const mults = useMemo(() => getStateMultipliers(state), [state]);
@@ -169,19 +169,23 @@ export function WaveformVisualizer({
           </feMerge>
         </filter>
       </defs>
-      {lines.map((wave, i) => (
-        <path
-          key={i}
-          d=""
-          fill="none"
-          stroke={theme.accent}
-          strokeWidth={mini ? "1" : "1.2"}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={wave.opacity}
-          filter={`url(#${filterId})`}
-        />
-      ))}
+      {lines.map((wave, i) => {
+        const opacities = [0.30, 0.45, 0.60, 0.75, 0.30, 0.25];
+        const op = opacities[i] ?? wave.opacity;
+        return (
+          <path
+            key={i}
+            d=""
+            fill="none"
+            stroke={theme.accent}
+            strokeWidth={mini ? "1" : "1.5"}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={op}
+            filter={`url(#${filterId})`}
+          />
+        );
+      })}
     </svg>
   );
 }

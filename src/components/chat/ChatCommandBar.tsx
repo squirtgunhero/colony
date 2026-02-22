@@ -6,15 +6,17 @@ import { toast } from "sonner";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { useCRMContext } from "@/lib/context/CRMContext";
 import { useModeStore } from "@/lib/mode";
-import { useChatTheme } from "@/lib/chat-theme-context";
+import { useColonyTheme } from "@/lib/chat-theme-context";
+import { withAlpha } from "@/lib/themes";
 import { ChatSlashCommandMenu } from "./ChatSlashCommandMenu";
+import { WaveformVisualizer, type WaveformState } from "./WaveformVisualizer";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 export function ChatCommandBar() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { getContext } = useCRMContext();
   const [showUndoHint, setShowUndoHint] = useState(false);
-  const { theme } = useChatTheme();
+  const { theme } = useColonyTheme();
 
   const {
     input,
@@ -169,9 +171,22 @@ export function ChatCommandBar() {
 
   const showSend = input.trim().length > 0;
 
+  const waveformState: WaveformState = isListening
+    ? "listening"
+    : isLoading
+      ? "thinking"
+      : "idle";
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[60] md:pl-14" suppressHydrationWarning>
+    <div className="fixed bottom-0 left-0 right-0 z-[60] md:pl-52" suppressHydrationWarning>
       <div className="mx-auto max-w-2xl px-4 pb-6" suppressHydrationWarning>
+        {/* Waveform — anchored above input when conversation is active */}
+        {hasMessages && (
+          <div className="flex justify-center mb-4">
+            <WaveformVisualizer state={waveformState} mini />
+          </div>
+        )}
+
         {/* Undo hint */}
         {showUndoHint && canUndo && (
           <div className="flex items-center justify-center mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -246,16 +261,16 @@ export function ChatCommandBar() {
             />
           )}
 
-          {/* Input bar */}
+          {/* Input bar — neumorphic recessed */}
           <div
             className="relative flex items-end gap-2 p-2 pl-4 transition-all duration-300"
             style={{
               borderRadius: "28px",
-              backgroundColor: theme.surface,
-              border: `1px solid ${isListening ? theme.accentSoft : theme.accentGlow}`,
+              backgroundColor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
               boxShadow: isListening
-                ? `0 0 20px ${theme.accentGlow}, 0 0 40px ${theme.accentGlow}`
-                : "none",
+                ? `inset 2px 2px 4px rgba(0,0,0,0.2), inset -2px -2px 4px rgba(255,255,255,0.01), 0 0 20px ${withAlpha(theme.accent, 0.2)}`
+                : `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`,
             }}
           >
             {/* Input */}
@@ -273,7 +288,7 @@ export function ChatCommandBar() {
               }
               disabled={isLoading}
               rows={1}
-              className="flex-1 resize-none bg-transparent py-2.5 text-[15px] placeholder:opacity-25 focus:outline-none disabled:opacity-50 min-h-[40px] max-h-[144px]"
+              className="flex-1 resize-none bg-transparent py-2.5 text-[15px] placeholder:opacity-35 focus:outline-none disabled:opacity-50 min-h-[40px] max-h-[144px]"
               style={{
                 fontFamily: "var(--font-dm-sans), sans-serif",
                 color: theme.text,
@@ -282,7 +297,7 @@ export function ChatCommandBar() {
               aria-label="Chat command input"
             />
 
-            {/* Mic Button */}
+            {/* Mic Button — neumorphic circle */}
             {voiceSupported && (
               <button
                 type="button"
@@ -290,9 +305,12 @@ export function ChatCommandBar() {
                 disabled={isLoading || isTranscribing}
                 className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200"
                 style={{
-                  backgroundColor: isListening ? theme.accentSoft : "transparent",
+                  backgroundColor: theme.bgGlow,
                   color: isListening ? theme.accent : theme.textMuted,
                   opacity: isLoading || isTranscribing ? 0.5 : 1,
+                  boxShadow: isListening
+                    ? `inset 2px 2px 4px rgba(0,0,0,0.4), inset -2px -2px 4px rgba(255,255,255,0.03), 0 0 12px ${withAlpha(theme.accent, 0.25)}`
+                    : `3px 3px 6px rgba(0,0,0,0.4), -3px -3px 6px rgba(255,255,255,0.04)`,
                 }}
                 aria-label={isListening ? "Stop voice input" : "Start voice input"}
               >
@@ -306,15 +324,16 @@ export function ChatCommandBar() {
               </button>
             )}
 
-            {/* Send Button — only visible when there's text */}
+            {/* Send Button — neumorphic, only visible with text */}
             {showSend && (
               <button
                 onClick={handleSubmit}
                 disabled={isLoading}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 animate-in fade-in zoom-in-75 duration-150"
                 style={{
-                  backgroundColor: theme.accentSoft,
+                  backgroundColor: theme.bgGlow,
                   color: theme.accent,
+                  boxShadow: `3px 3px 6px rgba(0,0,0,0.4), -3px -3px 6px rgba(255,255,255,0.04)`,
                 }}
                 aria-label="Send message"
               >
@@ -336,8 +355,8 @@ export function ChatCommandBar() {
           <div
             className="flex items-center justify-center gap-4 mt-3 text-[11px]"
             style={{
-              color: theme.textMuted,
-              opacity: 0.5,
+              color: theme.text,
+              opacity: 0.45,
               fontFamily: "var(--font-dm-sans), sans-serif",
             }}
           >

@@ -119,50 +119,47 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)]">
-      {/* Main Content Area */}
       <div className="flex-1 overflow-auto">
-        {/* Hero Section - Full Bleed Pipeline Value */}
-        <DashboardHeader stats={stats} />
+        <div className="dash-fade-in dash-fade-in-1">
+          <DashboardHeader stats={stats} />
+        </div>
 
-        {/* Content Grid - Primary (60%) + Secondary (40%) */}
         <div className="px-6 lg:px-8 py-8 space-y-8">
-          
-          {/* PRIMARY ZONE: Pipeline + Contacts */}
           <div className="dashboard-grid">
-            {/* Primary Column */}
             <div className="space-y-8">
-              {/* Pipeline Overview - Hero Chart */}
-              <PipelineBarChart properties={properties} />
-              
-              {/* Active Contacts - Composite Surface */}
-              <LeadCards leads={leads} />
+              <div className="dash-fade-in dash-fade-in-2">
+                <PipelineBarChart properties={properties} />
+              </div>
+              <div className="dash-fade-in dash-fade-in-4">
+                <LeadCards leads={leads} />
+              </div>
             </div>
 
-            {/* Secondary Column */}
             <div className="space-y-8">
-              {/* Lead Sources */}
-              <LeadSourcesChart sources={leadSources} />
-              
-              {/* Tasks Calendar */}
-              <TasksCalendar tasks={tasks} />
+              <div className="dash-fade-in dash-fade-in-3">
+                <LeadSourcesChart sources={leadSources} />
+              </div>
+              <div className="dash-fade-in dash-fade-in-5">
+                <TasksCalendar tasks={tasks} />
+              </div>
             </div>
           </div>
 
-          {/* SECONDARY ZONE: Trend + Activity */}
           <div className="dashboard-grid">
-            {/* Primary Column */}
             <div className="space-y-8">
-              <DealsTrendChart properties={properties} />
+              <div className="dash-fade-in dash-fade-in-5">
+                <DealsTrendChart properties={properties} />
+              </div>
             </div>
 
-            {/* Secondary Column */}
             <div className="space-y-8">
-              <ActivityFeed activities={activities} />
+              <div className="dash-fade-in dash-fade-in-6">
+                <ActivityFeed activities={activities} />
+              </div>
             </div>
           </div>
 
-          {/* Pipeline Stages - Full Width */}
-          <div className="grid-full-bleed">
+          <div className="grid-full-bleed dash-fade-in dash-fade-in-6">
             <PipelineChart properties={properties} />
           </div>
         </div>

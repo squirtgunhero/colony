@@ -1,17 +1,11 @@
 "use client";
 
-// ============================================
-// COLONY - Browse Mode Layout
-// Lists and detail pages for CRM entities; keeps Contacts/Properties/Deals tabs in header
-// Uses unified ModeSidebar
-// ============================================
-
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { ModeSidebar } from "./ModeSidebar";
 import { BrowseTopNav } from "./BrowseTopNav";
-import { CommandBar, ChatDrawer } from "@/components/assistant";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
 
 interface BrowseLayoutProps {
@@ -20,6 +14,7 @@ interface BrowseLayoutProps {
 
 export function BrowseLayout({ children }: BrowseLayoutProps) {
   const { setMode } = useModeStore();
+  const { theme } = useColonyTheme();
 
   useEffect(() => {
     setMode("browse");
@@ -27,16 +22,18 @@ export function BrowseLayout({ children }: BrowseLayoutProps) {
 
   return (
     <CRMContextProvider>
-      <div className="min-h-screen bg-background" suppressHydrationWarning>
+      <div
+        className="min-h-screen transition-colors duration-500"
+        style={{ backgroundColor: theme.bg, color: theme.text }}
+        suppressHydrationWarning
+      >
         <ModeSidebar />
-        <div className="md:pl-14 min-h-screen flex flex-col" suppressHydrationWarning>
+        <div className="md:pl-52 min-h-screen flex flex-col" suppressHydrationWarning>
           <BrowseTopNav />
           <main className="flex-1 pb-24" suppressHydrationWarning>
             {children}
           </main>
         </div>
-        <ChatDrawer />
-        <CommandBar />
         <Toaster
           position="bottom-right"
           toastOptions={{

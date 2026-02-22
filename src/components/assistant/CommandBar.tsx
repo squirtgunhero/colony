@@ -147,7 +147,7 @@ export function CommandBar() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[60] md:pl-14" suppressHydrationWarning>
+    <div className="fixed bottom-0 left-0 right-0 z-[60] md:pl-52" suppressHydrationWarning>
       <div className="mx-auto max-w-[860px] px-4 pb-4" suppressHydrationWarning>
         {/* Undo hint - shows briefly after action */}
         {showUndoHint && canUndo && (

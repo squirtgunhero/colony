@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import {
   PieChart,
   Pie,
@@ -13,14 +14,15 @@ interface LeadSourcesChartProps {
   sources: { name: string; count: number }[];
 }
 
-// Sophisticated grayscale with one warm accent
-const COLORS = ["#171717", "#525252", "#737373", "#a3a3a3", "#d4d4d4"];
-
 export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
+  const { theme } = useColonyTheme();
+
+  const opacities = [1, 0.75, 0.55, 0.4, 0.25];
+
   const data = sources.slice(0, 5).map((source, index) => ({
     name: source.name,
     value: source.count,
-    color: COLORS[index % COLORS.length],
+    opacity: opacities[index] ?? 0.25,
   }));
 
   const total = data.reduce((sum, d) => sum + d.value, 0);
@@ -48,9 +50,8 @@ export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
         <p className="metric-value">{total}</p>
         <p className="text-caption mt-0.5">Total contacts tracked</p>
       </CardHeader>
-      
+
       <CardContent className="pt-4">
-        {/* Chart with center metric */}
         <div className="h-[160px] w-full relative">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -65,7 +66,11 @@ export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
                 strokeWidth={0}
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={theme.accent}
+                    fillOpacity={entry.opacity}
+                  />
                 ))}
               </Pie>
               <Tooltip
@@ -74,10 +79,21 @@ export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
                   const d = payload[0].payload;
                   const percentage = ((d.value / total) * 100).toFixed(0);
                   return (
-                    <div className="bg-card border border-[rgba(0,0,0,0.06)] rounded-lg p-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
-                      <p className="text-[13px] font-semibold">{d.name}</p>
-                      <p className="text-[18px] font-semibold mt-1 tabular-nums">
-                        {d.value} <span className="text-[11px] font-normal text-muted-foreground">({percentage}%)</span>
+                    <div
+                      className="rounded-lg p-3 shadow-lg"
+                      style={{
+                        backgroundColor: theme.bgGlow,
+                        border: `1px solid ${theme.accentSoft}`,
+                      }}
+                    >
+                      <p className="text-[13px] font-semibold" style={{ color: theme.text }}>
+                        {d.name}
+                      </p>
+                      <p className="text-[18px] font-semibold mt-1 tabular-nums" style={{ color: theme.text }}>
+                        {d.value}{" "}
+                        <span className="text-[11px] font-normal" style={{ color: theme.textMuted }}>
+                          ({percentage}%)
+                        </span>
                       </p>
                     </div>
                   );
@@ -85,18 +101,23 @@ export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
               />
             </PieChart>
           </ResponsiveContainer>
-          
-          {/* Center label - Top source */}
+
           {topSource && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Top</p>
-              <p className="text-[13px] font-semibold mt-0.5 max-w-[60px] truncate text-center">{topSource.name}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: theme.textMuted }}>
+                Top
+              </p>
+              <p className="text-[13px] font-semibold mt-0.5 max-w-[60px] truncate text-center" style={{ color: theme.text }}>
+                {topSource.name}
+              </p>
             </div>
           )}
         </div>
 
-        {/* Legend - Vertical list */}
-        <div className="mt-4 pt-4 border-t border-[rgba(0,0,0,0.04)] space-y-2">
+        <div
+          className="mt-4 pt-4 space-y-2"
+          style={{ borderTop: `1px solid ${theme.accentSoft}` }}
+        >
           {data.map((source) => {
             const percentage = ((source.value / total) * 100).toFixed(0);
             return (
@@ -104,13 +125,13 @@ export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
                 <div className="flex items-center gap-2">
                   <div
                     className="h-2 w-2 rounded-sm"
-                    style={{ backgroundColor: source.color }}
+                    style={{ backgroundColor: theme.accent, opacity: source.opacity }}
                   />
-                  <span className="text-muted-foreground">{source.name}</span>
+                  <span style={{ color: theme.textMuted }}>{source.name}</span>
                 </div>
                 <div className="flex items-center gap-2 tabular-nums">
-                  <span className="font-medium">{source.value}</span>
-                  <span className="text-muted-foreground w-8 text-right">{percentage}%</span>
+                  <span className="font-medium" style={{ color: theme.text }}>{source.value}</span>
+                  <span className="w-8 text-right" style={{ color: theme.textMuted }}>{percentage}%</span>
                 </div>
               </div>
             );

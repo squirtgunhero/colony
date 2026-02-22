@@ -11,7 +11,7 @@ import {
   Shield,
   Zap,
 } from "lucide-react";
-import { useChatTheme } from "@/lib/chat-theme-context";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import type { AssistantMessage, PendingAction, LamAction } from "@/lib/assistant/types";
 import { getActionTypeLabel, getRiskTierColor } from "@/lib/assistant/types";
 import { ActionPreviewCard } from "@/components/assistant/ActionPreviewCard";
@@ -32,7 +32,7 @@ export function ChatMessageBubble({
   onCancelAction,
 }: ChatMessageBubbleProps) {
   const isUser = message.role === "user";
-  const { theme } = useChatTheme();
+  const { theme } = useColonyTheme();
   const { setInput, sendToLam, undoLastRun, approveRun, canUndo, lastRunId } =
     useAssistantStore();
   const [formattedTime, setFormattedTime] = useState<string>("");

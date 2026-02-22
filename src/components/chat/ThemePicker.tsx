@@ -3,11 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { Palette } from "lucide-react";
 import { THEMES } from "@/lib/themes";
-import { useChatTheme } from "@/lib/chat-theme-context";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 
 export function ThemePicker() {
   const [open, setOpen] = useState(false);
-  const { themeId, setThemeById, theme } = useChatTheme();
+  const { themeId, setThemeById, theme } = useColonyTheme();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,6 +43,7 @@ export function ThemePicker() {
             backgroundColor: theme.surface,
             border: `1px solid ${theme.accentSoft}`,
             backdropFilter: "blur(12px)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
           }}
         >
           {THEMES.map((t) => (

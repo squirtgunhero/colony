@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Geist, Spectral, DM_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ColonyThemeProvider } from "@/lib/chat-theme-context";
 import "./globals.css";
 
 const inter = Inter({
@@ -72,7 +73,9 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider defaultTheme="system" storageKey="colony-theme">
-          {children}
+          <ColonyThemeProvider>
+            {children}
+          </ColonyThemeProvider>
         </ThemeProvider>
       </body>
     </html>

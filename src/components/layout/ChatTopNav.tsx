@@ -7,9 +7,7 @@ import { UserMenu } from "@/components/auth/user-menu";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { useChatTheme } from "@/lib/chat-theme-context";
-import { useAssistantStore } from "@/lib/assistant/store";
-import { WaveformVisualizer, type WaveformState } from "@/components/chat/WaveformVisualizer";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import { ThemePicker } from "@/components/chat/ThemePicker";
 
 const mobileNavItems = [
@@ -23,16 +21,7 @@ const mobileNavItems = [
 export function ChatTopNav() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { theme } = useChatTheme();
-  const { messages, isLoading, isListening } = useAssistantStore();
-
-  const hasMessages = messages.length > 0;
-
-  const waveformState: WaveformState = isListening
-    ? "listening"
-    : isLoading
-      ? "thinking"
-      : "idle";
+  const { theme } = useColonyTheme();
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
@@ -132,20 +121,13 @@ export function ChatTopNav() {
         </Link>
       </div>
 
-      {/* Center: COLONY text + mini waveform */}
-      <div className="flex items-center gap-3">
-        <span
-          className="text-[12px] uppercase tracking-[0.25em] font-light"
-          style={{ color: theme.textMuted }}
-        >
-          Colony
-        </span>
-        {hasMessages && (
-          <div className="animate-in fade-in duration-500">
-            <WaveformVisualizer state={waveformState} mini />
-          </div>
-        )}
-      </div>
+      {/* Center: COLONY text */}
+      <span
+        className="text-[12px] uppercase tracking-[0.25em] font-light"
+        style={{ color: theme.text, opacity: 0.5 }}
+      >
+        Colony
+      </span>
 
       {/* Right: Theme picker + User */}
       <div className="flex items-center gap-2" suppressHydrationWarning>

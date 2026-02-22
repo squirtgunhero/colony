@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/date-utils";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import { cn } from "@/lib/utils";
 
 interface Property {
@@ -26,6 +27,7 @@ const stages = [
 
 export function PipelineChart({ properties }: PipelineChartProps) {
   const [viewMode, setViewMode] = useState<"value" | "count">("value");
+  const { theme } = useColonyTheme();
 
   const stageStats = stages.map((stage) => {
     const stageProperties = properties.filter((p) => p.status === stage.id);
@@ -51,18 +53,16 @@ export function PipelineChart({ properties }: PipelineChartProps) {
             <p className="metric-value-lg">{totalProperties}</p>
             <p className="text-caption">properties in pipeline</p>
           </div>
-          
-          {/* Toggle */}
-          <div className="flex items-center p-1 rounded-lg bg-muted/50">
+
+          <div className="flex items-center p-1 rounded-lg" style={{ backgroundColor: theme.surface }}>
             <Button
               variant="ghost"
               size="sm"
-              className={cn(
-                "h-7 px-3 text-[11px] rounded-md",
-                viewMode === "value" 
-                  ? "bg-card shadow-sm text-foreground" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className={cn("h-7 px-3 text-[11px] rounded-md")}
+              style={{
+                backgroundColor: viewMode === "value" ? theme.bgGlow : "transparent",
+                color: viewMode === "value" ? theme.text : theme.textMuted,
+              }}
               onClick={() => setViewMode("value")}
             >
               Value
@@ -70,12 +70,11 @@ export function PipelineChart({ properties }: PipelineChartProps) {
             <Button
               variant="ghost"
               size="sm"
-              className={cn(
-                "h-7 px-3 text-[11px] rounded-md",
-                viewMode === "count" 
-                  ? "bg-card shadow-sm text-foreground" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className={cn("h-7 px-3 text-[11px] rounded-md")}
+              style={{
+                backgroundColor: viewMode === "count" ? theme.bgGlow : "transparent",
+                color: viewMode === "count" ? theme.text : theme.textMuted,
+              }}
               onClick={() => setViewMode("count")}
             >
               Count
@@ -83,39 +82,39 @@ export function PipelineChart({ properties }: PipelineChartProps) {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
-        {/* Horizontal Bar Chart */}
         <div className="space-y-3">
           {stageStats.map((stage, index) => {
             const percentage =
               viewMode === "value"
                 ? (stage.value / maxValue) * 100
                 : (stage.count / maxCount) * 100;
-            
+
             const isAccent = stage.id === "under_contract";
             const intensity = 1 - (index / (stages.length - 1)) * 0.6;
 
             return (
               <div key={stage.id} className="group">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[12px] text-muted-foreground">{stage.label}</span>
+                  <span className="text-[12px]" style={{ color: theme.textMuted }}>{stage.label}</span>
                   <div className="flex items-center gap-2 text-[12px]">
-                    <span className="text-muted-foreground">({stage.count})</span>
-                    <span className="font-semibold tabular-nums w-20 text-right">
+                    <span style={{ color: theme.textMuted }}>({stage.count})</span>
+                    <span className="font-semibold tabular-nums w-20 text-right" style={{ color: theme.text }}>
                       {formatCurrency(stage.value)}
                     </span>
                   </div>
                 </div>
-                <div className="h-2 w-full rounded-full bg-muted/40 overflow-hidden">
+                <div
+                  className="h-2 w-full rounded-full overflow-hidden"
+                  style={{ backgroundColor: theme.surface }}
+                >
                   <div
-                    className={cn(
-                      "h-full rounded-full transition-all duration-500",
-                      isAccent ? "bg-[#c2410c]" : "bg-foreground"
-                    )}
-                    style={{ 
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
                       width: `${Math.max(percentage, 1)}%`,
-                      opacity: isAccent ? 1 : intensity
+                      backgroundColor: theme.accent,
+                      opacity: isAccent ? 1 : intensity,
                     }}
                   />
                 </div>
@@ -124,10 +123,14 @@ export function PipelineChart({ properties }: PipelineChartProps) {
           })}
         </div>
 
-        {/* Summary */}
-        <div className="mt-6 pt-4 border-t border-[rgba(0,0,0,0.04)] dark:border-[rgba(255,255,255,0.04)] flex items-center justify-between">
-          <p className="text-[12px] text-muted-foreground">Total Pipeline</p>
-          <p className="text-[15px] font-semibold tabular-nums">{formatCurrency(totalPipelineValue)}</p>
+        <div
+          className="mt-6 pt-4 flex items-center justify-between"
+          style={{ borderTop: `1px solid ${theme.accentSoft}` }}
+        >
+          <p className="text-[12px]" style={{ color: theme.textMuted }}>Total Pipeline</p>
+          <p className="text-[15px] font-semibold tabular-nums" style={{ color: theme.text }}>
+            {formatCurrency(totalPipelineValue)}
+          </p>
         </div>
       </CardContent>
     </Card>

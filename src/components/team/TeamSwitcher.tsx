@@ -15,6 +15,7 @@ import {
   Building2,
   User,
 } from "lucide-react";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +34,7 @@ interface TeamSwitcherProps {
 export function TeamSwitcher({ expanded = true, className }: TeamSwitcherProps) {
   const { currentTeam, teams, setCurrentTeam, fetchTeams, isLoading } = useTeamStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const { theme } = useColonyTheme();
 
   useEffect(() => {
     fetchTeams();
@@ -52,13 +54,16 @@ export function TeamSwitcher({ expanded = true, className }: TeamSwitcherProps) 
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              "flex items-center gap-2 rounded-lg transition-colors",
-              "text-neutral-300 hover:bg-neutral-800/50 hover:text-neutral-100",
+              "flex items-center gap-2 rounded-lg",
               expanded ? "w-full px-2.5 py-2" : "w-10 h-10 justify-center",
               className
             )}
+            style={{ color: theme.textSoft }}
           >
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-neutral-800">
+            <div
+              className="flex h-6 w-6 items-center justify-center rounded-md"
+              style={{ backgroundColor: theme.surface }}
+            >
               <DisplayIcon className="h-3.5 w-3.5" />
             </div>
             {expanded && (
@@ -66,7 +71,7 @@ export function TeamSwitcher({ expanded = true, className }: TeamSwitcherProps) 
                 <span className="flex-1 text-left text-sm font-medium truncate">
                   {displayName}
                 </span>
-                <ChevronDown className="h-4 w-4 text-neutral-500" />
+                <ChevronDown className="h-4 w-4" style={{ color: theme.textMuted }} />
               </>
             )}
           </button>

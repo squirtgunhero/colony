@@ -390,13 +390,8 @@
 /* Composite surface - groups related cards */
 .composite-surface {
   @apply bg-card rounded-2xl p-6;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-
-.dark .composite-surface {
-  border-color: rgba(255, 255, 255, 0.04);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 /* Inspector panel - floating drawer */
@@ -693,3 +688,31 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
+
+@keyframes colonyRecordingPulse {
+  0%, 100% { box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1), inset -2px -2px 4px rgba(255,255,255,0.5), 0 0 16px var(--colony-accent-glow); }
+  50% { box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1), inset -2px -2px 4px rgba(255,255,255,0.5), 0 0 28px var(--colony-accent-glow); }
+}
+
+/* Dashboard staggered fade-in */
+@keyframes dashboardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dash-fade-in {
+  animation: dashboardFadeIn 0.4s ease-out both;
+}
+
+.dash-fade-in-1 { animation-delay: 0ms; }
+.dash-fade-in-2 { animation-delay: 100ms; }
+.dash-fade-in-3 { animation-delay: 200ms; }
+.dash-fade-in-4 { animation-delay: 300ms; }
+.dash-fade-in-5 { animation-delay: 400ms; }
+.dash-fade-in-6 { animation-delay: 500ms; }

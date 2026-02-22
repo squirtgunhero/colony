@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ArrowUpRight } from "lucide-react";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import { cn } from "@/lib/utils";
 
 interface Task {
@@ -25,6 +26,7 @@ const MONTHS = [
 
 export function TasksCalendar({ tasks }: TasksCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { theme } = useColonyTheme();
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -32,7 +34,7 @@ export function TasksCalendar({ tasks }: TasksCalendarProps) {
   const firstDayOfMonth = new Date(year, month, 1);
   const lastDayOfMonth = new Date(year, month + 1, 0);
   const totalDays = lastDayOfMonth.getDate();
-  
+
   let startDay = firstDayOfMonth.getDay() - 1;
   if (startDay < 0) startDay = 6;
 
@@ -62,7 +64,6 @@ export function TasksCalendar({ tasks }: TasksCalendarProps) {
     month === today.getMonth() &&
     year === today.getFullYear();
 
-  // Count tasks for current month
   const monthTaskCount = tasks.filter((task) => {
     if (!task.dueDate) return false;
     const taskDate = new Date(task.dueDate);
@@ -97,18 +98,19 @@ export function TasksCalendar({ tasks }: TasksCalendarProps) {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
-        {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-0.5">
-          {/* Day Headers */}
           {DAYS.map((day) => (
-            <div key={day} className="text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground py-2">
+            <div
+              key={day}
+              className="text-center text-[10px] font-medium uppercase tracking-wide py-2"
+              style={{ color: theme.textMuted }}
+            >
               {day}
             </div>
           ))}
 
-          {/* Calendar Days */}
           {days.map((day, index) => {
             if (day === null) {
               return <div key={`empty-${index}`} className="h-9" />;
@@ -122,14 +124,16 @@ export function TasksCalendar({ tasks }: TasksCalendarProps) {
             return (
               <div
                 key={day}
-                className={cn(
-                  "relative h-9 flex flex-col items-center justify-center rounded-lg text-[13px] transition-all duration-150 cursor-pointer",
-                  todayMarker
-                    ? "bg-foreground text-background font-semibold ring-2 ring-foreground ring-offset-2 ring-offset-card"
+                className="relative h-9 flex flex-col items-center justify-center rounded-lg text-[13px] cursor-pointer transition-colors duration-150"
+                style={{
+                  backgroundColor: todayMarker
+                    ? theme.accent
                     : hasTasks
-                    ? "bg-muted/40 font-medium"
-                    : "hover:bg-muted/30"
-                )}
+                    ? theme.surface
+                    : "transparent",
+                  color: todayMarker ? theme.bg : theme.text,
+                  fontWeight: todayMarker ? 600 : hasTasks ? 500 : 400,
+                }}
               >
                 {day}
                 {hasTasks && !todayMarker && (
@@ -137,14 +141,17 @@ export function TasksCalendar({ tasks }: TasksCalendarProps) {
                     {dayTasks.slice(0, 2).map((_, i) => (
                       <div
                         key={i}
-                        className={cn(
-                          "h-1 w-1 rounded-full",
-                          hasHighPriority ? "bg-[#c2410c]" : "bg-muted-foreground"
-                        )}
+                        className="h-1 w-1 rounded-full"
+                        style={{
+                          backgroundColor: hasHighPriority ? theme.accent : theme.textMuted,
+                        }}
                       />
                     ))}
                     {dayTasks.length > 2 && (
-                      <div className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                      <div
+                        className="h-1 w-1 rounded-full"
+                        style={{ backgroundColor: theme.textMuted, opacity: 0.4 }}
+                      />
                     )}
                   </div>
                 )}
@@ -153,12 +160,14 @@ export function TasksCalendar({ tasks }: TasksCalendarProps) {
           })}
         </div>
 
-        {/* Footer */}
-        <div className="mt-4 pt-4 border-t border-[rgba(0,0,0,0.04)] dark:border-[rgba(255,255,255,0.04)] flex items-center justify-between">
-          <p className="text-[12px] text-muted-foreground">
-            <span className="font-medium text-foreground">{monthTaskCount}</span> tasks this month
+        <div
+          className="mt-4 pt-4 flex items-center justify-between"
+          style={{ borderTop: `1px solid ${theme.accentSoft}` }}
+        >
+          <p className="text-[12px]" style={{ color: theme.textMuted }}>
+            <span className="font-medium" style={{ color: theme.text }}>{monthTaskCount}</span> tasks this month
           </p>
-          <Button variant="ghost" size="sm" className="h-7 text-[11px] text-muted-foreground hover:text-foreground gap-1">
+          <Button variant="ghost" size="sm" className="h-7 text-[11px] gap-1" style={{ color: theme.textMuted }}>
             Open Calendar
             <ArrowUpRight className="h-3 w-3" />
           </Button>

@@ -1,11 +1,5 @@
 "use client";
 
-// ============================================
-// COLONY - Unified primary navigation
-// Single nav for all authenticated app routes.
-// Top: Home, Browse, Referrals, Inbox. Bottom: Notifications, Settings.
-// ============================================
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -20,7 +14,7 @@ import {
   Bell,
   Settings,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 
 const topNavItems = [
   { icon: Home, href: "/chat", label: "Home", description: "AI-first interface" },
@@ -36,8 +30,8 @@ const bottomNavItems = [
 
 export function ModeSidebar() {
   const pathname = usePathname();
-  const [isExpanded, setIsExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { theme } = useColonyTheme();
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
@@ -50,19 +44,23 @@ export function ModeSidebar() {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
+  const borderColor = theme.accentSoft;
+
   return (
-    <aside 
-      className={cn(
-        "fixed left-0 top-0 z-50 hidden md:flex h-screen flex-col transition-all duration-200 ease-out",
-        "bg-neutral-950 border-r border-neutral-800",
-        isExpanded ? "w-52" : "w-14"
-      )}
-      onMouseEnter={() => setIsExpanded(true)}
-      onMouseLeave={() => setIsExpanded(false)}
+    <aside
+      className="fixed left-0 top-0 z-50 hidden md:flex h-screen w-52 flex-col"
+      style={{
+        backgroundColor: theme.sidebarBg,
+        borderRight: `1px solid ${borderColor}`,
+        fontFamily: "var(--font-dm-sans), sans-serif",
+      }}
       suppressHydrationWarning
     >
       {/* Logo */}
-      <div className="flex h-14 items-center gap-3 border-b border-neutral-800 px-3">
+      <div
+        className="flex h-14 items-center gap-3 px-3"
+        style={{ borderBottom: `1px solid ${borderColor}` }}
+      >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center">
           <Image
             src="/colony-icon.svg"
@@ -72,18 +70,18 @@ export function ModeSidebar() {
             className="h-6 w-6"
           />
         </div>
-        <span className={cn(
-          "font-[family-name:var(--font-geist)] text-sm font-light text-neutral-100 tracking-[0.2em] uppercase whitespace-nowrap transition-all duration-200",
-          isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-        )}>
+        <span
+          className="text-sm font-light tracking-[0.2em] uppercase whitespace-nowrap"
+          style={{ color: theme.text, opacity: 0.5 }}
+        >
           Colony
         </span>
       </div>
 
       {/* Team Switcher */}
       {mounted && (
-        <div className="border-b border-neutral-800 py-2 px-2">
-          <TeamSwitcher expanded={isExpanded} />
+        <div className="py-2 px-2" style={{ borderBottom: `1px solid ${borderColor}` }}>
+          <TeamSwitcher expanded />
         </div>
       )}
 
@@ -95,29 +93,26 @@ export function ModeSidebar() {
             <Link
               key={item.label}
               href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg transition-colors relative group",
-                isExpanded ? "h-10 px-2.5" : "h-10 w-10 justify-center",
-                active
-                  ? "bg-neutral-800 text-neutral-100"
-                  : "text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200"
-              )}
+              className="flex items-center gap-3 rounded-lg h-10 px-2.5 relative transition-colors duration-150"
+              style={{ color: active ? theme.text : theme.textMuted }}
               suppressHydrationWarning
             >
-              {active && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r" />
-              )}
-              <item.icon className={cn(
-                "h-[18px] w-[18px] shrink-0",
-                active && "text-primary"
-              )} />
-              <div className={cn(
-                "flex flex-col transition-all duration-200",
-                isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-              )}>
-                <span className="text-sm whitespace-nowrap">{item.label}</span>
-                {isExpanded && item.description && (
-                  <span className="text-[10px] text-neutral-500 whitespace-nowrap">
+              <item.icon
+                className="h-[18px] w-[18px] shrink-0"
+                style={{ color: active ? theme.accent : theme.textMuted }}
+              />
+              <div className="flex flex-col min-w-0">
+                <span
+                  className="text-sm whitespace-nowrap"
+                  style={{ color: active ? theme.text : theme.text, opacity: active ? 1 : 0.5 }}
+                >
+                  {item.label}
+                </span>
+                {item.description && (
+                  <span
+                    className="text-[10px] whitespace-nowrap"
+                    style={{ color: theme.text, opacity: 0.35 }}
+                  >
                     {item.description}
                   </span>
                 )}
@@ -128,30 +123,24 @@ export function ModeSidebar() {
       </nav>
 
       {/* Bottom Navigation */}
-      <div className="flex flex-col gap-1 border-t border-neutral-800 py-3 px-2" suppressHydrationWarning>
+      <div className="flex flex-col gap-1 py-3 px-2" style={{ borderTop: `1px solid ${borderColor}` }} suppressHydrationWarning>
         {bottomNavItems.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
               key={item.label}
               href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg transition-colors",
-                isExpanded ? "h-9 px-2.5" : "h-9 w-10 justify-center",
-                active
-                  ? "bg-neutral-800 text-neutral-100"
-                  : "text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200"
-              )}
+              className="flex items-center gap-3 rounded-lg h-9 px-2.5 transition-colors duration-150"
+              style={{ color: active ? theme.text : theme.textMuted }}
               suppressHydrationWarning
             >
               <item.icon
-                className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")}
+                className="h-[18px] w-[18px] shrink-0"
+                style={{ color: active ? theme.accent : theme.textMuted }}
               />
               <span
-                className={cn(
-                  "text-sm whitespace-nowrap transition-all duration-200",
-                  isExpanded ? "opacity-100" : "opacity-0 w-0 overflow-hidden"
-                )}
+                className="text-sm whitespace-nowrap"
+                style={{ color: theme.text, opacity: active ? 1 : 0.5 }}
               >
                 {item.label}
               </span>
@@ -160,19 +149,15 @@ export function ModeSidebar() {
         })}
 
         {/* User Avatar */}
-        <div 
-          className={cn(
-            "flex items-center gap-3 mt-2 pt-2 border-t border-neutral-800",
-            isExpanded ? "px-2.5" : "justify-center px-0"
-          )}
+        <div
+          className="flex items-center gap-3 mt-2 pt-2 px-2.5"
+          style={{ borderTop: `1px solid ${borderColor}` }}
           suppressHydrationWarning
         >
           {mounted && <UserMenu size="sm" />}
-          {isExpanded && (
-            <span className="text-sm text-neutral-400 whitespace-nowrap">
-              Account
-            </span>
-          )}
+          <span className="text-sm whitespace-nowrap" style={{ color: theme.textMuted }}>
+            Account
+          </span>
         </div>
       </div>
     </aside>

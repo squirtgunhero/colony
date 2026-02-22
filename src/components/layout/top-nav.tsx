@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { ContactDialog } from "@/components/contacts/contact-dialog";
 import { globalSearch } from "@/app/(dashboard)/search/actions";
-import { ViewToggle } from "./ViewToggle";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 
 // Unified nav: matches ModeSidebar (mobile sheet — 5 items per Step 7)
 const navTabs = [
@@ -38,6 +38,7 @@ export function TopNav() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const { theme } = useColonyTheme();
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
@@ -85,7 +86,14 @@ export function TopNav() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 h-14 flex items-center justify-between px-6 bg-background border-b border-border" suppressHydrationWarning>
+    <header
+      className="sticky top-0 z-40 h-14 flex items-center justify-between px-6 backdrop-blur-sm transition-colors duration-500"
+      style={{
+        backgroundColor: `${theme.bg}cc`,
+        borderBottom: `1px solid ${theme.accentGlow}`,
+      }}
+      suppressHydrationWarning
+    >
       {/* Left: Mobile Menu + Brand */}
       <div className="flex items-center gap-4" suppressHydrationWarning>
         {mounted ? (
@@ -96,14 +104,22 @@ export function TopNav() {
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
-          <SheetContent 
-            side="left" 
-            className="w-72 p-0 bg-neutral-950 border-r border-neutral-800 text-neutral-100 [&>button]:text-neutral-400 [&>button]:hover:text-neutral-100" 
+          <SheetContent
+            side="left"
+            className="w-72 p-0 border-r"
+            style={{
+              backgroundColor: theme.bg,
+              borderColor: theme.accentGlow,
+              fontFamily: "var(--font-dm-sans), sans-serif",
+            }}
             aria-describedby={undefined}
           >
             <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             <div className="flex h-full flex-col">
-              <div className="flex h-14 items-center gap-3 border-b border-neutral-800 px-4">
+              <div
+                className="flex h-14 items-center gap-3 px-4"
+                style={{ borderBottom: `1px solid ${theme.accentGlow}` }}
+              >
                 <Image
                   src="/colony-icon.svg"
                   alt="Colony"
@@ -111,7 +127,10 @@ export function TopNav() {
                   height={24}
                   className="h-6 w-6"
                 />
-                <span className="font-[family-name:var(--font-geist)] text-sm font-light tracking-[0.2em] uppercase text-neutral-100">
+                <span
+                  className="text-sm font-light tracking-[0.2em] uppercase"
+                  style={{ color: theme.textMuted }}
+                >
                   Colony
                 </span>
               </div>
@@ -126,12 +145,11 @@ export function TopNav() {
                       key={tab.href}
                       href={tab.href}
                       onClick={() => setOpen(false)}
-                      className={cn(
-                        "flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                        isActive
-                          ? "bg-neutral-800 text-neutral-100"
-                          : "text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50"
-                      )}
+                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium"
+                      style={{
+                        backgroundColor: isActive ? theme.accentSoft : "transparent",
+                        color: isActive ? theme.text : theme.textMuted,
+                      }}
                     >
                       {tab.label}
                     </Link>
@@ -139,11 +157,15 @@ export function TopNav() {
                 })}
               </nav>
 
-              <div className="border-t border-neutral-800 p-4">
+              <div className="p-4" style={{ borderTop: `1px solid ${theme.accentGlow}` }}>
                 <ContactDialog onOpenChange={(isOpen) => isOpen && setOpen(false)}>
-                  <Button 
-                    className="w-full bg-neutral-100 text-neutral-900 hover:bg-neutral-200" 
+                  <Button
+                    className="w-full"
                     size="sm"
+                    style={{
+                      backgroundColor: theme.accent,
+                      color: theme.bg,
+                    }}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     New Contact
@@ -231,9 +253,8 @@ export function TopNav() {
         )}
       </div>
 
-      {/* Right: View Toggle + Actions */}
+      {/* Right: Actions */}
       <div className="flex items-center gap-3" suppressHydrationWarning>
-        <ViewToggle className="hidden md:flex" />
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8 hidden sm:flex" suppressHydrationWarning>
             <RefreshCw className="h-4 w-4 text-muted-foreground" />

@@ -54,7 +54,7 @@ export function ChatDrawer() {
     <>
       {/* Backdrop overlay that covers everything */}
       <div
-        className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:pl-14"
+        className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:pl-52"
         onClick={closeDrawer}
         aria-hidden="true"
       />
@@ -65,7 +65,7 @@ export function ChatDrawer() {
         aria-label="Colony Assistant Chat"
         aria-modal="true"
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 md:pl-14",
+          "fixed bottom-0 left-0 right-0 z-50 md:pl-52",
           "flex flex-col",
           "bg-background",
           "border-t border-border",

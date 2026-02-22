@@ -1,10 +1,14 @@
 export interface ColonyTheme {
   id: string;
   name: string;
+  isDark: boolean;
   bg: string;
   accent: string;
   text: string;
   bgGlow: string;
+  sidebarBg: string;
+  cardBg: string;
+  inputBg: string;
   surface: string;
   textMuted: string;
   textSoft: string;
@@ -13,7 +17,7 @@ export interface ColonyTheme {
   userBubble: string;
 }
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
+export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result) return { r: 0, g: 0, b: 0 };
   return {
@@ -23,30 +27,33 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
-function lighten(hex: string, amount: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  const nr = Math.min(255, Math.round(r + (255 - r) * amount));
-  const ng = Math.min(255, Math.round(g + (255 - g) * amount));
-  const nb = Math.min(255, Math.round(b + (255 - b) * amount));
-  return `rgb(${nr}, ${ng}, ${nb})`;
-}
-
-function withAlpha(hex: string, alpha: number): string {
+export function withAlpha(hex: string, alpha: number): string {
   const { r, g, b } = hexToRgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function buildTheme(id: string, name: string, bg: string, bgGlow: string, accent: string, text: string): ColonyTheme {
+interface ThemeInput {
+  id: string;
+  name: string;
+  bg: string;
+  bgGlow: string;
+  accent: string;
+  text: string;
+}
+
+function buildTheme(input: ThemeInput): ColonyTheme {
+  const { accent, text, bg, bgGlow } = input;
+  const { r: br, g: bg2, b: bb } = hexToRgb(bg);
+  const sidebarBg = `rgb(${Math.max(br - 5, 0)}, ${Math.max(bg2 - 5, 0)}, ${Math.max(bb - 5, 0)})`;
   return {
-    id,
-    name,
-    bg,
-    accent,
-    text,
-    bgGlow,
+    ...input,
+    isDark: true,
+    sidebarBg,
+    cardBg: bgGlow,
+    inputBg: bgGlow,
     surface: withAlpha(accent, 0.08),
-    textMuted: withAlpha(text, 0.45),
-    textSoft: withAlpha(text, 0.7),
+    textMuted: withAlpha(text, 0.50),
+    textSoft: withAlpha(text, 0.70),
     accentSoft: withAlpha(accent, 0.15),
     accentGlow: withAlpha(accent, 0.12),
     userBubble: withAlpha(accent, 0.12),
@@ -54,17 +61,35 @@ function buildTheme(id: string, name: string, bg: string, bgGlow: string, accent
 }
 
 export const THEMES: ColonyTheme[] = [
-  buildTheme("ember",    "Ember",    "#2a2118", "#3d3028", "#cf9b46", "#f0e6d8"),
-  buildTheme("midnight", "Midnight", "#1a2230", "#283448", "#5bb0e0", "#d8e4f0"),
-  buildTheme("forest",   "Forest",   "#1e2a1e", "#2c3e2c", "#6fbf7a", "#d8f0dd"),
-  buildTheme("rose",     "Rose",     "#2a1e24", "#3e2c36", "#e07a9a", "#f0d8e2"),
-  buildTheme("slate",    "Slate",    "#222426", "#343638", "#a0a4aa", "#e8e9eb"),
-  buildTheme("violet",   "Violet",   "#221e2a", "#362e42", "#a07ae0", "#e2d8f0"),
+  buildTheme({
+    id: "samantha", name: "Samantha",
+    bg: "#1E1614", bgGlow: "#2A201C", accent: "#C8102E", text: "#F0E6D8",
+  }),
+  buildTheme({
+    id: "theodore", name: "Theodore",
+    bg: "#1C1A14", bgGlow: "#28261E", accent: "#C49A2A", text: "#F0EAD8",
+  }),
+  buildTheme({
+    id: "sunset", name: "Sunset",
+    bg: "#1E1416", bgGlow: "#2A1E22", accent: "#E8927C", text: "#F0E0D8",
+  }),
+  buildTheme({
+    id: "garden", name: "Garden",
+    bg: "#161A14", bgGlow: "#222A1E", accent: "#7A8A45", text: "#E4F0D8",
+  }),
+  buildTheme({
+    id: "letter", name: "Letter",
+    bg: "#1A1814", bgGlow: "#26241E", accent: "#B8864A", text: "#F0E8D8",
+  }),
+  buildTheme({
+    id: "noir", name: "Noir",
+    bg: "#181818", bgGlow: "#222222", accent: "#A0A0A0", text: "#E8E8E8",
+  }),
 ];
 
 export const THEME_MAP = new Map(THEMES.map((t) => [t.id, t]));
 
-export const DEFAULT_THEME_ID = "ember";
+export const DEFAULT_THEME_ID = "samantha";
 
 export function getTheme(id: string): ColonyTheme {
   return THEME_MAP.get(id) ?? THEMES[0];

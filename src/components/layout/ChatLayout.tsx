@@ -7,7 +7,7 @@ import { ChatTopNav } from "./ChatTopNav";
 import { ContextDrawer } from "@/components/chat/ContextDrawer";
 import { ChatCommandBar } from "@/components/chat/ChatCommandBar";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
-import { ChatThemeProvider, useChatTheme } from "@/lib/chat-theme-context";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
 
 interface ChatLayoutProps {
@@ -15,16 +15,8 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ children }: ChatLayoutProps) {
-  return (
-    <ChatThemeProvider>
-      <ChatLayoutInner>{children}</ChatLayoutInner>
-    </ChatThemeProvider>
-  );
-}
-
-function ChatLayoutInner({ children }: ChatLayoutProps) {
   const { setMode } = useModeStore();
-  const { theme } = useChatTheme();
+  const { theme } = useColonyTheme();
 
   useEffect(() => {
     setMode("chat");
@@ -39,7 +31,7 @@ function ChatLayoutInner({ children }: ChatLayoutProps) {
       >
         <ModeSidebar />
 
-        <div className="md:pl-14 min-h-screen flex flex-col" suppressHydrationWarning>
+        <div className="md:pl-52 min-h-screen flex flex-col" suppressHydrationWarning>
           <ChatTopNav />
 
           <main

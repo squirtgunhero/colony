@@ -2,6 +2,7 @@
 
 import { Users, Clock, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { formatCurrency } from "@/lib/date-utils";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import { cn } from "@/lib/utils";
 
 interface DashboardHeaderProps {
@@ -14,37 +15,36 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ stats }: DashboardHeaderProps) {
-  // Calculate percentage change
+  const { theme } = useColonyTheme();
+
   const percentageChange = stats.previousPipelineValue > 0
     ? ((stats.pipelineValue - stats.previousPipelineValue) / stats.previousPipelineValue) * 100
     : stats.pipelineValue > 0 ? 100 : 0;
-  
+
   const isPositive = percentageChange > 0;
-  const isNegative = percentageChange < 0;
   const hasChange = percentageChange !== 0;
 
   return (
-    <header className="border-b border-[rgba(0,0,0,0.04)] dark:border-[rgba(255,255,255,0.04)] bg-card">
+    <header style={{
+      backgroundColor: theme.bgGlow,
+      borderBottom: `1px solid ${theme.accentSoft}`,
+    }}>
       <div className="px-6 lg:px-8 py-8 lg:py-10">
-        {/* Hero Metric - Pipeline Value */}
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-          {/* Primary: Pipeline Value */}
           <div className="space-y-1">
-            <p className="text-overline">Total Pipeline Value</p>
+            <p className="text-overline" style={{ color: theme.textMuted }}>Total Pipeline Value</p>
             <div className="flex items-baseline gap-4">
-              <span className="metric-hero">
+              <span className="metric-hero" style={{ color: theme.text }}>
                 {formatCurrency(stats.pipelineValue)}
               </span>
-              {/* Delta indicator */}
               {hasChange ? (
-                <span className={cn(
-                  "metric-delta",
-                  isPositive ? "metric-delta-up" : "metric-delta-down",
-                  isPositive 
-                    ? "bg-[rgba(61,122,74,0.08)] dark:bg-[rgba(74,222,128,0.1)]" 
-                    : "bg-[rgba(220,38,38,0.08)] dark:bg-[rgba(248,113,113,0.1)]",
-                  "px-2.5 py-1 rounded-full"
-                )}>
+                <span
+                  className={cn("metric-delta px-2.5 py-1 rounded-full")}
+                  style={{
+                    backgroundColor: theme.accentGlow,
+                    color: isPositive ? theme.accent : theme.text,
+                  }}
+                >
                   {isPositive ? (
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   ) : (
@@ -53,45 +53,49 @@ export function DashboardHeader({ stats }: DashboardHeaderProps) {
                   {Math.abs(percentageChange).toFixed(1)}%
                 </span>
               ) : (
-                <span className={cn(
-                  "metric-delta",
-                  "bg-muted/50",
-                  "px-2.5 py-1 rounded-full"
-                )}>
+                <span
+                  className="metric-delta px-2.5 py-1 rounded-full"
+                  style={{ backgroundColor: theme.surface, color: theme.textMuted }}
+                >
                   <Minus className="h-3.5 w-3.5" />
                   0%
                 </span>
               )}
             </div>
-            <p className="text-caption mt-1">
+            <p className="text-caption mt-1" style={{ color: theme.textMuted }}>
               vs. previous month
             </p>
           </div>
 
-          {/* Secondary: Supporting Metrics */}
           <div className="flex items-center gap-6 lg:gap-10">
-            {/* Active Leads */}
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/40">
-                <Users className="h-4.5 w-4.5 text-muted-foreground" />
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl"
+                style={{ backgroundColor: theme.surface }}
+              >
+                <Users className="h-4.5 w-4.5" style={{ color: theme.textMuted }} />
               </div>
               <div>
-                <p className="metric-value">{stats.leadsCount}</p>
-                <p className="text-overline mt-0.5">Active Leads</p>
+                <p className="metric-value" style={{ color: theme.text }}>{stats.leadsCount}</p>
+                <p className="text-overline mt-0.5" style={{ color: theme.textMuted }}>Active Leads</p>
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="hidden lg:block h-12 w-px bg-[rgba(0,0,0,0.06)] dark:bg-[rgba(255,255,255,0.06)]" />
+            <div
+              className="hidden lg:block h-12 w-px"
+              style={{ backgroundColor: theme.accentSoft }}
+            />
 
-            {/* Pending Tasks */}
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/40">
-                <Clock className="h-4.5 w-4.5 text-muted-foreground" />
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl"
+                style={{ backgroundColor: theme.surface }}
+              >
+                <Clock className="h-4.5 w-4.5" style={{ color: theme.textMuted }} />
               </div>
               <div>
-                <p className="metric-value">{stats.pendingTasks}</p>
-                <p className="text-overline mt-0.5">Pending Tasks</p>
+                <p className="metric-value" style={{ color: theme.text }}>{stats.pendingTasks}</p>
+                <p className="text-overline mt-0.5" style={{ color: theme.textMuted }}>Pending Tasks</p>
               </div>
             </div>
           </div>
@@ -100,4 +104,3 @@ export function DashboardHeader({ stats }: DashboardHeaderProps) {
     </header>
   );
 }
-

@@ -11,6 +11,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
 import { cn } from "@/lib/utils";
+import { useColonyTheme } from "@/lib/chat-theme-context";
 import { Menu, Users, Home, Handshake, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -33,6 +34,7 @@ export function BrowseTopNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { theme } = useColonyTheme();
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
@@ -40,8 +42,12 @@ export function BrowseTopNav() {
   }, []);
 
   return (
-    <header 
-      className="sticky top-0 z-40 h-14 flex items-center justify-between px-6 bg-background border-b border-border" 
+    <header
+      className="sticky top-0 z-40 h-14 flex items-center justify-between px-6 backdrop-blur-sm transition-colors duration-500"
+      style={{
+        backgroundColor: `${theme.bg}cc`,
+        borderBottom: `1px solid ${theme.accentGlow}`,
+      }}
       suppressHydrationWarning
     >
       {/* Left: Mobile Menu + Brand */}
@@ -54,14 +60,22 @@ export function BrowseTopNav() {
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent 
-              side="left" 
-              className="w-72 p-0 bg-neutral-950 border-r border-neutral-800 text-neutral-100 [&>button]:text-neutral-400 [&>button]:hover:text-neutral-100" 
+            <SheetContent
+              side="left"
+              className="w-72 p-0 border-r"
+              style={{
+                backgroundColor: theme.bg,
+                borderColor: theme.accentGlow,
+                fontFamily: "var(--font-dm-sans), sans-serif",
+              }}
               aria-describedby={undefined}
             >
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <div className="flex h-full flex-col">
-                <div className="flex h-14 items-center gap-3 border-b border-neutral-800 px-4">
+                <div
+                  className="flex h-14 items-center gap-3 px-4"
+                  style={{ borderBottom: `1px solid ${theme.accentGlow}` }}
+                >
                   <Image
                     src="/colony-icon.svg"
                     alt="Colony"
@@ -69,7 +83,10 @@ export function BrowseTopNav() {
                     height={24}
                     className="h-6 w-6"
                   />
-                  <span className="font-[family-name:var(--font-geist)] text-sm font-light tracking-[0.2em] uppercase text-neutral-100">
+                  <span
+                    className="text-sm font-light tracking-[0.2em] uppercase"
+                    style={{ color: theme.textMuted }}
+                  >
                     Colony
                   </span>
                 </div>
@@ -80,7 +97,8 @@ export function BrowseTopNav() {
                       key={tab.href}
                       href={tab.href}
                       onClick={() => setOpen(false)}
-                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 transition-colors"
+                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium"
+                      style={{ color: theme.textMuted }}
                     >
                       {tab.label}
                     </Link>

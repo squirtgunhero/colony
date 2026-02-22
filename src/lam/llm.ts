@@ -268,66 +268,10 @@ export class AnthropicProvider implements LLMProvider {
 }
 
 // ============================================================================
-// Mock Provider (for testing)
-// ============================================================================
-
-export class MockLLMProvider implements LLMProvider {
-  name = "mock";
-  private responses: Map<string, string> = new Map();
-
-  setResponse(pattern: string, response: string): void {
-    this.responses.set(pattern, response);
-  }
-
-  async complete(messages: LLMMessage[]): Promise<LLMCompletionResult> {
-    const lastMessage = messages[messages.length - 1];
-    const content = lastMessage?.content || "";
-
-    // Check for matching response
-    for (const [pattern, response] of this.responses) {
-      if (content.includes(pattern)) {
-        return {
-          content: response,
-          usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
-          finishReason: "stop",
-        };
-      }
-    }
-
-    return {
-      content: "Mock response",
-      usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
-      finishReason: "stop",
-    };
-  }
-
-  async completeJSON<T>(
-    messages: LLMMessage[],
-    schema: z.ZodType<T>
-  ): Promise<{ data: T; usage: LLMCompletionResult["usage"] }> {
-    const result = await this.complete(messages);
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(result.content);
-    } catch {
-      throw new Error(`Failed to parse mock JSON: ${result.content}`);
-    }
-
-    const validated = schema.safeParse(parsed);
-    if (!validated.success) {
-      throw new Error(`Mock validation failed: ${validated.error.message}`);
-    }
-
-    return { data: validated.data, usage: result.usage };
-  }
-}
-
-// ============================================================================
 // Factory
 // ============================================================================
 
-export type LLMProviderType = "openai" | "anthropic" | "mock";
+export type LLMProviderType = "openai" | "anthropic";
 
 export function createLLMProvider(
   type: LLMProviderType,
@@ -338,33 +282,20 @@ export function createLLMProvider(
       return new OpenAIProvider(options);
     case "anthropic":
       return new AnthropicProvider(options);
-    case "mock":
-      return new MockLLMProvider();
     default:
       throw new Error(`Unknown LLM provider: ${type}`);
   }
 }
 
-// Default provider instance
-let defaultProvider: LLMProvider | null = null;
-
 export function getDefaultProvider(): LLMProvider {
-  if (!defaultProvider) {
-    // Auto-detect based on environment
-    if (process.env.OPENAI_API_KEY) {
-      defaultProvider = new OpenAIProvider();
-    } else if (process.env.ANTHROPIC_API_KEY) {
-      defaultProvider = new AnthropicProvider();
-    } else {
-      // Fall back to mock for development
-      console.warn("No LLM API key found, using mock provider");
-      defaultProvider = new MockLLMProvider();
-    }
+  if (process.env.OPENAI_API_KEY) {
+    return new OpenAIProvider();
   }
-  return defaultProvider;
-}
-
-export function setDefaultProvider(provider: LLMProvider): void {
-  defaultProvider = provider;
+  if (process.env.ANTHROPIC_API_KEY) {
+    return new AnthropicProvider();
+  }
+  throw new Error(
+    "No LLM API key configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in your environment."
+  );
 }
 
