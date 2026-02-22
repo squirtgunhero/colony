@@ -22,10 +22,10 @@ interface WaveLine {
 
 function createWaveLines(state: WaveformState): WaveLine[] {
   const base: WaveLine[] = [
-    { frequency: 0.9, amplitude: 0.35, speed: 0.4, phase: 0, opacity: 0.2 },
-    { frequency: 1.3, amplitude: 0.55, speed: 0.55, phase: 1.2, opacity: 0.35 },
-    { frequency: 1.7, amplitude: 0.75, speed: 0.35, phase: 2.5, opacity: 0.5 },
-    { frequency: 2.0, amplitude: 0.45, speed: 0.65, phase: 3.8, opacity: 0.65 },
+    { frequency: 0.9, amplitude: 0.35, speed: 0.4, phase: 0, opacity: 0.3 },
+    { frequency: 1.3, amplitude: 0.55, speed: 0.55, phase: 1.2, opacity: 0.45 },
+    { frequency: 1.7, amplitude: 0.75, speed: 0.35, phase: 2.5, opacity: 0.6 },
+    { frequency: 2.0, amplitude: 0.45, speed: 0.65, phase: 3.8, opacity: 0.75 },
   ];
 
   if (state === "thinking" || state === "listening") {

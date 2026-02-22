@@ -44,22 +44,22 @@ function buildTheme(id: string, name: string, bg: string, bgGlow: string, accent
     accent,
     text,
     bgGlow,
-    surface: withAlpha(accent, 0.04),
+    surface: withAlpha(accent, 0.08),
     textMuted: withAlpha(text, 0.45),
     textSoft: withAlpha(text, 0.7),
     accentSoft: withAlpha(accent, 0.15),
-    accentGlow: withAlpha(accent, 0.08),
+    accentGlow: withAlpha(accent, 0.12),
     userBubble: withAlpha(accent, 0.12),
   };
 }
 
 export const THEMES: ColonyTheme[] = [
-  buildTheme("ember",    "Ember",    "#1a1411", "#251c16", "#cf9b46", "#e8ddd0"),
-  buildTheme("midnight", "Midnight", "#0f1419", "#161e26", "#4a9ece", "#d0dde8"),
-  buildTheme("forest",   "Forest",   "#111a14", "#18241b", "#5fa66a", "#d0e8d5"),
-  buildTheme("rose",     "Rose",     "#1a1114", "#26181e", "#ce6a8a", "#e8d0da"),
-  buildTheme("slate",    "Slate",    "#141516", "#1c1d1f", "#8a8d93", "#dddee0"),
-  buildTheme("violet",   "Violet",   "#14111a", "#1e1926", "#8a6ace", "#dad0e8"),
+  buildTheme("ember",    "Ember",    "#2a2118", "#3d3028", "#cf9b46", "#f0e6d8"),
+  buildTheme("midnight", "Midnight", "#1a2230", "#283448", "#5bb0e0", "#d8e4f0"),
+  buildTheme("forest",   "Forest",   "#1e2a1e", "#2c3e2c", "#6fbf7a", "#d8f0dd"),
+  buildTheme("rose",     "Rose",     "#2a1e24", "#3e2c36", "#e07a9a", "#f0d8e2"),
+  buildTheme("slate",    "Slate",    "#222426", "#343638", "#a0a4aa", "#e8e9eb"),
+  buildTheme("violet",   "Violet",   "#221e2a", "#362e42", "#a07ae0", "#e2d8f0"),
 ];
 
 export const THEME_MAP = new Map(THEMES.map((t) => [t.id, t]));
