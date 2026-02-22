@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Geist } from "next/font/google";
+import { Inter, JetBrains_Mono, Geist, Spectral, DM_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
@@ -18,6 +18,20 @@ const jetbrainsMono = JetBrains_Mono({
 const geist = Geist({
   variable: "--font-geist",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const spectral = Spectral({
+  variable: "--font-spectral",
+  subsets: ["latin"],
+  weight: ["200", "300", "400"],
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  weight: ["300", "400", "500"],
   display: "swap",
 });
 
@@ -54,7 +68,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} ${geist.variable} font-sans antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} ${geist.variable} ${spectral.variable} ${dmSans.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
         <ThemeProvider defaultTheme="system" storageKey="colony-theme">

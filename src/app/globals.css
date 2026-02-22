@@ -663,3 +663,33 @@
   60% { transform: translate(-40px, 30px) scale(1.08); }
   80% { transform: translate(40px, -20px) scale(0.95); }
 }
+
+/* ============================================
+   COLONY CHAT — Her-inspired ambient animations
+   ============================================ */
+
+@keyframes colonyBgShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes colonyOrb1 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-30px); }
+}
+
+@keyframes colonyOrb2 {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(25px); }
+}
+
+@keyframes colonyOrb3 {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+}
+
+@keyframes colonyDotFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}

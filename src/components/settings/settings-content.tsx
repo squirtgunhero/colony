@@ -21,9 +21,11 @@ import {
   Building2,
   Download,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { THEMES, getStoredThemeId, storeThemeId } from "@/lib/themes";
 
 // Subscribe to nothing - just for getting client-side value
 const emptySubscribe = () => () => {};
@@ -65,6 +67,18 @@ export function SettingsContent() {
     dealUpdates: true,
     weeklyDigest: false,
   });
+
+  const [chatThemeId, setChatThemeId] = useState(getStoredThemeId());
+
+  const handleChatThemeChange = (id: string) => {
+    setChatThemeId(id);
+    storeThemeId(id);
+    fetch("/api/chat/theme", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ theme: id }),
+    }).catch(() => {});
+  };
 
   const themeOptions = [
     { value: "light", label: "Light", icon: Sun },
@@ -137,6 +151,54 @@ export function SettingsContent() {
                 ? `Currently using ${resolvedTheme} mode based on your system preferences.`
                 : `Using ${theme} mode.`}
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Chat Theme */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            Chat Theme
+          </CardTitle>
+          <CardDescription>
+            Choose a color scheme for your Colony chat experience.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+            {THEMES.map((t) => {
+              const isActive = chatThemeId === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => handleChatThemeChange(t.id)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all",
+                    isActive
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50 hover:bg-muted/50"
+                  )}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full"
+                    style={{
+                      backgroundColor: t.accent,
+                      boxShadow: isActive
+                        ? `0 0 0 3px ${t.bg}, 0 0 0 5px ${t.accent}`
+                        : "none",
+                    }}
+                  />
+                  <span className={cn(
+                    "text-xs font-medium",
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  )}>
+                    {t.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

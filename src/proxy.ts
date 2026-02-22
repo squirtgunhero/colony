@@ -20,6 +20,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Twilio webhooks authenticate via signature, not session
+  if (request.nextUrl.pathname.startsWith("/api/sms/")) {
+    return NextResponse.next();
+  }
+
+  // Cron jobs authenticate via CRON_SECRET bearer token
+  if (request.nextUrl.pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
+
   return await updateSession(request);
 }
 

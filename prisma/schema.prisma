@@ -17,6 +17,7 @@ model Profile {
   email     String?
   fullName  String?  @map("full_name")
   avatarUrl String?  @map("avatar_url")
+  theme     String   @default("ember")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @map("updated_at")
 
@@ -24,6 +25,11 @@ model Profile {
   ownedTeams      Team[]           @relation("TeamOwner")
   teamMemberships TeamMember[]
   sentInvitations TeamInvitation[] @relation("InvitationSender")
+
+  // Twilio / SMS
+  phone           UserPhone?
+  smsMessages     SMSMessage[]
+  conversations   Conversation[]
 
   @@map("profiles")
 }
@@ -572,9 +578,11 @@ model LamRun {
   completedAt  DateTime?   @map("completed_at")
 
   // Relations
-  actions         LamAction[]
-  idempotencyKeys LamIdempotencyKey[]
-  changeLogs      LamChangeLog[]
+  actions              LamAction[]
+  idempotencyKeys      LamIdempotencyKey[]
+  changeLogs           LamChangeLog[]
+  smsMessages          SMSMessage[]
+  conversationMessages ConversationMessage[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status])
@@ -819,4 +827,70 @@ model MetaInsight {
   @@index([adAccountId, date])
   @@index([campaignId, date])
   @@map("meta_insights")
+}
+
+// ============================================================================
+// TWILIO SMS - Phone verification, messaging, and conversation memory
+// ============================================================================
+
+model UserPhone {
+  id               String   @id @default(cuid())
+  profileId        String   @unique @map("profile_id") @db.Uuid
+  profile          Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  phoneNumber      String   @unique @map("phone_number") // E.164 format
+  verified         Boolean  @default(false)
+  autopilotEnabled Boolean  @default(false) @map("autopilot_enabled")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([phoneNumber])
+  @@map("user_phones")
+}
+
+model SMSMessage {
+  id        String   @id @default(cuid())
+  profileId String   @map("profile_id") @db.Uuid
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  direction String   // inbound | outbound
+  from      String
+  to        String
+  body      String
+  twilioSid String   @unique @map("twilio_sid")
+  status    String   @default("sent") // sent | delivered | failed
+  lamRunId  String?  @map("lam_run_id")
+  lamRun    LamRun?  @relation(fields: [lamRunId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([profileId, createdAt(sort: Desc)])
+  @@index([twilioSid])
+  @@map("sms_messages")
+}
+
+model Conversation {
+  id           String    @id @default(cuid())
+  profileId    String    @map("profile_id") @db.Uuid
+  profile      Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  channel      String    // sms | web | whatsapp
+  lastActiveAt DateTime  @default(now()) @map("last_active_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  messages ConversationMessage[]
+
+  @@index([profileId, lastActiveAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id        String   @id @default(cuid())
+  convId    String   @map("conv_id")
+  conv      Conversation @relation(fields: [convId], references: [id], onDelete: Cascade)
+  role      String   // user | assistant | system
+  content   String
+  channel   String   // sms | web | whatsapp
+  lamRunId  String?  @map("lam_run_id")
+  lamRun    LamRun?  @relation(fields: [lamRunId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([convId, createdAt(sort: Asc)])
+  @@map("conversation_messages")
 }

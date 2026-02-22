@@ -9,6 +9,7 @@
 import { useRef, useEffect, useCallback, useState, type KeyboardEvent } from "react";
 import { Send, Command, MessageSquare, ChevronUp, Mic, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { useCRMContext } from "@/lib/context/CRMContext";
 import { SuggestionChips } from "./SuggestionChips";
@@ -35,31 +36,34 @@ export function CommandBar() {
     lastRunId,
   } = useAssistantStore();
 
-  // Voice input hook
+  const pendingVoiceSubmit = useRef(false);
+
   const {
     isSupported: voiceSupported,
     isListening,
-    transcript,
+    isTranscribing,
     startListening,
     stopListening,
     clearTranscript,
   } = useVoiceInput({
-    language: "en-US",
-    continuous: false,
     onResult: (text) => {
-      // When voice input is finalized, set it as input and optionally auto-submit
       setInput(text);
       clearTranscript();
-      // Auto-focus the input
-      textareaRef.current?.focus();
+      pendingVoiceSubmit.current = true;
     },
-    onInterimResult: (text) => {
-      // Show interim results in the input
-      setInput(text);
+    onError: (msg) => {
+      toast.error(msg);
     },
   });
 
   const hasMessages = messages.length > 0;
+
+  useEffect(() => {
+    if (pendingVoiceSubmit.current && input.trim() && !isTranscribing) {
+      pendingVoiceSubmit.current = false;
+      handleSubmit();
+    }
+  });
 
   // Show undo hint after action completes
   useEffect(() => {
@@ -184,24 +188,33 @@ export function CommandBar() {
           <SuggestionChips onChipClick={handleChipClick} />
         )}
 
-        {/* Listening indicator */}
-        {isListening && (
+        {/* Recording / Transcribing indicator */}
+        {(isListening || isTranscribing) && (
           <div className="flex items-center justify-center gap-2 mb-3 animate-in fade-in duration-200">
-            <div className="relative">
-              <Mic className="h-5 w-5 text-red-500" />
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            </div>
-            <span className="text-sm font-medium text-red-500">Listening...</span>
-            <button
-              onClick={() => {
-                stopListening();
-                clearTranscript();
-                setInput("");
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground ml-2"
-            >
-              Cancel
-            </button>
+            {isTranscribing ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="text-sm font-medium text-muted-foreground">Transcribing...</span>
+              </>
+            ) : (
+              <>
+                <div className="relative">
+                  <Mic className="h-5 w-5 text-red-500" />
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                </div>
+                <span className="text-sm font-medium text-red-500">Listening...</span>
+                <button
+                  onClick={() => {
+                    stopListening();
+                    clearTranscript();
+                    setInput("");
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground ml-2"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -224,7 +237,8 @@ export function CommandBar() {
             "dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.05)]",
             "p-2 pl-4",
             "transition-all duration-200",
-            isListening && "ring-2 ring-red-500/50"
+            isListening && "ring-2 ring-red-500/50",
+            isTranscribing && "ring-2 ring-primary/40"
           )}
         >
           {/* AI Indicator */}
@@ -246,7 +260,9 @@ export function CommandBar() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              isListening
+              isTranscribing
+                ? "Transcribing..."
+                : isListening
                 ? "Listening..."
                 : hasMessages
                 ? "Continue the conversation..."
@@ -269,14 +285,14 @@ export function CommandBar() {
             <button
               type="button"
               onClick={handleVoiceToggle}
-              disabled={isLoading}
+              disabled={isLoading || isTranscribing}
               className={cn(
                 "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
                 "transition-all duration-200",
                 isListening
                   ? "bg-red-500 text-white hover:bg-red-600 scale-110"
                   : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                isLoading && "opacity-50 cursor-not-allowed"
+                (isLoading || isTranscribing) && "opacity-50 cursor-not-allowed"
               )}
               aria-label={isListening ? "Stop voice input" : "Start voice input"}
               title={isListening ? "Stop listening" : "Voice input"}

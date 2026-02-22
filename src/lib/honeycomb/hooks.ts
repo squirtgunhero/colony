@@ -431,9 +431,7 @@ export function useMetaAccounts(): UseApiState<{ accounts: MetaAdAccount[] }> {
 export function useMetaCampaigns(accountId?: string): UseApiState<{ campaigns: MetaCampaign[] }> {
   const [data, setData] = useState<{ campaigns: MetaCampaign[] } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const fetchData = useCallback(async () => {
+  const [error, setError] = useState<Error | null>(null);  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);

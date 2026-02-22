@@ -58,7 +58,9 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/reset-password") ||
     request.nextUrl.pathname.startsWith("/auth/") ||
     request.nextUrl.pathname.startsWith("/api/og") ||
-    request.nextUrl.pathname.startsWith("/opengraph-image")
+    request.nextUrl.pathname.startsWith("/opengraph-image") ||
+    request.nextUrl.pathname.startsWith("/api/sms/") ||
+    request.nextUrl.pathname.startsWith("/api/cron/")
   );
 
   if (!user && !isPublicRoute) {
