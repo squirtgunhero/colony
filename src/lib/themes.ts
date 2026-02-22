@@ -36,14 +36,14 @@ function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function buildTheme(id: string, name: string, bg: string, accent: string, text: string): ColonyTheme {
+function buildTheme(id: string, name: string, bg: string, bgGlow: string, accent: string, text: string): ColonyTheme {
   return {
     id,
     name,
     bg,
     accent,
     text,
-    bgGlow: lighten(bg, 0.08),
+    bgGlow,
     surface: withAlpha(accent, 0.04),
     textMuted: withAlpha(text, 0.45),
     textSoft: withAlpha(text, 0.7),
@@ -54,12 +54,12 @@ function buildTheme(id: string, name: string, bg: string, accent: string, text: 
 }
 
 export const THEMES: ColonyTheme[] = [
-  buildTheme("ember", "Ember", "#1a1411", "#cf9b46", "#e8ddd0"),
-  buildTheme("midnight", "Midnight", "#0f1419", "#4a9ece", "#d0dde8"),
-  buildTheme("forest", "Forest", "#111a14", "#5fa66a", "#d0e8d5"),
-  buildTheme("rose", "Rose", "#1a1114", "#ce6a8a", "#e8d0da"),
-  buildTheme("slate", "Slate", "#141516", "#8a8d93", "#dddee0"),
-  buildTheme("violet", "Violet", "#14111a", "#8a6ace", "#dad0e8"),
+  buildTheme("ember",    "Ember",    "#1a1411", "#251c16", "#cf9b46", "#e8ddd0"),
+  buildTheme("midnight", "Midnight", "#0f1419", "#161e26", "#4a9ece", "#d0dde8"),
+  buildTheme("forest",   "Forest",   "#111a14", "#18241b", "#5fa66a", "#d0e8d5"),
+  buildTheme("rose",     "Rose",     "#1a1114", "#26181e", "#ce6a8a", "#e8d0da"),
+  buildTheme("slate",    "Slate",    "#141516", "#1c1d1f", "#8a8d93", "#dddee0"),
+  buildTheme("violet",   "Violet",   "#14111a", "#1e1926", "#8a6ace", "#dad0e8"),
 ];
 
 export const THEME_MAP = new Map(THEMES.map((t) => [t.id, t]));

@@ -31,8 +31,15 @@ export async function GET() {
     }),
   ]);
 
+  const firstName =
+    profile?.fullName?.split(" ")[0] ||
+    user.user_metadata?.full_name?.split(" ")[0] ||
+    user.user_metadata?.name?.split(" ")[0] ||
+    user.email?.split("@")[0] ||
+    null;
+
   return NextResponse.json({
-    firstName: profile?.fullName?.split(" ")[0] ?? null,
+    firstName,
     leadsCount,
     pendingTasks,
     pipelineValue: pipeline._sum.value ?? 0,

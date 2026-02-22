@@ -306,28 +306,28 @@ export function ChatCommandBar() {
               </button>
             )}
 
-            {/* Send Button */}
-            <button
-              onClick={handleSubmit}
-              disabled={!input.trim() || isLoading}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200"
-              style={{
-                backgroundColor: showSend ? theme.accentSoft : "transparent",
-                color: showSend ? theme.accent : theme.textMuted,
-                opacity: showSend && !isLoading ? 1 : 0.3,
-                transform: showSend ? "scale(1)" : "scale(0.8)",
-              }}
-              aria-label="Send message"
-            >
-              {isLoading ? (
-                <div
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
-                  style={{ borderColor: theme.accent, borderTopColor: "transparent" }}
-                />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
+            {/* Send Button — only visible when there's text */}
+            {showSend && (
+              <button
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 animate-in fade-in zoom-in-75 duration-150"
+                style={{
+                  backgroundColor: theme.accentSoft,
+                  color: theme.accent,
+                }}
+                aria-label="Send message"
+              >
+                {isLoading ? (
+                  <div
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
+                    style={{ borderColor: theme.accent, borderTopColor: "transparent" }}
+                  />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 

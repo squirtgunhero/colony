@@ -7,7 +7,6 @@ import { UserMenu } from "@/components/auth/user-menu";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { ViewToggle } from "./ViewToggle";
 import { useChatTheme } from "@/lib/chat-theme-context";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { WaveformVisualizer, type WaveformState } from "@/components/chat/WaveformVisualizer";
@@ -148,11 +147,8 @@ export function ChatTopNav() {
         )}
       </div>
 
-      {/* Right: Theme picker + View Toggle + User */}
+      {/* Right: Theme picker + User */}
       <div className="flex items-center gap-2" suppressHydrationWarning>
-        <div className="hidden md:flex items-center mr-2">
-          <ViewToggle />
-        </div>
         <ThemePicker />
         {mounted && <UserMenu />}
       </div>
