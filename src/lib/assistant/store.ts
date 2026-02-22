@@ -175,24 +175,8 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
       const data: LamResponse = await res.json();
 
-      // Build response message
       let responseContent = data.response.message;
       
-      // Add execution details
-      if (data.execution_result) {
-        const exec = data.execution_result;
-        if (exec.actions_executed > 0) {
-          responseContent += `\n\n✓ ${exec.actions_executed} action${exec.actions_executed > 1 ? "s" : ""} completed`;
-        }
-        if (exec.actions_failed > 0) {
-          responseContent += `\n✗ ${exec.actions_failed} action${exec.actions_failed > 1 ? "s" : ""} failed`;
-        }
-        if (exec.actions_pending_approval > 0) {
-          responseContent += `\n⏳ ${exec.actions_pending_approval} action${exec.actions_pending_approval > 1 ? "s" : ""} awaiting approval`;
-        }
-      }
-
-      // Add follow-up question if any
       if (data.response.follow_up_question) {
         responseContent += `\n\n${data.response.follow_up_question}`;
       }

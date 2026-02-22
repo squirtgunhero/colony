@@ -229,14 +229,15 @@ export const NoteAppendActionSchema = BaseActionSchema.extend({
 // ============================================================================
 
 export const CrmSearchPayloadSchema = z.object({
-  entity: z.enum(["contact", "deal", "task", "property"]),
-  query: z.string().min(1),
+  entity: z.enum(["contact", "deal", "task", "property", "referral"]),
+  query: z.string(),
   filters: z
     .object({
       type: z.string().optional(),
       stage: z.string().optional(),
       status: z.string().optional(),
       source: z.string().optional(),
+      category: z.string().optional(),
     })
     .optional(),
   limit: z.number().int().min(1).max(50).default(10),

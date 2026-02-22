@@ -523,10 +523,11 @@ const executors: Record<string, ActionExecutor> = {
     };
   },
 
-  "crm.search": async (action, _ctx) => {
+  "crm.search": async (action, ctx) => {
     if (action.type !== "crm.search") throw new Error("Invalid action type");
 
     const { entity, query, filters, limit } = action.payload;
+    const hasQuery = query && query.trim().length > 0;
 
     let results: unknown[] = [];
 
@@ -534,13 +535,29 @@ const executors: Record<string, ActionExecutor> = {
       case "contact": {
         results = await prisma.contact.findMany({
           where: {
-            OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { email: { contains: query, mode: "insensitive" } },
-              { phone: { contains: query, mode: "insensitive" } },
-            ],
+            userId: ctx.user_id,
+            ...(hasQuery
+              ? {
+                  OR: [
+                    { name: { contains: query, mode: "insensitive" } },
+                    { email: { contains: query, mode: "insensitive" } },
+                    { phone: { contains: query, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
             ...(filters?.type ? { type: filters.type } : {}),
             ...(filters?.source ? { source: filters.source } : {}),
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            type: true,
+            source: true,
+            tags: true,
+            createdAt: true,
+            updatedAt: true,
           },
           take: limit || 10,
           orderBy: { updatedAt: "desc" },
@@ -550,8 +567,22 @@ const executors: Record<string, ActionExecutor> = {
       case "deal": {
         results = await prisma.deal.findMany({
           where: {
-            title: { contains: query, mode: "insensitive" },
+            userId: ctx.user_id,
+            ...(hasQuery
+              ? { title: { contains: query, mode: "insensitive" } }
+              : {}),
             ...(filters?.stage ? { stage: filters.stage } : {}),
+          },
+          select: {
+            id: true,
+            title: true,
+            value: true,
+            stage: true,
+            notes: true,
+            expectedCloseDate: true,
+            createdAt: true,
+            updatedAt: true,
+            contact: { select: { name: true } },
           },
           take: limit || 10,
           orderBy: { updatedAt: "desc" },
@@ -561,27 +592,100 @@ const executors: Record<string, ActionExecutor> = {
       case "task": {
         results = await prisma.task.findMany({
           where: {
-            title: { contains: query, mode: "insensitive" },
+            userId: ctx.user_id,
+            ...(hasQuery
+              ? { title: { contains: query, mode: "insensitive" } }
+              : {}),
             ...(filters?.status
               ? { completed: filters.status === "completed" }
               : {}),
           },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            dueDate: true,
+            priority: true,
+            completed: true,
+            createdAt: true,
+            contact: { select: { name: true } },
+            deal: { select: { title: true } },
+          },
           take: limit || 10,
-          orderBy: { updatedAt: "desc" },
+          orderBy: [{ completed: "asc" }, { dueDate: "asc" }],
         });
         break;
       }
       case "property": {
         results = await prisma.property.findMany({
           where: {
-            OR: [
-              { address: { contains: query, mode: "insensitive" } },
-              { city: { contains: query, mode: "insensitive" } },
-            ],
+            userId: ctx.user_id,
+            ...(hasQuery
+              ? {
+                  OR: [
+                    { address: { contains: query, mode: "insensitive" } },
+                    { city: { contains: query, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
             ...(filters?.status ? { status: filters.status } : {}),
+          },
+          select: {
+            id: true,
+            address: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            price: true,
+            status: true,
+            bedrooms: true,
+            bathrooms: true,
+            sqft: true,
+            createdAt: true,
           },
           take: limit || 10,
           orderBy: { updatedAt: "desc" },
+        });
+        break;
+      }
+      case "referral": {
+        results = await prisma.referral.findMany({
+          where: {
+            createdByUserId: ctx.user_id,
+            ...(hasQuery
+              ? {
+                  OR: [
+                    { title: { contains: query, mode: "insensitive" } },
+                    { description: { contains: query, mode: "insensitive" } },
+                    { category: { contains: query, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+            ...(filters?.status ? { status: filters.status } : {}),
+            ...(filters?.category ? { category: filters.category } : {}),
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            status: true,
+            locationText: true,
+            valueEstimate: true,
+            currency: true,
+            visibility: true,
+            createdAt: true,
+            claims: {
+              select: {
+                id: true,
+                status: true,
+                message: true,
+                createdAt: true,
+              },
+            },
+          },
+          take: limit || 10,
+          orderBy: { createdAt: "desc" },
         });
         break;
       }
@@ -591,7 +695,7 @@ const executors: Record<string, ActionExecutor> = {
       action_id: action.action_id,
       action_type: action.type,
       status: "success",
-      data: results,
+      data: { entity, query, total: results.length, records: results },
     };
   },
 
