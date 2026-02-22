@@ -64,8 +64,9 @@ export async function executeAction(
 
   const parsed = action.parameters.safeParse(params);
   if (!parsed.success) {
-    const issues = (parsed as z.SafeParseError<unknown>).error.issues
-      .map((i) => `${i.path.join(".")}: ${i.message}`)
+    const failResult = parsed as z.ZodSafeParseError<unknown>;
+    const issues = failResult.error.issues
+      .map((i) => `${String(i.path.join("."))}: ${i.message}`)
       .join("; ");
     return { success: false, message: `Invalid parameters: ${issues}` };
   }
