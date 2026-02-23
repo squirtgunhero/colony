@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sendSMS } from "@/lib/twilio";
 import { runLam } from "@/lam";
 import { checkRateLimit, recordUsage, LAM_LIMITS } from "@/lam/rateLimit";
+import { findOrCreateThread, createInboundMessage } from "@/lib/db/inbox";
 
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN!;
 const CONVERSATION_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
@@ -95,6 +96,27 @@ export async function POST(request: NextRequest) {
         data: { lastActiveAt: new Date() },
       }),
     ]);
+
+    // Create/update InboxThread for the SMS conversation
+    try {
+      const { threadId } = await findOrCreateThread({
+        channel: "sms",
+        address: from,
+        direction: "inbound",
+        userId: profileId,
+      });
+
+      await createInboundMessage({
+        threadId,
+        channel: "sms",
+        fromAddress: from,
+        toAddress: process.env.TWILIO_PHONE_NUMBER!,
+        bodyText: body,
+        providerMessageId: messageSid,
+      });
+    } catch (inboxErr) {
+      console.error("Failed to create inbox thread for SMS:", inboxErr);
+    }
 
     const history = await prisma.conversationMessage.findMany({
       where: { convId: conversation.id },

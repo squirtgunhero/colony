@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, forwardRef } from "react";
 import Link from "next/link";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
@@ -21,7 +22,11 @@ import {
   MessageSquare,
   CheckSquare,
   Plus,
+  Send,
 } from "lucide-react";
+import { RelationshipScoreRing } from "@/components/contacts/RelationshipScoreRing";
+import type { RelationshipScoreResult } from "@/lib/relationship-score";
+import { createQuickNote } from "@/components/quick-capture/actions";
 
 interface Deal {
   id: string;
@@ -79,6 +84,23 @@ interface Contact {
   tasks: Task[];
 }
 
+function formatLastContacted(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "today";
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} week${weeks > 1 ? "s" : ""} ago`;
+  }
+  const months = Math.floor(diffDays / 30);
+  return `${months} month${months > 1 ? "s" : ""} ago`;
+}
+
 const sourceLabels: Record<string, string> = {
   zillow: "Zillow",
   website: "Website",
@@ -99,8 +121,20 @@ const stageLabels: Record<string, string> = {
   closed: "Closed",
 };
 
-export function ContactDetailView({ contact }: { contact: Contact }) {
+interface ContactDetailViewProps {
+  contact: Contact;
+  relationshipScore?: RelationshipScoreResult;
+  lastContactedDate?: string | null;
+}
+
+export function ContactDetailView({
+  contact,
+  relationshipScore,
+  lastContactedDate,
+}: ContactDetailViewProps) {
   const { theme } = useColonyTheme();
+  const [quickNote, setQuickNote] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   const totalDealValue = contact.deals.reduce((sum, d) => sum + (d.value || 0), 0);
   const activeDeals = contact.deals.filter((d) => d.stage !== "closed");
@@ -204,7 +238,36 @@ export function ContactDetailView({ contact }: { contact: Contact }) {
               >
                 {contact.type}
               </span>
+              {relationshipScore && (
+                <RelationshipScoreRing
+                  score={relationshipScore.score}
+                  color={relationshipScore.color}
+                  label={relationshipScore.label}
+                />
+              )}
             </div>
+            {lastContactedDate && (
+              <p
+                className="text-sm mt-1"
+                style={{
+                  color: theme.textMuted,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                Last contacted {formatLastContacted(lastContactedDate)}
+              </p>
+            )}
+            {!lastContactedDate && (
+              <p
+                className="text-sm mt-1"
+                style={{
+                  color: theme.textMuted,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                No interactions yet
+              </p>
+            )}
 
             <div
               className="flex items-center gap-4 mt-2 flex-wrap text-[14px]"
@@ -270,6 +333,61 @@ export function ContactDetailView({ contact }: { contact: Contact }) {
           </ActivityDialog>
           <ActionButton theme={theme} icon={<CheckSquare className="h-4 w-4" />} label="Task" raised={neumorphicRaised} pressed={neumorphicPressed} />
         </div>
+      </div>
+
+      {/* Quick note */}
+      <div className="max-w-5xl mx-auto px-6 pb-6">
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!quickNote.trim() || isSavingNote) return;
+            setIsSavingNote(true);
+            try {
+              await createQuickNote({
+                text: quickNote.trim(),
+                contactId: contact.id,
+              });
+              setQuickNote("");
+              window.location.reload();
+            } catch {
+              // silent fail
+            }
+            setIsSavingNote(false);
+          }}
+          className="flex gap-2"
+        >
+          <input
+            type="text"
+            placeholder="Add a quick note..."
+            value={quickNote}
+            onChange={(e) => setQuickNote(e.target.value)}
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm bg-transparent outline-none"
+            style={{
+              border: `1px solid ${withAlpha(theme.text, 0.1)}`,
+              color: theme.text,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = withAlpha(theme.accent, 0.3);
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = withAlpha(theme.text, 0.1);
+            }}
+          />
+          {quickNote.trim() && (
+            <button
+              type="submit"
+              disabled={isSavingNote}
+              className="px-3 py-2.5 rounded-xl transition-all"
+              style={{
+                backgroundColor: theme.accent,
+                color: "#fff",
+              }}
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          )}
+        </form>
       </div>
 
       {/* Divider */}
@@ -431,8 +549,6 @@ export function ContactDetailView({ contact }: { contact: Contact }) {
 /* ------------------------------------------------------------------ */
 
 import type { ColonyTheme } from "@/lib/themes";
-import { useState } from "react";
-import { forwardRef } from "react";
 
 const ActionButton = forwardRef<
   HTMLButtonElement,

@@ -168,7 +168,7 @@ export async function sendInboxMessage(data: {
     }
 
     let providerMessageId: string | undefined;
-    const fromAddress = emailAccount?.email || "unknown";
+    let fromAddress = emailAccount?.email || "unknown";
 
     if (data.channel === "email" && emailAccount) {
       // Send via Gmail
@@ -180,8 +180,23 @@ export async function sendInboxMessage(data: {
       });
       providerMessageId = result.messageId || undefined;
     } else if (data.channel === "sms") {
-      // SMS sending would go here (Phase 2)
-      return { success: false, error: "SMS sending is not yet available" };
+      const { sendSMS } = await import("@/lib/twilio");
+      const result = await sendSMS(data.to, data.body);
+      providerMessageId = result.sid;
+      fromAddress = process.env.TWILIO_PHONE_NUMBER || "colony";
+
+      // Also record in SMSMessage table
+      await prisma.sMSMessage.create({
+        data: {
+          profileId: userId,
+          direction: "outbound",
+          from: fromAddress,
+          to: data.to,
+          body: data.body,
+          twilioSid: result.sid,
+          status: "sent",
+        },
+      });
     }
 
     // Create message record

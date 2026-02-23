@@ -5,6 +5,7 @@ import { TopNav } from "@/components/layout/top-nav";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { Toaster } from "sonner";
+import { FloatingActionButton } from "@/components/quick-capture/FloatingActionButton";
 
 export default function DashboardLayout({
   children,
@@ -28,6 +29,7 @@ export default function DashboardLayout({
           </main>
         </div>
 
+        <FloatingActionButton />
         <Toaster 
           position="bottom-right"
           toastOptions={{

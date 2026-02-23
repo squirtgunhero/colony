@@ -1,26 +1,46 @@
 // ============================================
 // COLONY - Browse Deals
-// Deals list in Browse Mode
+// Deals list + kanban board in Browse Mode
 // ============================================
 
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
-import { DealsListView } from "@/components/browse/DealsListView";
+import { DealsPageClient } from "./deals-page-client";
 
-async function getDeals(userId: string) {
-  return prisma.deal.findMany({
-    where: { userId },
-    orderBy: { updatedAt: "desc" },
-    include: {
-      contact: true,
-      property: true,
-    },
-  });
+async function getData(userId: string) {
+  const [deals, contacts, properties] = await Promise.all([
+    prisma.deal.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        contact: true,
+        property: true,
+      },
+    }),
+    prisma.contact.findMany({
+      where: { userId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.property.findMany({
+      where: { userId },
+      select: { id: true, address: true, city: true },
+      orderBy: { address: "asc" },
+    }),
+  ]);
+
+  return { deals, contacts, properties };
 }
 
 export default async function BrowseDealsPage() {
   const userId = await requireUserId();
-  const deals = await getDeals(userId);
+  const { deals, contacts, properties } = await getData(userId);
 
-  return <DealsListView deals={deals} />;
+  return (
+    <DealsPageClient
+      deals={deals}
+      contacts={contacts}
+      properties={properties}
+    />
+  );
 }

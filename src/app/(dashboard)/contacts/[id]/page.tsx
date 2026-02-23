@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ContactDetailView } from "./contact-detail-view";
+import { calculateRelationshipScore } from "@/lib/relationship-score";
 
 interface ContactPageProps {
   params: Promise<{ id: string }>;
@@ -47,7 +48,32 @@ export default async function ContactPage({ params }: ContactPageProps) {
     notFound();
   }
 
+  // Compute relationship score
+  const lastActivity = contact.activities[0]?.createdAt ?? null;
+  const daysSinceLastActivity = lastActivity
+    ? Math.floor(
+        (Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)
+      )
+    : null;
+  const hasActiveDeal = contact.deals.some((d) => d.stage !== "closed");
+  const hasOverdueTasks = contact.tasks.some(
+    (t) => !t.completed && t.dueDate && new Date(t.dueDate) < new Date()
+  );
+
+  const relationshipScore = calculateRelationshipScore({
+    daysSinceLastActivity,
+    totalActivities: contact.activities.length,
+    hasActiveDeal,
+    hasOverdueTasks,
+  });
+
   const serialized = JSON.parse(JSON.stringify(contact));
 
-  return <ContactDetailView contact={serialized} />;
+  return (
+    <ContactDetailView
+      contact={serialized}
+      relationshipScore={relationshipScore}
+      lastContactedDate={lastActivity ? new Date(lastActivity).toISOString() : null}
+    />
+  );
 }

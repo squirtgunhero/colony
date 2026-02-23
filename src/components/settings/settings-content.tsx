@@ -68,6 +68,38 @@ export function SettingsContent() {
     weeklyDigest: false,
   });
 
+  // Autopilot settings (fetched from DB)
+  const [autopilot, setAutopilot] = useState<{
+    hasPhone: boolean;
+    phoneNumber?: string;
+    verified?: boolean;
+    autopilotEnabled?: boolean;
+    digestEnabled?: boolean;
+    overdueRemindersEnabled?: boolean;
+    referralAlertsEnabled?: boolean;
+    digestTime?: string;
+    quietStart?: string | null;
+    quietEnd?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/autopilot")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setAutopilot(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const updateAutopilot = (field: string, value: unknown) => {
+    setAutopilot((prev) => (prev ? { ...prev, [field]: value } : prev));
+    fetch("/api/settings/autopilot", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    }).catch(() => {});
+  };
+
   const [chatThemeId, setChatThemeId] = useState(getStoredThemeId());
 
   const handleChatThemeChange = (id: string) => {
@@ -205,6 +237,143 @@ export function SettingsContent() {
 
       {/* Email Accounts */}
       <EmailAccounts />
+
+      {/* Autopilot */}
+      {autopilot && autopilot.hasPhone && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Autopilot
+            </CardTitle>
+            <CardDescription>
+              Control how Colony proactively helps you via SMS.
+              {autopilot.phoneNumber && (
+                <span className="block mt-1 font-medium text-foreground">
+                  Connected: {autopilot.phoneNumber}
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Autopilot Enabled</Label>
+                <p className="text-xs text-muted-foreground">
+                  Allow Colony to text you proactively
+                </p>
+              </div>
+              <Switch
+                checked={autopilot.autopilotEnabled ?? false}
+                onCheckedChange={(checked: boolean) =>
+                  updateAutopilot("autopilotEnabled", checked)
+                }
+              />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Daily Digest</Label>
+                <p className="text-xs text-muted-foreground">
+                  Evening summary of your day
+                </p>
+              </div>
+              <Switch
+                checked={autopilot.digestEnabled ?? true}
+                onCheckedChange={(checked: boolean) =>
+                  updateAutopilot("digestEnabled", checked)
+                }
+              />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Overdue Reminders</Label>
+                <p className="text-xs text-muted-foreground">
+                  Get nudged when tasks are overdue
+                </p>
+              </div>
+              <Switch
+                checked={autopilot.overdueRemindersEnabled ?? true}
+                onCheckedChange={(checked: boolean) =>
+                  updateAutopilot("overdueRemindersEnabled", checked)
+                }
+              />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Referral Alerts</Label>
+                <p className="text-xs text-muted-foreground">
+                  Notified when someone claims your referral
+                </p>
+              </div>
+              <Switch
+                checked={autopilot.referralAlertsEnabled ?? true}
+                onCheckedChange={(checked: boolean) =>
+                  updateAutopilot("referralAlertsEnabled", checked)
+                }
+              />
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Digest Time</Label>
+                <p className="text-xs text-muted-foreground">
+                  When to send your daily summary
+                </p>
+              </div>
+              <select
+                value={autopilot.digestTime ?? "18:00"}
+                onChange={(e) => updateAutopilot("digestTime", e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {Array.from({ length: 24 }, (_, i) => {
+                  const h = i.toString().padStart(2, "0");
+                  const label = i === 0 ? "12:00 AM" : i < 12 ? `${i}:00 AM` : i === 12 ? "12:00 PM" : `${i - 12}:00 PM`;
+                  return <option key={h} value={`${h}:00`}>{label}</option>;
+                })}
+              </select>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-sm font-medium">Quiet Hours</Label>
+                <p className="text-xs text-muted-foreground">
+                  No texts during these hours
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <select
+                  value={autopilot.quietStart ?? ""}
+                  onChange={(e) => updateAutopilot("quietStart", e.target.value || null)}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">Off</option>
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const h = i.toString().padStart(2, "0");
+                    const label = i === 0 ? "12 AM" : i < 12 ? `${i} AM` : i === 12 ? "12 PM" : `${i - 12} PM`;
+                    return <option key={h} value={`${h}:00`}>{label}</option>;
+                  })}
+                </select>
+                <span className="text-muted-foreground">to</span>
+                <select
+                  value={autopilot.quietEnd ?? ""}
+                  onChange={(e) => updateAutopilot("quietEnd", e.target.value || null)}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">Off</option>
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const h = i.toString().padStart(2, "0");
+                    const label = i === 0 ? "12 AM" : i < 12 ? `${i} AM` : i === 12 ? "12 PM" : `${i - 12} PM`;
+                    return <option key={h} value={`${h}:00`}>{label}</option>;
+                  })}
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Notifications */}
       <Card>

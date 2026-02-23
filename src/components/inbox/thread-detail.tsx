@@ -281,7 +281,7 @@ export function ThreadDetail({ thread, onBack, onThreadUpdate }: ThreadDetailPro
                 <Mail className="h-3.5 w-3.5 mr-1.5" />
                 Email
               </TabsTrigger>
-              <TabsTrigger value="sms" className="text-xs h-7 px-3" disabled>
+              <TabsTrigger value="sms" className="text-xs h-7 px-3">
                 <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
                 SMS
               </TabsTrigger>

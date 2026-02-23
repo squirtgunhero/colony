@@ -17,7 +17,7 @@ export async function GET() {
   const [profile, leadsCount, pendingTasks, pipeline] = await Promise.all([
     prisma.profile.findUnique({
       where: { id: userId },
-      select: { fullName: true },
+      select: { fullName: true, onboardingCompleted: true },
     }),
     prisma.contact.count({
       where: { userId, type: "lead" },
@@ -43,5 +43,6 @@ export async function GET() {
     leadsCount,
     pendingTasks,
     pipelineValue: pipeline._sum.value ?? 0,
+    onboardingCompleted: profile?.onboardingCompleted ?? false,
   });
 }

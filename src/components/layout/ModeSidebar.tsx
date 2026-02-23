@@ -31,11 +31,21 @@ const bottomNavItems = [
 export function ModeSidebar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const [inboxUnread, setInboxUnread] = useState(0);
   const { theme } = useColonyTheme();
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/inbox/unread-count")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.count) setInboxUnread(data.count);
+      })
+      .catch(() => {});
   }, []);
 
   const isActive = (href: string) => {
@@ -101,7 +111,7 @@ export function ModeSidebar() {
                 className="h-[18px] w-[18px] shrink-0"
                 style={{ color: active ? theme.accent : theme.textMuted }}
               />
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col min-w-0 flex-1">
                 <span
                   className="text-sm whitespace-nowrap"
                   style={{ color: active ? theme.text : theme.text, opacity: active ? 1 : 0.5 }}
@@ -117,6 +127,14 @@ export function ModeSidebar() {
                   </span>
                 )}
               </div>
+              {item.label === "Inbox" && inboxUnread > 0 && (
+                <span
+                  className="flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[10px] font-bold"
+                  style={{ backgroundColor: theme.accent, color: "#fff" }}
+                >
+                  {inboxUnread > 99 ? "99+" : inboxUnread}
+                </span>
+              )}
             </Link>
           );
         })}

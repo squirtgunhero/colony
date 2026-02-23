@@ -9,12 +9,15 @@ import { WaveformVisualizer, type WaveformState } from "./WaveformVisualizer";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { ChatSuggestionChips } from "./ChatSuggestionChips";
 import { ColonySuggestions } from "./ColonySuggestions";
+import { OnboardingFlow } from "./OnboardingFlow";
+import { TodayView } from "./TodayView";
 
 interface Summary {
   firstName: string | null;
   leadsCount: number;
   pendingTasks: number;
   pipelineValue: number;
+  onboardingCompleted: boolean;
 }
 
 function capitalize(s: string): string {
@@ -63,12 +66,17 @@ export function ChatCanvas() {
     suggestions: { id: string; type: string; text: string; action: string }[];
     isNewUser: boolean;
   } | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [homeTab, setHomeTab] = useState<"chat" | "today">("chat");
 
   useEffect(() => {
     fetch("/api/chat/summary")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setSummary(data);
+        if (data) {
+          setSummary(data);
+          if (!data.onboardingCompleted) setShowOnboarding(true);
+        }
       })
       .catch(() => {});
 
@@ -116,9 +124,38 @@ export function ChatCanvas() {
       }}
     >
       <div className="mx-auto w-full max-w-2xl px-4 py-8 flex-1 flex flex-col relative z-10">
+        {/* Onboarding Flow */}
+        {showOnboarding && !hasMessages && (
+          <OnboardingFlow
+            firstName={summary?.firstName ?? null}
+            onComplete={() => setShowOnboarding(false)}
+          />
+        )}
+
         {/* Empty State */}
-        {!hasMessages && (
+        {!hasMessages && !showOnboarding && (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+            {/* Chat / Today toggle */}
+            <div className="flex gap-1 mb-6 rounded-xl p-1" style={{ backgroundColor: withAlpha(theme.text, 0.05) }}>
+              {(["chat", "today"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setHomeTab(tab)}
+                  className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all capitalize"
+                  style={{
+                    backgroundColor: homeTab === tab ? withAlpha(theme.accent, 0.15) : "transparent",
+                    color: homeTab === tab ? theme.accent : theme.textMuted,
+                  }}
+                >
+                  {tab === "chat" ? "Home" : "Today"}
+                </button>
+              ))}
+            </div>
+
+            {homeTab === "today" ? (
+              <TodayView />
+            ) : (
+            <>
             {/* Waveform — Colony's presence */}
             <div className="mb-10">
               <WaveformVisualizer state={waveformState} />
@@ -153,6 +190,14 @@ export function ChatCanvas() {
                 {summary.pendingTasks !== 1 ? "s" : ""}.{" "}
                 Pipeline at {formatPipeline(summary.pipelineValue)}.
               </p>
+            )}
+
+            {/* AI suggestions or onboarding prompts */}
+            {suggestions && (
+              <ColonySuggestions
+                suggestions={suggestions.suggestions}
+                isNewUser={suggestions.isNewUser}
+              />
             )}
 
             {/* Quick action chips — neumorphic, 2×2 grid on narrow screens */}
@@ -198,6 +243,8 @@ export function ChatCanvas() {
                 );
               })}
             </div>
+            </>
+            )}
           </div>
         )}
 

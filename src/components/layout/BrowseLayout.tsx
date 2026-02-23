@@ -7,6 +7,7 @@ import { BrowseTopNav } from "./BrowseTopNav";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
+import { FloatingActionButton } from "@/components/quick-capture/FloatingActionButton";
 
 interface BrowseLayoutProps {
   children: React.ReactNode;
@@ -34,6 +35,7 @@ export function BrowseLayout({ children }: BrowseLayoutProps) {
             {children}
           </main>
         </div>
+        <FloatingActionButton />
         <Toaster
           position="bottom-right"
           toastOptions={{

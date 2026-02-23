@@ -13,13 +13,15 @@ datasource db {
 
 // Profile table - synced with Supabase auth.users
 model Profile {
-  id        String   @id @db.Uuid // References auth.users(id)
-  email     String?
-  fullName  String?  @map("full_name")
-  avatarUrl String?  @map("avatar_url")
-  theme     String   @default("ember")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @map("updated_at")
+  id                   String   @id @db.Uuid // References auth.users(id)
+  email                String?
+  fullName             String?  @map("full_name")
+  avatarUrl            String?  @map("avatar_url")
+  theme                String   @default("ember")
+  businessType         String?  @map("business_type")
+  onboardingCompleted  Boolean  @default(false) @map("onboarding_completed")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @map("updated_at")
 
   // Team relations
   ownedTeams      Team[]           @relation("TeamOwner")
@@ -834,14 +836,20 @@ model MetaInsight {
 // ============================================================================
 
 model UserPhone {
-  id               String   @id @default(cuid())
-  profileId        String   @unique @map("profile_id") @db.Uuid
-  profile          Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  phoneNumber      String   @unique @map("phone_number") // E.164 format
-  verified         Boolean  @default(false)
-  autopilotEnabled Boolean  @default(false) @map("autopilot_enabled")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id                      String   @id @default(cuid())
+  profileId               String   @unique @map("profile_id") @db.Uuid
+  profile                 Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  phoneNumber             String   @unique @map("phone_number") // E.164 format
+  verified                Boolean  @default(false)
+  autopilotEnabled        Boolean  @default(false) @map("autopilot_enabled")
+  digestEnabled           Boolean  @default(true)  @map("digest_enabled")
+  overdueRemindersEnabled Boolean  @default(true)  @map("overdue_reminders_enabled")
+  referralAlertsEnabled   Boolean  @default(true)  @map("referral_alerts_enabled")
+  digestTime              String   @default("18:00") @map("digest_time") // HH:mm format
+  quietStart              String?  @map("quiet_start") // HH:mm format
+  quietEnd                String?  @map("quiet_end")   // HH:mm format
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
 
   @@index([phoneNumber])
   @@map("user_phones")
