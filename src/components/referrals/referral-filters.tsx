@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useColonyTheme } from "@/lib/chat-theme-context";
+import { withAlpha } from "@/lib/themes";
 import {
   Select,
   SelectContent,
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, X, Filter } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 const statusOptions = [
   { value: "all", label: "All Status" },
@@ -43,6 +43,7 @@ const viewOptions = [
 ];
 
 export function ReferralFilters() {
+  const { theme } = useColonyTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -53,13 +54,16 @@ export function ReferralFilters() {
     searchParams.get("createdByMe") === "true"
       ? "mine"
       : searchParams.get("participatingIn") === "true"
-      ? "participating"
-      : "all"
+        ? "participating"
+        : "all"
   );
+
+  const neumorphicRaised = `3px 3px 6px rgba(0,0,0,0.4), -3px -3px 6px rgba(255,255,255,0.04)`;
+  const neumorphicRecessed = `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`;
+  const dividerColor = withAlpha(theme.text, 0.06);
 
   const updateFilters = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
-    
     Object.entries(updates).forEach(([key, value]) => {
       if (value === null || value === "" || value === "all") {
         params.delete(key);
@@ -67,7 +71,6 @@ export function ReferralFilters() {
         params.set(key, value);
       }
     });
-
     router.push(`/referrals?${params.toString()}`);
   };
 
@@ -101,20 +104,30 @@ export function ReferralFilters() {
     router.push("/referrals");
   };
 
-  const hasActiveFilters =
-    search || status !== "all" || category !== "all" || view !== "all";
+  const hasActiveFilters = search || status !== "all" || category !== "all" || view !== "all";
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-1 items-center gap-2">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+            style={{ color: theme.textMuted }}
+          />
+          <input
             placeholder="Search referrals..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="pl-9 pr-9"
+            className="w-full h-10 pl-9 pr-9 rounded-xl text-sm outline-none transition-all"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.03)",
+              boxShadow: neumorphicRecessed,
+              border: `1px solid ${dividerColor}`,
+              color: theme.text,
+              caretColor: theme.accent,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
           />
           {search && (
             <button
@@ -122,15 +135,26 @@ export function ReferralFilters() {
                 setSearch("");
                 updateFilters({ search: null });
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+              style={{ color: theme.textMuted }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = theme.text)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
             >
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={handleSearch}>
+        <button
+          className="px-3 py-2 rounded-full text-sm font-medium transition-all duration-200"
+          style={{
+            backgroundColor: theme.bgGlow,
+            color: theme.textMuted,
+            boxShadow: neumorphicRaised,
+          }}
+          onClick={handleSearch}
+        >
           Search
-        </Button>
+        </button>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -174,13 +198,18 @@ export function ReferralFilters() {
         </Select>
 
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="h-4 w-4 mr-1" />
+          <button
+            className="flex items-center gap-1 text-sm transition-colors"
+            style={{ color: theme.textMuted }}
+            onClick={clearFilters}
+            onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
+          >
+            <X className="h-4 w-4" />
             Clear
-          </Button>
+          </button>
         )}
       </div>
     </div>
   );
 }
-

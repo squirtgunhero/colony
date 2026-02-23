@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useColonyTheme } from "@/lib/chat-theme-context";
+import { withAlpha } from "@/lib/themes";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, CheckCircle2, AlertCircle, Info, Calendar, Target } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-// Placeholder notifications - will be dynamic in a real implementation
 const initialNotifications = [
   {
     id: "1",
@@ -44,24 +43,21 @@ const iconMap: Record<string, typeof Bell> = {
   warning: AlertCircle,
 };
 
-const colorMap: Record<string, string> = {
-  info: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
-  task: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
-  deal: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
-  success: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
-  warning: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
-};
-
 export default function NotificationsPage() {
+  const { theme } = useColonyTheme();
   const [notifications, setNotifications] = useState(initialNotifications);
-  
-  const hasUnread = notifications.some(n => !n.read);
-  
+  const [pressedBtn, setPressedBtn] = useState<string | null>(null);
+
+  const hasUnread = notifications.some((n) => !n.read);
+
+  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  const neumorphicPressed = `inset 3px 3px 6px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(255,255,255,0.04)`;
+
   const handleMarkAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     toast.success("All notifications marked as read");
   };
-  
+
   const handleClearAll = () => {
     setNotifications([]);
     toast.success("All notifications cleared");
@@ -75,99 +71,118 @@ export default function NotificationsPage() {
       />
 
       <div className="p-4 sm:p-6 max-w-3xl">
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
-                  Recent Notifications
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Your latest updates and alerts
-                </CardDescription>
-              </div>
-              {notifications.length > 0 && (
-                <div className="flex gap-2">
-                  {hasUnread && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleMarkAllAsRead}
-                    >
-                      Mark all as read
-                    </Button>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleClearAll}
-                  >
-                    Clear all
-                  </Button>
-                </div>
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5" style={{ color: theme.accent }} />
+            <h2
+              className="text-lg font-semibold"
+              style={{ color: theme.text, fontFamily: "'DM Sans', sans-serif" }}
+            >
+              Recent Notifications
+            </h2>
+          </div>
+          {notifications.length > 0 && (
+            <div className="flex gap-2">
+              {hasUnread && (
+                <button
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
+                  style={{
+                    backgroundColor: theme.bgGlow,
+                    color: theme.textMuted,
+                    boxShadow: pressedBtn === "mark" ? neumorphicPressed : neumorphicRaised,
+                  }}
+                  onMouseDown={() => setPressedBtn("mark")}
+                  onMouseUp={() => setPressedBtn(null)}
+                  onMouseLeave={() => setPressedBtn(null)}
+                  onClick={handleMarkAllAsRead}
+                >
+                  Mark all as read
+                </button>
               )}
+              <button
+                className="px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200"
+                style={{
+                  backgroundColor: theme.bgGlow,
+                  color: theme.textMuted,
+                  boxShadow: pressedBtn === "clear" ? neumorphicPressed : neumorphicRaised,
+                }}
+                onMouseDown={() => setPressedBtn("clear")}
+                onMouseUp={() => setPressedBtn(null)}
+                onMouseLeave={() => setPressedBtn(null)}
+                onClick={handleClearAll}
+              >
+                Clear all
+              </button>
             </div>
-          </CardHeader>
-          <CardContent>
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Bell className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No notifications</p>
-                <p className="text-sm text-muted-foreground/80">
-                  You&apos;re all caught up!
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {notifications.map((notification) => {
-                  const Icon = iconMap[notification.type] || Bell;
-                  return (
-                    <div
-                      key={notification.id}
-                      className={cn(
-                        "flex items-start gap-4 p-4 rounded-xl border transition-colors",
-                        notification.read
-                          ? "border-border bg-background"
-                          : "border-primary/20 bg-primary/5"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "flex h-10 w-10 items-center justify-center rounded-lg shrink-0",
-                          colorMap[notification.type]
-                        )}
+          )}
+        </div>
+
+        {/* Notification list */}
+        {notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Bell className="h-12 w-12 mb-4" style={{ color: theme.accent, opacity: 0.4 }} />
+            <p className="text-lg font-medium" style={{ color: theme.textMuted }}>
+              No notifications
+            </p>
+            <p className="text-sm mt-1" style={{ color: withAlpha(theme.text, 0.35) }}>
+              You&apos;re all caught up!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {notifications.map((notification) => {
+              const Icon = iconMap[notification.type] || Bell;
+              return (
+                <div
+                  key={notification.id}
+                  className="flex items-start gap-4 p-4 rounded-xl transition-all duration-200"
+                  style={{
+                    backgroundColor: notification.read
+                      ? theme.bgGlow
+                      : withAlpha(theme.accent, 0.06),
+                    boxShadow: neumorphicRaised,
+                  }}
+                >
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-lg shrink-0"
+                    style={{
+                      backgroundColor: withAlpha(theme.accent, 0.15),
+                    }}
+                  >
+                    <Icon className="h-5 w-5" style={{ color: theme.accent }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p
+                        className="font-medium"
+                        style={{ color: notification.read ? theme.textSoft : theme.text }}
                       >
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className={cn(
-                            "font-medium",
-                            !notification.read && "text-foreground"
-                          )}>
-                            {notification.title}
-                          </p>
-                          {!notification.read && (
-                            <span className="h-2 w-2 rounded-full bg-primary shrink-0 mt-2" />
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                          {notification.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground/70 mt-2">
-                          {notification.time}
-                        </p>
-                      </div>
+                        {notification.title}
+                      </p>
+                      {!notification.read && (
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0 mt-2"
+                          style={{ backgroundColor: theme.accent }}
+                        />
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <p className="text-sm mt-0.5" style={{ color: theme.textMuted }}>
+                      {notification.description}
+                    </p>
+                    <p
+                      className="text-xs mt-2"
+                      style={{ color: withAlpha(theme.text, 0.3) }}
+                    >
+                      {notification.time}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

@@ -8,6 +8,7 @@ import { withAlpha } from "@/lib/themes";
 import { WaveformVisualizer, type WaveformState } from "./WaveformVisualizer";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { ChatSuggestionChips } from "./ChatSuggestionChips";
+import { ColonySuggestions } from "./ColonySuggestions";
 
 interface Summary {
   firstName: string | null;
@@ -58,12 +59,23 @@ export function ChatCanvas() {
   const { activeChips, clearChips } = useModeStore();
   const { theme } = useColonyTheme();
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [suggestions, setSuggestions] = useState<{
+    suggestions: { id: string; type: string; text: string; action: string }[];
+    isNewUser: boolean;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/chat/summary")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data) setSummary(data);
+      })
+      .catch(() => {});
+
+    fetch("/api/chat/suggestions")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setSuggestions(data);
       })
       .catch(() => {});
   }, []);
@@ -143,8 +155,8 @@ export function ChatCanvas() {
               </p>
             )}
 
-            {/* Quick action chips — neumorphic */}
-            <div className="flex flex-wrap justify-center gap-3">
+            {/* Quick action chips — neumorphic, 2×2 grid on narrow screens */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center gap-3 max-w-md mx-auto sm:max-w-none">
               {quickActions.map((action) => {
                 const raised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
                 const hover = `2px 2px 4px rgba(0,0,0,0.3), -2px -2px 4px rgba(255,255,255,0.03), 0 0 12px ${withAlpha(theme.accent, 0.1)}`;
@@ -153,7 +165,7 @@ export function ChatCanvas() {
                   <button
                     key={action.label}
                     onClick={() => setInput(action.prompt)}
-                    className="px-6 py-3 rounded-3xl text-sm transition-all duration-300"
+                    className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-3xl text-sm transition-all duration-300 text-center"
                     style={{
                       fontFamily: "var(--font-dm-sans), sans-serif",
                       color: theme.text,

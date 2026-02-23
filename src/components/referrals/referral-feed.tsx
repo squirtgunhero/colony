@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { ReferralCard } from "./referral-card";
+import { useColonyTheme } from "@/lib/chat-theme-context";
+import { withAlpha } from "@/lib/themes";
 import { Button } from "@/components/ui/button";
 import { Loader2, Share2 } from "lucide-react";
 import type { ReferralListItem } from "@/lib/db/referrals";
@@ -80,10 +82,12 @@ export function ReferralFeed() {
     }
   };
 
+  const { theme } = useColonyTheme();
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: theme.textMuted }} />
       </div>
     );
   }
@@ -91,7 +95,7 @@ export function ReferralFeed() {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-destructive mb-4">{error}</p>
+        <p className="mb-4" style={{ color: "#C87A5A" }}>{error}</p>
         <Button onClick={() => window.location.reload()}>Try Again</Button>
       </div>
     );
@@ -100,11 +104,16 @@ export function ReferralFeed() {
   if (referrals.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
-          <Share2 className="h-8 w-8 text-muted-foreground" />
+        <div
+          className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
+          style={{ backgroundColor: withAlpha(theme.accent, 0.12) }}
+        >
+          <Share2 className="h-8 w-8" style={{ color: theme.accent }} />
         </div>
-        <h3 className="text-lg font-medium text-foreground mb-2">No referrals yet</h3>
-        <p className="text-muted-foreground max-w-md mx-auto">
+        <h3 className="text-lg font-medium mb-2" style={{ color: theme.text }}>
+          No referrals yet
+        </h3>
+        <p className="max-w-md mx-auto" style={{ color: theme.textMuted }}>
           Be the first to post a referral opportunity. Share leads and grow your network.
         </p>
       </div>

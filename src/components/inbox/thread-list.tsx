@@ -3,6 +3,8 @@
 import { useState, useCallback, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "@/lib/date-utils";
+import { useColonyTheme } from "@/lib/chat-theme-context";
+import { withAlpha } from "@/lib/themes";
 import { 
   Mail, 
   MessageSquare, 
@@ -63,10 +65,10 @@ const channelIcons: Record<MessageChannel, typeof Mail> = {
   call: Phone,
 };
 
-const channelColors: Record<MessageChannel, string> = {
-  email: "text-blue-500",
-  sms: "text-emerald-500",
-  call: "text-amber-500",
+const channelOpacities: Record<MessageChannel, number> = {
+  email: 0.7,
+  sms: 0.85,
+  call: 1,
 };
 
 export function ThreadList({
@@ -107,14 +109,21 @@ export function ThreadList({
     });
   }, []);
 
+  const { theme } = useColonyTheme();
+
   if (threads.length === 0 && !isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-          <Mail className="h-8 w-8 text-muted-foreground" />
+        <div
+          className="flex h-16 w-16 items-center justify-center rounded-full mb-4"
+          style={{ backgroundColor: withAlpha(theme.accent, 0.12) }}
+        >
+          <Mail className="h-8 w-8" style={{ color: theme.accent }} />
         </div>
-        <h3 className="text-lg font-medium mb-1">No conversations yet</h3>
-        <p className="text-sm text-muted-foreground max-w-[280px]">
+        <h3 className="text-lg font-medium mb-1" style={{ color: theme.text }}>
+          No conversations yet
+        </h3>
+        <p className="text-sm max-w-[280px]" style={{ color: theme.textMuted }}>
           When you send or receive messages, they&apos;ll appear here.
         </p>
       </div>
@@ -130,9 +139,9 @@ export function ThreadList({
           const ChannelIcon = thread.lastMessageChannel 
             ? channelIcons[thread.lastMessageChannel] 
             : Mail;
-          const channelColor = thread.lastMessageChannel 
-            ? channelColors[thread.lastMessageChannel] 
-            : "text-muted-foreground";
+          const channelOpacity = thread.lastMessageChannel 
+            ? channelOpacities[thread.lastMessageChannel] 
+            : 0.5;
 
           // Determine display name
           const displayName = thread.contactName 
@@ -188,7 +197,7 @@ export function ThreadList({
                     )}>
                       {displayName}
                     </span>
-                    <ChannelIcon className={cn("h-3.5 w-3.5 shrink-0", channelColor)} />
+                    <ChannelIcon className="h-3.5 w-3.5 shrink-0" style={{ color: withAlpha(theme.accent, channelOpacity) }} />
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">
                     {formatDistanceToNow(new Date(thread.lastMessageAt))}

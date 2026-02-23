@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Plus, Inbox } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useColonyTheme } from "@/lib/chat-theme-context";
+import { withAlpha } from "@/lib/themes";
 import { ThreadList } from "@/components/inbox/thread-list";
 import { ThreadDetail } from "@/components/inbox/thread-detail";
 import { InboxFilters } from "@/components/inbox/inbox-filters";
@@ -185,6 +186,8 @@ export function InboxClient({
     }
   }, [filters, debouncedSearch, selectedThreadId]);
 
+  const { theme } = useColonyTheme();
+
   // Determine if we should show detail view (mobile responsive)
   const showDetail = selectedThreadId !== null;
 
@@ -193,11 +196,11 @@ export function InboxClient({
       {/* Thread list panel */}
       <div
         className={cn(
-          "flex flex-col border-r border-border bg-background",
+          "flex flex-col",
           "w-full md:w-[360px] lg:w-[400px]",
-          // Hide on mobile when thread is selected
           showDetail && "hidden md:flex"
         )}
+        style={{ borderRight: `1px solid ${withAlpha(theme.text, 0.06)}` }}
       >
         <InboxFilters
           filters={filters}
@@ -222,14 +225,13 @@ export function InboxClient({
       {/* Thread detail panel */}
       <div
         className={cn(
-          "flex-1 flex flex-col bg-background",
-          // Show full width on mobile when thread is selected
+          "flex-1 flex flex-col",
           !showDetail && "hidden md:flex"
         )}
       >
         {isLoadingDetail ? (
           <div className="flex-1 flex items-center justify-center">
-            <div className="text-muted-foreground">Loading...</div>
+            <div style={{ color: theme.textMuted }}>Loading...</div>
           </div>
         ) : selectedThread ? (
           <ThreadDetail
@@ -246,19 +248,34 @@ export function InboxClient({
 }
 
 function EmptyInboxState() {
+  const { theme } = useColonyTheme();
+  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted mb-6">
-        <Inbox className="h-10 w-10 text-muted-foreground" />
+      <div
+        className="flex h-20 w-20 items-center justify-center rounded-full mb-6"
+        style={{ backgroundColor: withAlpha(theme.accent, 0.12) }}
+      >
+        <Inbox className="h-10 w-10" style={{ color: theme.accent }} />
       </div>
-      <h3 className="text-xl font-medium mb-2">All caught up!</h3>
-      <p className="text-muted-foreground max-w-[320px] mb-6">
+      <h3 className="text-xl font-medium mb-2" style={{ color: theme.text }}>
+        All caught up!
+      </h3>
+      <p className="max-w-[320px] mb-6" style={{ color: theme.textMuted }}>
         Select a conversation from the list to view it, or start a new one.
       </p>
-      <Button disabled>
-        <Plus className="h-4 w-4 mr-2" />
+      <button
+        className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200"
+        style={{
+          backgroundColor: theme.accent,
+          color: theme.bg,
+          boxShadow: neumorphicRaised,
+        }}
+      >
+        <Plus className="h-4 w-4" />
         New conversation
-      </Button>
+      </button>
     </div>
   );
 }
