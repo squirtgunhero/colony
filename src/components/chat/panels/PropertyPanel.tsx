@@ -119,7 +119,7 @@ export function PropertyPanel({ entityId }: PropertyPanelProps) {
             property.status === "sold" && "bg-blue-500/10 text-blue-600 dark:text-blue-400",
             property.status === "off_market" && "bg-muted text-muted-foreground"
           )}>
-            {property.status.replace("_", " ")}
+            {(property.status ?? "").replace("_", " ")}
           </span>
         </div>
       </div>

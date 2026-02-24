@@ -4,6 +4,8 @@
 // ============================================================================
 
 import { prisma } from "@/lib/prisma";
+import { sendSMS } from "@/lib/twilio";
+import { sendGmailEmail } from "@/lib/gmail";
 import type { Action, ActionPlan } from "./actionSchema";
 import { validateAction } from "./actionSchema";
 
@@ -98,6 +100,19 @@ async function recordChange(
 }
 
 // ============================================================================
+// Team Lookup Helper
+// ============================================================================
+
+async function getUserActiveTeamId(userId: string): Promise<string | null> {
+  const membership = await prisma.teamMember.findFirst({
+    where: { userId },
+    orderBy: { joinedAt: "desc" },
+    select: { teamId: true },
+  });
+  return membership?.teamId ?? null;
+}
+
+// ============================================================================
 // Action Executors
 // ============================================================================
 
@@ -134,6 +149,19 @@ const executors: Record<string, ActionExecutor> = {
       null,
       contact
     );
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "note",
+          title: `Added new contact: ${contact.name}`,
+          contactId: contact.id,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for lead.create:", e);
+    }
 
     return {
       action_id: action.action_id,
@@ -260,6 +288,20 @@ const executors: Record<string, ActionExecutor> = {
       contact
     );
 
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "note",
+          title: `Updated contact: ${contact.name}`,
+          description: `Changed: ${Object.keys(cleanPatch).join(", ")}`,
+          contactId: contactId,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for lead.update:", e);
+    }
+
     console.log("[LAM Runtime] Update successful:", { id: contact.id, name: contact.name, tags: contact.tags });
 
     return {
@@ -302,6 +344,20 @@ const executors: Record<string, ActionExecutor> = {
       null,
       deal
     );
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "deal_update",
+          title: `Created deal: ${deal.title}`,
+          dealId: deal.id,
+          contactId: deal.contactId,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for deal.create:", e);
+    }
 
     return {
       action_id: action.action_id,
@@ -394,6 +450,20 @@ const executors: Record<string, ActionExecutor> = {
       deal
     );
 
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "deal_update",
+          title: `${deal.title} moved to ${deal.stage}`,
+          description: `From ${before.stage} to ${deal.stage}`,
+          dealId: deal.id,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for deal.moveStage:", e);
+    }
+
     return {
       action_id: action.action_id,
       action_type: action.type,
@@ -433,6 +503,20 @@ const executors: Record<string, ActionExecutor> = {
       null,
       task
     );
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "note",
+          title: `Created task: ${task.title}`,
+          contactId: task.contactId,
+          dealId: task.dealId,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for task.create:", e);
+    }
 
     return {
       action_id: action.action_id,
@@ -478,6 +562,20 @@ const executors: Record<string, ActionExecutor> = {
       task
     );
 
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "task_completed",
+          title: `Completed: ${task.title}`,
+          contactId: task.contactId,
+          dealId: task.dealId,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for task.complete:", e);
+    }
+
     return {
       action_id: action.action_id,
       action_type: action.type,
@@ -512,6 +610,21 @@ const executors: Record<string, ActionExecutor> = {
       null,
       note
     );
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "note",
+          title: "Added note",
+          description: note.body.slice(0, 100),
+          contactId: note.contactId,
+          dealId: note.dealId,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for note.append:", e);
+    }
 
     return {
       action_id: action.action_id,
@@ -699,35 +812,266 @@ const executors: Record<string, ActionExecutor> = {
     };
   },
 
-  // Tier 2 actions - stubbed but gated
-  "email.send": async (action, _ctx) => {
-    if (action.type !== "email.send") throw new Error("Invalid action type");
+  "referral.create": async (action, ctx) => {
+    if (action.type !== "referral.create") throw new Error("Invalid action type");
 
-    // In production, this would integrate with email provider
-    // For now, we just return a stubbed success
+    const payload = action.payload as {
+      title: string;
+      category: string;
+      description?: string;
+      locationText?: string;
+      valueEstimate?: number;
+      visibility?: string;
+    };
+
+    const referral = await prisma.referral.create({
+      data: {
+        createdByUserId: ctx.user_id,
+        title: payload.title,
+        category: payload.category.toLowerCase().replace(/\s+/g, "_"),
+        description: payload.description,
+        locationText: payload.locationText,
+        valueEstimate: payload.valueEstimate,
+        visibility: payload.visibility || "public",
+        status: "open",
+      },
+    });
+
+    await prisma.referralParticipant.create({
+      data: {
+        referralId: referral.id,
+        userId: ctx.user_id,
+        role: "creator",
+      },
+    });
+
+    await recordChange(
+      ctx.run_id,
+      action.action_id,
+      "Referral",
+      referral.id,
+      "create",
+      null,
+      referral
+    );
+
+    try {
+      const teamId = await getUserActiveTeamId(ctx.user_id);
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          teamId,
+          type: "note",
+          title: `Posted referral: ${referral.title}`,
+          description: `Category: ${referral.category}${referral.locationText ? `, Location: ${referral.locationText}` : ""}`,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for referral.create:", e);
+    }
+
     return {
       action_id: action.action_id,
       action_type: action.type,
       status: "success",
+      data: referral,
+      entity_id: referral.id,
+      after_state: referral,
+    };
+  },
+
+  "email.send": async (action, ctx) => {
+    if (action.type !== "email.send") throw new Error("Invalid action type");
+
+    const { contactId, subject, body, to: directEmail } = action.payload as {
+      contactId?: string;
+      subject: string;
+      body: string;
+      to?: string;
+    };
+
+    let recipientEmail = directEmail;
+    let recipientName = directEmail ?? "recipient";
+    let resolvedContactId = contactId;
+
+    if (contactId) {
+      const contact = await prisma.contact.findUnique({
+        where: { id: contactId },
+      });
+
+      if (!contact) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: "Contact not found",
+        };
+      }
+
+      if (contact.userId !== ctx.user_id) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: "Contact belongs to a different user",
+        };
+      }
+
+      if (!contact.email) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: `${contact.name} doesn't have an email on file`,
+        };
+      }
+
+      recipientEmail = contact.email;
+      recipientName = contact.name;
+      resolvedContactId = contact.id;
+    }
+
+    if (!recipientEmail) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No email address provided and no contactId to look up",
+      };
+    }
+
+    const emailAccount = await prisma.emailAccount.findFirst({
+      where: { userId: ctx.user_id, isDefault: true },
+    });
+
+    if (!emailAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error:
+          "You haven't connected an email account yet. Go to Settings to connect Gmail.",
+      };
+    }
+
+    const result = await sendGmailEmail({
+      emailAccountId: emailAccount.id,
+      to: recipientEmail,
+      subject,
+      body,
+    });
+
+    await prisma.activity.create({
       data: {
-        message: "Email sent (stubbed)",
-        to: action.payload.contactId,
-        subject: action.payload.subject,
+        userId: ctx.user_id,
+        type: "email",
+        title: `Email sent to ${recipientName}`,
+        description: subject,
+        metadata: JSON.stringify({
+          messageId: result.messageId,
+          threadId: result.threadId,
+          to: recipientEmail,
+          subject,
+        }),
+        contactId: resolvedContactId,
+      },
+    });
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success" as const,
+      data: {
+        messageId: result.messageId,
+        threadId: result.threadId,
+        to: recipientEmail,
+        recipientName,
+        message: `Email sent to ${recipientName}`,
       },
     };
   },
 
-  "sms.send": async (action, _ctx) => {
+  "sms.send": async (action, ctx) => {
     if (action.type !== "sms.send") throw new Error("Invalid action type");
 
-    // Stubbed
+    const { contactId, phoneNumber, message } = action.payload as {
+      contactId?: string;
+      phoneNumber?: string;
+      message: string;
+    };
+
+    let to = phoneNumber;
+    let recipientName = phoneNumber ?? "unknown";
+
+    if (contactId) {
+      const contact = await prisma.contact.findUnique({
+        where: { id: contactId },
+      });
+
+      if (!contact) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: "Contact not found",
+        };
+      }
+
+      if (contact.userId !== ctx.user_id) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: "Contact belongs to a different user",
+        };
+      }
+
+      if (!contact.phone) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: `${contact.name} doesn't have a phone number on file`,
+        };
+      }
+
+      to = contact.phone;
+      recipientName = contact.name;
+    }
+
+    if (!to) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No phone number provided and no contactId to look up",
+      };
+    }
+
+    const result = await sendSMS(to, message);
+
+    await prisma.sMSMessage.create({
+      data: {
+        profileId: ctx.user_id,
+        direction: "outbound",
+        from: process.env.TWILIO_PHONE_NUMBER!,
+        to,
+        body: message,
+        twilioSid: result.sid,
+        status: "sent",
+        lamRunId: ctx.run_id,
+      },
+    });
+
     return {
       action_id: action.action_id,
       action_type: action.type,
-      status: "success",
+      status: "success" as const,
       data: {
-        message: "SMS sent (stubbed)",
-        to: action.payload.contactId,
+        sid: result.sid,
+        to,
+        recipientName,
+        message: `SMS sent to ${recipientName}`,
       },
     };
   },

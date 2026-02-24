@@ -471,7 +471,7 @@ export function ContactDetailView({
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{deal.title}</p>
                           <p className="text-xs mt-0.5" style={{ color: theme.textMuted }}>
-                            {stageLabels[deal.stage] || deal.stage.replace("_", " ")}
+                            {stageLabels[deal.stage] || (deal.stage ?? "").replace("_", " ")}
                           </p>
                         </div>
                         {deal.value != null && deal.value > 0 && (
@@ -510,7 +510,7 @@ export function ContactDetailView({
                         <div className="text-right ml-3 shrink-0">
                           <p className="text-sm font-medium">{formatCurrency(property.price)}</p>
                           <p className="text-xs capitalize mt-0.5" style={{ color: theme.textMuted }}>
-                            {property.status.replace("_", " ")}
+                            {(property.status ?? "").replace("_", " ")}
                           </p>
                         </div>
                       </div>

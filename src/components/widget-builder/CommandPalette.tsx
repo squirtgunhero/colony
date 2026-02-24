@@ -131,7 +131,7 @@ export function CommandPalette({ onWidgetCreated }: CommandPaletteProps) {
       if (data.ok) {
         // Save the widget to layout
         await saveWidget(data.widgetSpec);
-        setSuccess(`Created ${data.widgetSpec.widgetType.replace("_", " ")}!`);
+        setSuccess(`Created ${(data.widgetSpec.widgetType ?? "widget").replace("_", " ")}!`);
         onWidgetCreated?.(data.widgetSpec);
         
         // Auto-close after success

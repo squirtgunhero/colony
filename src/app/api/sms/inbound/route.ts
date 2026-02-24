@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (!userPhone) {
       await sendSMS(
         from,
-        "Hey! Looks like you don't have a Colony account linked to this number yet. Sign up at jerseyproper.com/colony"
+        "Hey! Looks like you don't have a Colony account linked to this number yet. Sign up at mycolonyhq.com and verify your phone in settings."
       );
       return TWIML_EMPTY;
     }
@@ -132,6 +132,53 @@ export async function POST(request: NextRequest) {
           .join("\n") +
         "\n\nNew message: "
       : "";
+
+    const lowerBody = body.toLowerCase().trim();
+    const helpKeywords = ["help", "?", "commands", "what can you do", "what do you do", "how does this work"];
+
+    if (helpKeywords.includes(lowerBody)) {
+      const helpText = [
+        "Here's what I can do:",
+        "",
+        "\u2022 Add a contact \u2014 \"Add John Smith as a lead\"",
+        "\u2022 Update a contact \u2014 \"Mark Sarah as a client\"",
+        "\u2022 Create a deal \u2014 \"New $50K deal for Main St\"",
+        "\u2022 Move a deal \u2014 \"Move Johnson deal to negotiation\"",
+        "\u2022 Create a task \u2014 \"Remind me to call Mike tomorrow\"",
+        "\u2022 Complete a task \u2014 \"Mark follow-up call as done\"",
+        "\u2022 Add a note \u2014 \"Note on Sarah: prefers email\"",
+        "\u2022 Search anything \u2014 \"Show my pipeline\" or \"Who are my leads?\"",
+        "\u2022 Show referrals \u2014 \"Show my referrals\"",
+        "",
+        "Just text me like you'd text a coworker. I'll figure it out.",
+      ].join("\n");
+
+      const outbound = await sendSMS(from, helpText);
+
+      await prisma.$transaction([
+        prisma.conversationMessage.create({
+          data: {
+            convId: conversation.id,
+            role: "assistant",
+            content: helpText,
+            channel: "sms",
+          },
+        }),
+        prisma.sMSMessage.create({
+          data: {
+            profileId,
+            direction: "outbound",
+            from: process.env.TWILIO_PHONE_NUMBER!,
+            to: from,
+            body: helpText,
+            twilioSid: outbound.sid,
+            status: "sent",
+          },
+        }),
+      ]);
+
+      return TWIML_EMPTY;
+    }
 
     let replyText: string;
     let lamRunId: string | null = null;

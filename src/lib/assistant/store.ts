@@ -135,6 +135,26 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       return;
     }
 
+    // Help shortcut
+    const lowerMsg = message.trim().toLowerCase();
+    if (["help", "?", "commands", "what can you do"].includes(lowerMsg)) {
+      setInput("");
+      closeSlashMenu();
+      addMessage({
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: message.trim(),
+        timestamp: new Date(),
+      });
+      addMessage({
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: "Here's what I can do:\n\n\u2022 Add a contact \u2014 \"Add John Smith as a lead\"\n\u2022 Update a contact \u2014 \"Mark Sarah as a client\"\n\u2022 Create a deal \u2014 \"New $50K deal for Main St\"\n\u2022 Move a deal \u2014 \"Move Johnson deal to negotiation\"\n\u2022 Create a task \u2014 \"Remind me to call Mike tomorrow\"\n\u2022 Complete a task \u2014 \"Mark follow-up call as done\"\n\u2022 Add a note \u2014 \"Note on Sarah: prefers email\"\n\u2022 Search anything \u2014 \"Show my pipeline\" or \"Who are my leads?\"\n\u2022 Show referrals \u2014 \"Show my referrals\"\n\nJust talk to me like you'd talk to a coworker. I'll figure it out.",
+        timestamp: new Date(),
+      });
+      return;
+    }
+
     // Clear input and close slash menu
     setInput("");
     closeSlashMenu();

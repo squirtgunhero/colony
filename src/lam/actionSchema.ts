@@ -292,6 +292,31 @@ export const SmsSendActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Referral Actions
+// ============================================================================
+
+export const ReferralCreatePayloadSchema = z.object({
+  title: z.string(),
+  category: z.string(),
+  description: z.string().optional(),
+  locationText: z.string().optional(),
+  valueEstimate: z.number().optional(),
+  visibility: z.enum(["public", "network", "org"]).optional(),
+});
+
+export const ReferralCreateExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("referral"),
+  title: z.string(),
+  created: z.literal(true),
+});
+
+export const ReferralCreateActionSchema = BaseActionSchema.extend({
+  type: z.literal("referral.create"),
+  payload: ReferralCreatePayloadSchema,
+  expected_outcome: ReferralCreateExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // Union Action Type
 // ============================================================================
 
@@ -307,6 +332,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   CrmSearchActionSchema,
   EmailSendActionSchema,
   SmsSendActionSchema,
+  ReferralCreateActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -365,6 +391,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "task.create":
     case "task.complete":
     case "note.append":
+    case "referral.create":
       return 1;
     // Tier 2: External communications - require approval
     case "email.send":
@@ -446,6 +473,8 @@ export function getActionDescription(action: Action): string {
       return `Send email: ${action.payload.subject}`;
     case "sms.send":
       return `Send SMS to contact ${action.payload.contactId}`;
+    case "referral.create":
+      return `Post referral: ${action.payload.title}`;
     default:
       return "Unknown action";
   }

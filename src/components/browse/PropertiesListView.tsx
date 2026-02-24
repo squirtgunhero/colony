@@ -110,7 +110,7 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
                   boxShadow: isActive ? neumorphicRaised : "none",
                 }}
               >
-                {status.replace("_", " ")}
+                {(status ?? "").replace("_", " ")}
               </button>
             );
           })}
@@ -156,7 +156,7 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
                     color: theme.accent,
                   }}
                 >
-                  {property.status.replace("_", " ")}
+                  {(property.status ?? "").replace("_", " ")}
                 </span>
               </div>
 

@@ -120,7 +120,7 @@ export function ActivityCard({ recentDeals }: ActivityCardProps) {
                           index === 0 && "bg-white/10 text-white border-0"
                         )}
                       >
-                        {deal.stage.replace("_", " ")}
+                        {(deal.stage ?? "").replace("_", " ")}
                       </Badge>
                     </div>
                   </div>

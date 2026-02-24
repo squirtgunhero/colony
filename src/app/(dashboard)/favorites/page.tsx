@@ -302,7 +302,7 @@ function PropertyCard({ property }: { property: FavoriteProperty }) {
             variant="secondary"
             className={`capitalize ${statusColors[property.status] || ""}`}
           >
-            {property.status.replace("_", " ")}
+            {(property.status ?? "").replace("_", " ")}
           </Badge>
         </div>
       </CardContent>
@@ -352,7 +352,7 @@ function DealCard({ deal }: { deal: FavoriteDeal }) {
             variant="secondary"
             className={`capitalize ${stageColors[deal.stage] || ""}`}
           >
-            {deal.stage.replace("_", " ")}
+            {(deal.stage ?? "").replace("_", " ")}
           </Badge>
         </div>
       </CardContent>

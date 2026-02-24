@@ -174,10 +174,12 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
     finishOnboarding();
   };
 
+  const colonyNumber = process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || "(808) 353-5706";
+
   const finishOnboarding = () => {
     setTimeout(() => {
       addColonyMessage(
-        "All set. I'll check in with you every evening at 6pm with a summary of your day. You can text me anytime at (808) 353-5706.\n\nGo do your thing — I've got this."
+        `All set. I'll check in with you every evening at 6pm with a summary of your day. You can text me anytime at ${colonyNumber}.\n\nGo do your thing — I've got this.`
       );
       setStep("complete");
 

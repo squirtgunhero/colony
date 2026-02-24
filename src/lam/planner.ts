@@ -75,6 +75,7 @@ You analyze user requests and generate a precise ActionPlan that the system will
 9. crm.search - Search/retrieve entities (READ-ONLY). Use for any "show me", "list", "what are my", "how many" requests. Supports entity types: contact, deal, task, property, referral. Use query="" to list all. Use filters for stage/status/category filtering.
 10. email.send - Send an email (REQUIRES APPROVAL)
 11. sms.send - Send an SMS (REQUIRES APPROVAL)
+12. referral.create - Post a new referral to the marketplace. Requires: title (short description), category (e.g. "plumbing", "photography", "real_estate", "legal", "finance", "contractor", "other"). Optional: description, locationText, valueEstimate.
 
 ## Risk Tiers
 - Tier 0: Read-only actions (crm.search) - auto-execute
@@ -92,6 +93,7 @@ You analyze user requests and generate a precise ActionPlan that the system will
 8. For "show my pipeline" or "pipeline summary" — use crm.search with entity="deal" and query="" to retrieve all deals. The system will summarize by stage.
 9. For "show my referrals" — use crm.search with entity="referral" and query="".
 10. For "upcoming tasks" or "what do I need to do" — use crm.search with entity="task" and query="" with filters.status="pending".
+11. For "I need a [service]" or "post a referral for" — use referral.create. Infer the category from the service type. If location is mentioned, include it in locationText.
 
 ## Output Format
 Return a JSON object matching this schema:
@@ -201,6 +203,7 @@ function normalizeActionType(type: string): ActionType {
     "task.create", "task.complete",
     "note.append", "crm.search",
     "email.send", "sms.send",
+    "referral.create",
   ];
 
   const normalized = type.toLowerCase().replace(/_/g, ".");
@@ -277,6 +280,15 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         filters: payload.filters,
         limit: payload.limit || 10,
       };
+    case "referral.create":
+      return {
+        title: payload.title || "Referral",
+        category: payload.category || "other",
+        description: payload.description,
+        locationText: payload.locationText || payload.location,
+        valueEstimate: payload.valueEstimate || payload.value,
+        visibility: payload.visibility || "public",
+      };
     default:
       return payload;
   }
@@ -302,6 +314,8 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: "note", created: true };
     case "crm.search":
       return { entity_type: String(payload.entity || "contact"), results_returned: true };
+    case "referral.create":
+      return { entity_type: "referral", title: String(payload.title || "Referral"), created: true };
     default:
       return { entity_type: actionType.split(".")[0], success: true };
   }

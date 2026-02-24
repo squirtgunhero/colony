@@ -71,7 +71,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
                     color: theme.accent,
                   }}
                 >
-                  {statusLabels[property.status] || property.status.replace("_", " ")}
+                  {statusLabels[property.status] || (property.status ?? "").replace("_", " ")}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-1" style={{ color: theme.textMuted }}>
@@ -320,7 +320,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
                           className="text-xs capitalize"
                           style={{ color: theme.textMuted }}
                         >
-                          {deal.stage.replace("_", " ")}
+                          {(deal.stage ?? "").replace("_", " ")}
                         </p>
                       </div>
                     </div>
@@ -390,7 +390,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
                       color: theme.accent,
                     }}
                   >
-                    {statusLabels[property.status] || property.status.replace("_", " ")}
+                    {statusLabels[property.status] || (property.status ?? "").replace("_", " ")}
                   </span>
                 </div>
                 <div
