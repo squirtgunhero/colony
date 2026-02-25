@@ -22,9 +22,12 @@ export async function POST(request: NextRequest) {
   }
 
   // Normalize to E.164
+  const digits = phoneNumber.replace(/\D/g, "");
   const normalized = phoneNumber.startsWith("+")
     ? phoneNumber.replace(/\s/g, "")
-    : `+1${phoneNumber.replace(/\D/g, "")}`;
+    : digits.length === 11 && digits.startsWith("1")
+      ? `+${digits}`
+      : `+1${digits}`;
 
   try {
     const verifySid = process.env.TWILIO_VERIFY_SID;

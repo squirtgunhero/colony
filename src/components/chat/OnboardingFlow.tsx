@@ -272,6 +272,8 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
                   if (e.key === "Enter") handleSendCode();
                 }}
                 type="tel"
+                name="phone"
+                autoComplete="tel"
                 autoFocus
                 className="flex-1"
               />
@@ -307,6 +309,8 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
                   if (e.key === "Enter") handleVerifyCode();
                 }}
                 maxLength={6}
+                name="otp"
+                autoComplete="one-time-code"
                 autoFocus
                 className="flex-1"
               />
