@@ -6,6 +6,28 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
+const alertDialogLightVars = {
+  "--background": "#f8f8f6",
+  "--foreground": "#1a1a1a",
+  "--card": "#ffffff",
+  "--card-foreground": "#1a1a1a",
+  "--popover": "#ffffff",
+  "--popover-foreground": "#1a1a1a",
+  "--primary": "#c2410c",
+  "--primary-foreground": "#ffffff",
+  "--secondary": "#f5f5f3",
+  "--secondary-foreground": "#1a1a1a",
+  "--muted": "#f5f5f3",
+  "--muted-foreground": "#6b6b6b",
+  "--accent": "#fef7ed",
+  "--accent-foreground": "#9a3412",
+  "--destructive": "#b91c1c",
+  "--border": "rgba(0, 0, 0, 0.08)",
+  "--input": "rgba(0, 0, 0, 0.08)",
+  "--ring": "#c2410c",
+  color: "#1a1a1a",
+} as React.CSSProperties
+
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
@@ -54,9 +76,10 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
+          "bg-white border border-neutral-200 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl p-6 shadow-lg duration-200 sm:max-w-lg",
           className
         )}
+        style={alertDialogLightVars}
         {...props}
       />
     </AlertDialogPortal>

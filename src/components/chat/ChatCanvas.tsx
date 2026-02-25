@@ -134,7 +134,7 @@ export function ChatCanvas() {
 
         {/* Empty State */}
         {!hasMessages && !showOnboarding && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+          <div className="flex flex-col items-center justify-center text-center px-4 my-auto">
             {/* Chat / Today toggle */}
             <div className="flex gap-1 mb-6 rounded-xl p-1" style={{ backgroundColor: withAlpha(theme.text, 0.05) }}>
               {(["chat", "today"] as const).map((tab) => (

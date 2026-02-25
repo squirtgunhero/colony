@@ -636,6 +636,344 @@ const executors: Record<string, ActionExecutor> = {
     };
   },
 
+  "lead.delete": async (action, ctx) => {
+    if (action.type !== "lead.delete") throw new Error("Invalid action type");
+
+    const { id, name } = action.payload as { id?: string; name?: string };
+    let contactId = id;
+
+    if (!contactId && name) {
+      const found = await prisma.contact.findFirst({
+        where: {
+          userId: ctx.user_id,
+          name: { contains: name, mode: "insensitive" },
+        },
+      });
+      if (found) contactId = found.id;
+    }
+
+    if (!contactId) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Could not find contact "${name || id}" to delete`,
+      };
+    }
+
+    const before = await prisma.contact.findUnique({ where: { id: contactId } });
+    if (!before || before.userId !== ctx.user_id) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Contact not found or belongs to a different user",
+      };
+    }
+
+    await prisma.contact.delete({ where: { id: contactId } });
+
+    await recordChange(ctx.run_id, action.action_id, "Contact", contactId, "delete", before, null);
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "note",
+          title: `Deleted contact: ${before.name}`,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for lead.delete:", e);
+    }
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: { deleted: true, name: before.name },
+      entity_id: contactId,
+      before_state: before,
+    };
+  },
+
+  "lead.deleteAll": async (action, ctx) => {
+    if (action.type !== "lead.deleteAll") throw new Error("Invalid action type");
+
+    const contacts = await prisma.contact.findMany({
+      where: { userId: ctx.user_id },
+      select: { id: true, name: true },
+    });
+
+    const count = contacts.length;
+    if (count === 0) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success",
+        data: { deleted: 0, message: "No contacts to delete" },
+      };
+    }
+
+    await prisma.contact.deleteMany({ where: { userId: ctx.user_id } });
+
+    await recordChange(ctx.run_id, action.action_id, "Contact", "ALL", "delete", { count, ids: contacts.map(c => c.id) }, null);
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "note",
+          title: `Deleted all contacts (${count})`,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for lead.deleteAll:", e);
+    }
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: { deleted: count, message: `Deleted ${count} contact(s)` },
+    };
+  },
+
+  "deal.delete": async (action, ctx) => {
+    if (action.type !== "deal.delete") throw new Error("Invalid action type");
+
+    const { id, title } = action.payload as { id?: string; title?: string };
+    let dealId = id;
+
+    if (!dealId && title) {
+      const found = await prisma.deal.findFirst({
+        where: {
+          userId: ctx.user_id,
+          title: { contains: title, mode: "insensitive" },
+        },
+      });
+      if (found) dealId = found.id;
+    }
+
+    if (!dealId) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Could not find deal "${title || id}" to delete`,
+      };
+    }
+
+    const before = await prisma.deal.findUnique({ where: { id: dealId } });
+    if (!before || before.userId !== ctx.user_id) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Deal not found or belongs to a different user",
+      };
+    }
+
+    await prisma.deal.delete({ where: { id: dealId } });
+
+    await recordChange(ctx.run_id, action.action_id, "Deal", dealId, "delete", before, null);
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "deal_update",
+          title: `Deleted deal: ${before.title}`,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for deal.delete:", e);
+    }
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: { deleted: true, title: before.title },
+      entity_id: dealId,
+      before_state: before,
+    };
+  },
+
+  "deal.deleteAll": async (action, ctx) => {
+    if (action.type !== "deal.deleteAll") throw new Error("Invalid action type");
+
+    const deals = await prisma.deal.findMany({
+      where: { userId: ctx.user_id },
+      select: { id: true, title: true },
+    });
+
+    const count = deals.length;
+    if (count === 0) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success",
+        data: { deleted: 0, message: "No deals to delete" },
+      };
+    }
+
+    await prisma.deal.deleteMany({ where: { userId: ctx.user_id } });
+
+    await recordChange(ctx.run_id, action.action_id, "Deal", "ALL", "delete", { count, ids: deals.map(d => d.id) }, null);
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "deal_update",
+          title: `Deleted all deals (${count})`,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for deal.deleteAll:", e);
+    }
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: { deleted: count, message: `Deleted ${count} deal(s)` },
+    };
+  },
+
+  "task.delete": async (action, ctx) => {
+    if (action.type !== "task.delete") throw new Error("Invalid action type");
+
+    const { id, title } = action.payload as { id?: string; title?: string };
+    let taskId = id;
+
+    if (!taskId && title) {
+      const found = await prisma.task.findFirst({
+        where: {
+          userId: ctx.user_id,
+          title: { contains: title, mode: "insensitive" },
+        },
+      });
+      if (found) taskId = found.id;
+    }
+
+    if (!taskId) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Could not find task "${title || id}" to delete`,
+      };
+    }
+
+    const before = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!before || before.userId !== ctx.user_id) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Task not found or belongs to a different user",
+      };
+    }
+
+    await prisma.task.delete({ where: { id: taskId } });
+
+    await recordChange(ctx.run_id, action.action_id, "Task", taskId, "delete", before, null);
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "note",
+          title: `Deleted task: ${before.title}`,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for task.delete:", e);
+    }
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: { deleted: true, title: before.title },
+      entity_id: taskId,
+      before_state: before,
+    };
+  },
+
+  "task.deleteAll": async (action, ctx) => {
+    if (action.type !== "task.deleteAll") throw new Error("Invalid action type");
+
+    const tasks = await prisma.task.findMany({
+      where: { userId: ctx.user_id },
+      select: { id: true, title: true },
+    });
+
+    const count = tasks.length;
+    if (count === 0) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success",
+        data: { deleted: 0, message: "No tasks to delete" },
+      };
+    }
+
+    await prisma.task.deleteMany({ where: { userId: ctx.user_id } });
+
+    await recordChange(ctx.run_id, action.action_id, "Task", "ALL", "delete", { count, ids: tasks.map(t => t.id) }, null);
+
+    try {
+      await prisma.activity.create({
+        data: {
+          userId: ctx.user_id,
+          type: "note",
+          title: `Deleted all tasks (${count})`,
+        },
+      });
+    } catch (e) {
+      console.error("[LAM Runtime] Failed to log activity for task.deleteAll:", e);
+    }
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: { deleted: count, message: `Deleted ${count} task(s)` },
+    };
+  },
+
+  "note.delete": async (action, ctx) => {
+    if (action.type !== "note.delete") throw new Error("Invalid action type");
+
+    const { id } = action.payload;
+
+    const before = await prisma.note.findUnique({ where: { id } });
+    if (!before || before.userId !== ctx.user_id) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Note not found or belongs to a different user",
+      };
+    }
+
+    await prisma.note.delete({ where: { id } });
+
+    await recordChange(ctx.run_id, action.action_id, "Note", id, "delete", before, null);
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: { deleted: true },
+      entity_id: id,
+      before_state: before,
+    };
+  },
+
   "crm.search": async (action, ctx) => {
     if (action.type !== "crm.search") throw new Error("Invalid action type");
 

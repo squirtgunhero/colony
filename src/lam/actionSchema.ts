@@ -78,6 +78,40 @@ export const LeadUpdateActionSchema = BaseActionSchema.extend({
   expected_outcome: LeadUpdateExpectedOutcomeSchema,
 });
 
+export const LeadDeletePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine(
+  (data) => data.id || data.name,
+  { message: "Either id or name must be provided" }
+);
+
+export const LeadDeleteExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("contact"),
+  deleted: z.literal(true),
+});
+
+export const LeadDeleteActionSchema = BaseActionSchema.extend({
+  type: z.literal("lead.delete"),
+  payload: LeadDeletePayloadSchema,
+  expected_outcome: LeadDeleteExpectedOutcomeSchema,
+});
+
+export const LeadDeleteAllPayloadSchema = z.object({
+  confirm: z.literal(true),
+});
+
+export const LeadDeleteAllExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("contact"),
+  deleted_all: z.literal(true),
+});
+
+export const LeadDeleteAllActionSchema = BaseActionSchema.extend({
+  type: z.literal("lead.deleteAll"),
+  payload: LeadDeleteAllPayloadSchema,
+  expected_outcome: LeadDeleteAllExpectedOutcomeSchema,
+});
+
 // ============================================================================
 // Deal Actions
 // ============================================================================
@@ -158,6 +192,40 @@ export const DealMoveStageActionSchema = BaseActionSchema.extend({
   expected_outcome: DealMoveStageExpectedOutcomeSchema,
 });
 
+export const DealDeletePayloadSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().optional(),
+}).refine(
+  (data) => data.id || data.title,
+  { message: "Either id or title must be provided" }
+);
+
+export const DealDeleteExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("deal"),
+  deleted: z.literal(true),
+});
+
+export const DealDeleteActionSchema = BaseActionSchema.extend({
+  type: z.literal("deal.delete"),
+  payload: DealDeletePayloadSchema,
+  expected_outcome: DealDeleteExpectedOutcomeSchema,
+});
+
+export const DealDeleteAllPayloadSchema = z.object({
+  confirm: z.literal(true),
+});
+
+export const DealDeleteAllExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("deal"),
+  deleted_all: z.literal(true),
+});
+
+export const DealDeleteAllActionSchema = BaseActionSchema.extend({
+  type: z.literal("deal.deleteAll"),
+  payload: DealDeleteAllPayloadSchema,
+  expected_outcome: DealDeleteAllExpectedOutcomeSchema,
+});
+
 // ============================================================================
 // Task Actions
 // ============================================================================
@@ -203,6 +271,40 @@ export const TaskCompleteActionSchema = BaseActionSchema.extend({
   expected_outcome: TaskCompleteExpectedOutcomeSchema,
 });
 
+export const TaskDeletePayloadSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().optional(),
+}).refine(
+  (data) => data.id || data.title,
+  { message: "Either id or title must be provided" }
+);
+
+export const TaskDeleteExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("task"),
+  deleted: z.literal(true),
+});
+
+export const TaskDeleteActionSchema = BaseActionSchema.extend({
+  type: z.literal("task.delete"),
+  payload: TaskDeletePayloadSchema,
+  expected_outcome: TaskDeleteExpectedOutcomeSchema,
+});
+
+export const TaskDeleteAllPayloadSchema = z.object({
+  confirm: z.literal(true),
+});
+
+export const TaskDeleteAllExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("task"),
+  deleted_all: z.literal(true),
+});
+
+export const TaskDeleteAllActionSchema = BaseActionSchema.extend({
+  type: z.literal("task.deleteAll"),
+  payload: TaskDeleteAllPayloadSchema,
+  expected_outcome: TaskDeleteAllExpectedOutcomeSchema,
+});
+
 // ============================================================================
 // Note Actions
 // ============================================================================
@@ -222,6 +324,21 @@ export const NoteAppendActionSchema = BaseActionSchema.extend({
   type: z.literal("note.append"),
   payload: NoteAppendPayloadSchema,
   expected_outcome: NoteAppendExpectedOutcomeSchema,
+});
+
+export const NoteDeletePayloadSchema = z.object({
+  id: z.string(),
+});
+
+export const NoteDeleteExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("note"),
+  deleted: z.literal(true),
+});
+
+export const NoteDeleteActionSchema = BaseActionSchema.extend({
+  type: z.literal("note.delete"),
+  payload: NoteDeletePayloadSchema,
+  expected_outcome: NoteDeleteExpectedOutcomeSchema,
 });
 
 // ============================================================================
@@ -323,12 +440,19 @@ export const ReferralCreateActionSchema = BaseActionSchema.extend({
 export const ActionSchema = z.discriminatedUnion("type", [
   LeadCreateActionSchema,
   LeadUpdateActionSchema,
+  LeadDeleteActionSchema,
+  LeadDeleteAllActionSchema,
   DealCreateActionSchema,
   DealUpdateActionSchema,
   DealMoveStageActionSchema,
+  DealDeleteActionSchema,
+  DealDeleteAllActionSchema,
   TaskCreateActionSchema,
   TaskCompleteActionSchema,
+  TaskDeleteActionSchema,
+  TaskDeleteAllActionSchema,
   NoteAppendActionSchema,
+  NoteDeleteActionSchema,
   CrmSearchActionSchema,
   EmailSendActionSchema,
   SmsSendActionSchema,
@@ -392,13 +516,20 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "task.complete":
     case "note.append":
     case "referral.create":
+    case "lead.delete":
+    case "deal.delete":
+    case "task.delete":
+    case "note.delete":
       return 1;
-    // Tier 2: External communications - require approval
+    // Tier 2: Destructive bulk actions + external communications - require approval
+    case "lead.deleteAll":
+    case "deal.deleteAll":
+    case "task.deleteAll":
     case "email.send":
     case "sms.send":
       return 2;
     default:
-      return 2; // Unknown actions default to highest risk
+      return 2;
   }
 }
 
@@ -475,6 +606,20 @@ export function getActionDescription(action: Action): string {
       return `Send SMS to contact ${action.payload.contactId}`;
     case "referral.create":
       return `Post referral: ${action.payload.title}`;
+    case "lead.delete":
+      return `Delete contact${action.payload.name ? `: ${action.payload.name}` : ""}`;
+    case "lead.deleteAll":
+      return "Delete all contacts";
+    case "deal.delete":
+      return `Delete deal${action.payload.title ? `: ${action.payload.title}` : ""}`;
+    case "deal.deleteAll":
+      return "Delete all deals";
+    case "task.delete":
+      return `Delete task${action.payload.title ? `: ${action.payload.title}` : ""}`;
+    case "task.deleteAll":
+      return "Delete all tasks";
+    case "note.delete":
+      return `Delete note ${action.payload.id}`;
     default:
       return "Unknown action";
   }

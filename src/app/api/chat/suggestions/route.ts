@@ -136,17 +136,34 @@ export async function GET() {
     });
   }
 
-  // If we still have fewer than 2 suggestions and there are more stale contacts
+  // Fill remaining spots with additional stale contacts (skip similar names)
   if (staleContacts.length > 1 && suggestions.length < 3) {
-    const c = staleContacts[1];
-    const daysText =
-      c.days_ago != null ? `${c.days_ago} days` : "a while";
-    suggestions.push({
-      id: `followup-${c.id}`,
-      type: "follow_up",
-      text: `${c.name} hasn't been contacted in ${daysText}. Want me to send a check-in?`,
-      action: `Draft a follow-up message for ${c.name}`,
-    });
+    const usedNames = new Set(
+      suggestions
+        .filter((s) => s.type === "follow_up")
+        .map((s) => s.text.split(" hasn't")[0].toLowerCase().trim())
+    );
+
+    for (let i = 1; i < staleContacts.length && suggestions.length < 3; i++) {
+      const c = staleContacts[i];
+      const nameLower = c.name.toLowerCase().trim();
+      const isDuplicate = Array.from(usedNames).some(
+        (used) =>
+          used === nameLower ||
+          used.includes(nameLower) ||
+          nameLower.includes(used)
+      );
+      if (isDuplicate) continue;
+
+      const daysText = c.days_ago != null ? `${c.days_ago} days` : "a while";
+      suggestions.push({
+        id: `followup-${c.id}`,
+        type: "follow_up",
+        text: `${c.name} hasn't been contacted in ${daysText}. Want me to send a check-in?`,
+        action: `Draft a follow-up message for ${c.name}`,
+      });
+      usedNames.add(nameLower);
+    }
   }
 
   return NextResponse.json({

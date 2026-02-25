@@ -66,21 +66,28 @@ You analyze user requests and generate a precise ActionPlan that the system will
 ## Available Actions
 1. lead.create - Create a new lead/contact
 2. lead.update - Update an existing lead. Can use "name" field to find contact, OR provide "id" if known.
-3. deal.create - Create a new deal
-4. deal.update - Update an existing deal (requires id or title)
-5. deal.moveStage - Move a deal to a different stage
-6. task.create - Create a new task
-7. task.complete - Mark a task as complete
-8. note.append - Add a note to a contact or deal
-9. crm.search - Search/retrieve entities (READ-ONLY). Use for any "show me", "list", "what are my", "how many" requests. Supports entity types: contact, deal, task, property, referral. Use query="" to list all. Use filters for stage/status/category filtering.
-10. email.send - Send an email (REQUIRES APPROVAL)
-11. sms.send - Send an SMS (REQUIRES APPROVAL)
-12. referral.create - Post a new referral to the marketplace. Requires: title (short description), category (e.g. "plumbing", "photography", "real_estate", "legal", "finance", "contractor", "other"). Optional: description, locationText, valueEstimate.
+3. lead.delete - Delete a specific contact by name or id
+4. lead.deleteAll - Delete ALL contacts (REQUIRES APPROVAL)
+5. deal.create - Create a new deal
+6. deal.update - Update an existing deal (requires id or title)
+7. deal.moveStage - Move a deal to a different stage
+8. deal.delete - Delete a specific deal by title or id
+9. deal.deleteAll - Delete ALL deals (REQUIRES APPROVAL)
+10. task.create - Create a new task
+11. task.complete - Mark a task as complete
+12. task.delete - Delete a specific task by title or id
+13. task.deleteAll - Delete ALL tasks (REQUIRES APPROVAL)
+14. note.append - Add a note to a contact or deal
+15. note.delete - Delete a specific note by id
+16. crm.search - Search/retrieve entities (READ-ONLY). Use for any "show me", "list", "what are my", "how many" requests. Supports entity types: contact, deal, task, property, referral. Use query="" to list all. Use filters for stage/status/category filtering.
+17. email.send - Send an email (REQUIRES APPROVAL)
+18. sms.send - Send an SMS (REQUIRES APPROVAL)
+19. referral.create - Post a new referral to the marketplace. Requires: title (short description), category (e.g. "plumbing", "photography", "real_estate", "legal", "finance", "contractor", "other"). Optional: description, locationText, valueEstimate.
 
 ## Risk Tiers
 - Tier 0: Read-only actions (crm.search) - auto-execute
-- Tier 1: Mutations (create/update) - auto-execute with undo capability
-- Tier 2: External communications (email/sms) - requires user approval
+- Tier 1: Mutations (create/update/single delete) - auto-execute with undo capability
+- Tier 2: Bulk deletes (deleteAll) and external communications (email/sms) - requires user approval
 
 ## Critical Rules
 1. For lead.update: Include "name" in payload to identify the contact. System will auto-lookup by name. NO crm.search needed before an update!
@@ -94,6 +101,9 @@ You analyze user requests and generate a precise ActionPlan that the system will
 9. For "show my referrals" — use crm.search with entity="referral" and query="".
 10. For "upcoming tasks" or "what do I need to do" — use crm.search with entity="task" and query="" with filters.status="pending".
 11. For "I need a [service]" or "post a referral for" — use referral.create. Infer the category from the service type. If location is mentioned, include it in locationText.
+12. For "delete [name]" or "remove [name]" — use the appropriate .delete action (lead.delete, deal.delete, task.delete). Use name/title to identify. NEVER refuse a delete request — the system supports it.
+13. For "delete all contacts/deals/tasks" or "clear all [entity]" or "remove everything" — use the appropriate .deleteAll action. Set confirm: true. These require user approval before executing.
+14. For "delete" requests, ALWAYS generate the delete action. NEVER respond saying deletion is not supported.
 
 ## Output Format
 Return a JSON object matching this schema:
@@ -198,10 +208,11 @@ function normalizeLLMResponseManual(
 
 function normalizeActionType(type: string): ActionType {
   const validTypes: ActionType[] = [
-    "lead.create", "lead.update",
-    "deal.create", "deal.update", "deal.moveStage",
-    "task.create", "task.complete",
-    "note.append", "crm.search",
+    "lead.create", "lead.update", "lead.delete", "lead.deleteAll",
+    "deal.create", "deal.update", "deal.moveStage", "deal.delete", "deal.deleteAll",
+    "task.create", "task.complete", "task.delete", "task.deleteAll",
+    "note.append", "note.delete",
+    "crm.search",
     "email.send", "sms.send",
     "referral.create",
   ];
@@ -211,11 +222,20 @@ function normalizeActionType(type: string): ActionType {
     return normalized as ActionType;
   }
 
-  // Map common variations
   const typeMap: Record<string, ActionType> = {
     "create_lead": "lead.create",
     "createlead": "lead.create",
     "contact.create": "lead.create",
+    "contact.delete": "lead.delete",
+    "contact.deleteall": "lead.deleteAll",
+    "lead.deleteall": "lead.deleteAll",
+    "deal.deleteall": "deal.deleteAll",
+    "task.deleteall": "task.deleteAll",
+    "delete_lead": "lead.delete",
+    "delete_contact": "lead.delete",
+    "delete_deal": "deal.delete",
+    "delete_task": "task.delete",
+    "delete_note": "note.delete",
   };
 
   return typeMap[type.toLowerCase()] || "lead.create";
@@ -289,6 +309,31 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         valueEstimate: payload.valueEstimate || payload.value,
         visibility: payload.visibility || "public",
       };
+    case "lead.delete":
+      return {
+        id: payload.id || payload.contactId,
+        name: payload.name || payload.contactName,
+      };
+    case "lead.deleteAll":
+      return { confirm: true };
+    case "deal.delete":
+      return {
+        id: payload.id || payload.dealId,
+        title: payload.title || payload.name,
+      };
+    case "deal.deleteAll":
+      return { confirm: true };
+    case "task.delete":
+      return {
+        id: payload.id || payload.taskId,
+        title: payload.title || payload.name,
+      };
+    case "task.deleteAll":
+      return { confirm: true };
+    case "note.delete":
+      return {
+        id: payload.id || payload.noteId || "",
+      };
     default:
       return payload;
   }
@@ -316,6 +361,20 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: String(payload.entity || "contact"), results_returned: true };
     case "referral.create":
       return { entity_type: "referral", title: String(payload.title || "Referral"), created: true };
+    case "lead.delete":
+      return { entity_type: "contact", deleted: true };
+    case "lead.deleteAll":
+      return { entity_type: "contact", deleted_all: true };
+    case "deal.delete":
+      return { entity_type: "deal", deleted: true };
+    case "deal.deleteAll":
+      return { entity_type: "deal", deleted_all: true };
+    case "task.delete":
+      return { entity_type: "task", deleted: true };
+    case "task.deleteAll":
+      return { entity_type: "task", deleted_all: true };
+    case "note.delete":
+      return { entity_type: "note", deleted: true };
     default:
       return { entity_type: actionType.split(".")[0], success: true };
   }
