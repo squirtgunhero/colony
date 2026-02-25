@@ -74,9 +74,10 @@ export async function POST(request: NextRequest) {
     response.cookies.delete("onboarding_phone");
     return response;
   } catch (error: unknown) {
-    console.error("Verification failed:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Verification failed:", message, error);
     return NextResponse.json(
-      { error: "Verification failed. Please try again." },
+      { error: `Verification failed: ${message}` },
       { status: 500 }
     );
   }
