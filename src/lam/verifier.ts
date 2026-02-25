@@ -540,7 +540,8 @@ export async function verify(
         break;
       case "email.send":
       case "sms.send":
-        // External actions - just verify the result status
+      case "referral.create":
+      default:
         step = {
           action_id: action.action_id,
           action_type: action.type,
