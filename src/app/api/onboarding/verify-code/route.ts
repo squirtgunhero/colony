@@ -52,6 +52,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Ensure profile exists before linking phone
+    await prisma.profile.upsert({
+      where: { id: user.id },
+      create: {
+        id: user.id,
+        email: user.email,
+        fullName: user.user_metadata?.full_name || user.user_metadata?.name || null,
+      },
+      update: {},
+    });
+
     // Upsert UserPhone record
     await prisma.userPhone.upsert({
       where: { profileId: user.id },
