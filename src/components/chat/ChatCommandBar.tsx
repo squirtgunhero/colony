@@ -284,7 +284,7 @@ export function ChatCommandBar() {
                   ? "Transcribing..."
                   : isListening
                     ? "Listening..."
-                    : "Talk to Colony..."
+                    : "Talk to Tara..."
               }
               disabled={isLoading}
               rows={1}

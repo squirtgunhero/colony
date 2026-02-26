@@ -55,6 +55,9 @@ interface AssistantState {
   addMessage: (message: AssistantMessage) => void;
   clearMessages: () => void;
   
+  // History
+  loadHistory: () => Promise<void>;
+  
   // LAM Integration
   sendToLam: (message: string, context?: AssistantContext) => Promise<void>;
   approveRun: (runId: string) => Promise<void>;
@@ -118,6 +121,43 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     canUndo: false,
     pendingApprovalRunId: null,
   }),
+
+  // ============================================
+  // History - Load persisted conversation
+  // ============================================
+  loadHistory: async () => {
+    try {
+      const res = await fetch("/api/chat/history");
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (!data.messages || data.messages.length === 0) return;
+
+      const hydratedMessages: AssistantMessage[] = data.messages.map(
+        (m: {
+          id: string;
+          role: string;
+          content: string;
+          channel: string;
+          lamRunId: string | null;
+          createdAt: string;
+        }) => ({
+          id: m.id,
+          role: m.role as "user" | "assistant",
+          content:
+            m.channel !== "web"
+              ? `[via ${m.channel.toUpperCase()}] ${m.content}`
+              : m.content,
+          timestamp: new Date(m.createdAt),
+          runId: m.lamRunId,
+        })
+      );
+
+      set({ messages: hydratedMessages });
+    } catch {
+      // Non-critical — just start with empty chat
+    }
+  },
 
   // ============================================
   // LAM Integration - Send to AI

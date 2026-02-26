@@ -372,6 +372,72 @@ export const CrmSearchActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Ads Actions
+// ============================================================================
+
+export const AdsCreateCampaignPayloadSchema = z.object({
+  objective: z.enum(["LEADS", "TRAFFIC", "AWARENESS", "ENGAGEMENT", "SALES"]).default("LEADS"),
+  daily_budget: z.number().optional().default(10),
+  name: z.string().optional(),
+});
+
+export const AdsCreateCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  created: z.literal(true),
+});
+
+export const AdsCreateCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.create_campaign"),
+  payload: AdsCreateCampaignPayloadSchema,
+  expected_outcome: AdsCreateCampaignExpectedOutcomeSchema,
+});
+
+export const AdsCheckPerformancePayloadSchema = z.object({
+  campaign_name: z.string().optional(),
+});
+
+export const AdsCheckPerformanceExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  results_returned: z.literal(true),
+});
+
+export const AdsCheckPerformanceActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.check_performance"),
+  payload: AdsCheckPerformancePayloadSchema,
+  expected_outcome: AdsCheckPerformanceExpectedOutcomeSchema,
+});
+
+export const AdsPauseCampaignPayloadSchema = z.object({
+  campaign_name: z.string(),
+});
+
+export const AdsPauseCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  paused: z.literal(true),
+});
+
+export const AdsPauseCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.pause_campaign"),
+  payload: AdsPauseCampaignPayloadSchema,
+  expected_outcome: AdsPauseCampaignExpectedOutcomeSchema,
+});
+
+export const AdsResumeCampaignPayloadSchema = z.object({
+  campaign_name: z.string(),
+});
+
+export const AdsResumeCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  resumed: z.literal(true),
+});
+
+export const AdsResumeCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.resume_campaign"),
+  payload: AdsResumeCampaignPayloadSchema,
+  expected_outcome: AdsResumeCampaignExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // External Communication Actions (Tier 2 - Approval Required)
 // ============================================================================
 
@@ -457,6 +523,10 @@ export const ActionSchema = z.discriminatedUnion("type", [
   EmailSendActionSchema,
   SmsSendActionSchema,
   ReferralCreateActionSchema,
+  AdsCreateCampaignActionSchema,
+  AdsCheckPerformanceActionSchema,
+  AdsPauseCampaignActionSchema,
+  AdsResumeCampaignActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -505,6 +575,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
   switch (actionType) {
     // Tier 0: Read-only
     case "crm.search":
+    case "ads.check_performance":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
@@ -520,13 +591,16 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "deal.delete":
     case "task.delete":
     case "note.delete":
+    case "ads.pause_campaign":
+    case "ads.resume_campaign":
       return 1;
-    // Tier 2: Destructive bulk actions + external communications - require approval
+    // Tier 2: Destructive bulk actions + external communications + spending money
     case "lead.deleteAll":
     case "deal.deleteAll":
     case "task.deleteAll":
     case "email.send":
     case "sms.send":
+    case "ads.create_campaign":
       return 2;
     default:
       return 2;
@@ -620,6 +694,14 @@ export function getActionDescription(action: Action): string {
       return "Delete all tasks";
     case "note.delete":
       return `Delete note ${action.payload.id}`;
+    case "ads.create_campaign":
+      return `Create ad campaign: ${action.payload.name || "new campaign"}`;
+    case "ads.check_performance":
+      return `Check ad performance${action.payload.campaign_name ? `: ${action.payload.campaign_name}` : ""}`;
+    case "ads.pause_campaign":
+      return `Pause campaign: ${action.payload.campaign_name}`;
+    case "ads.resume_campaign":
+      return `Resume campaign: ${action.payload.campaign_name}`;
     default:
       return "Unknown action";
   }

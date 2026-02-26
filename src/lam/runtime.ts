@@ -6,6 +6,8 @@
 import { prisma } from "@/lib/prisma";
 import { sendSMS } from "@/lib/twilio";
 import { sendGmailEmail } from "@/lib/gmail";
+import { createMetaClient } from "@/lib/meta/client";
+import { syncMetaAdAccount } from "@/lib/meta/sync";
 import type { Action, ActionPlan } from "./actionSchema";
 import { validateAction } from "./actionSchema";
 
@@ -1412,6 +1414,364 @@ const executors: Record<string, ActionExecutor> = {
         message: `SMS sent to ${recipientName}`,
       },
     };
+  },
+
+  "ads.check_performance": async (action, ctx) => {
+    if (action.type !== "ads.check_performance") throw new Error("Invalid action type");
+
+    const payload = action.payload as { campaign_name?: string };
+
+    const adAccount = await prisma.metaAdAccount.findFirst({
+      where: { userId: ctx.user_id, status: "active" },
+    });
+
+    if (!adAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "You haven't connected a Facebook ad account yet. Go to Settings to connect one.",
+      };
+    }
+
+    const whereClause: Record<string, unknown> = {
+      adAccountId: adAccount.id,
+    };
+
+    if (payload.campaign_name) {
+      whereClause.name = { contains: payload.campaign_name, mode: "insensitive" };
+    }
+
+    const campaigns = await prisma.metaCampaign.findMany({
+      where: whereClause,
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+        objective: true,
+        status: true,
+        effectiveStatus: true,
+        dailyBudget: true,
+        impressions: true,
+        clicks: true,
+        spend: true,
+        reach: true,
+        conversions: true,
+        updatedAt: true,
+      },
+    });
+
+    const last7Days = new Date();
+    last7Days.setDate(last7Days.getDate() - 7);
+
+    const recentInsights = await prisma.metaInsight.findMany({
+      where: {
+        adAccountId: adAccount.id,
+        date: { gte: last7Days },
+      },
+      orderBy: { date: "desc" },
+      take: 30,
+    });
+
+    const weeklyTotals = recentInsights.reduce(
+      (acc, i) => ({
+        impressions: acc.impressions + i.impressions,
+        clicks: acc.clicks + i.clicks,
+        spend: acc.spend + i.spend,
+        conversions: acc.conversions + i.conversions,
+      }),
+      { impressions: 0, clicks: 0, spend: 0, conversions: 0 }
+    );
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success" as const,
+      data: {
+        campaigns,
+        weekly_totals: weeklyTotals,
+        last_synced: adAccount.lastSyncedAt,
+        account_name: adAccount.adAccountName,
+      },
+    };
+  },
+
+  "ads.create_campaign": async (action, ctx) => {
+    if (action.type !== "ads.create_campaign") throw new Error("Invalid action type");
+
+    const payload = action.payload as {
+      objective?: string;
+      daily_budget?: number;
+      name?: string;
+    };
+
+    const adAccount = await prisma.metaAdAccount.findFirst({
+      where: { userId: ctx.user_id, status: "active" },
+    });
+
+    if (!adAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "You haven't connected a Facebook ad account yet. Go to Settings to connect one.",
+      };
+    }
+
+    if (adAccount.tokenExpiresAt && adAccount.tokenExpiresAt < new Date()) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Your Facebook connection has expired. Go to Settings to reconnect.",
+      };
+    }
+
+    const client = createMetaClient(adAccount.accessToken);
+
+    const objectiveMap: Record<string, string> = {
+      "LEADS": "OUTCOME_LEADS",
+      "TRAFFIC": "OUTCOME_TRAFFIC",
+      "AWARENESS": "OUTCOME_AWARENESS",
+      "ENGAGEMENT": "OUTCOME_ENGAGEMENT",
+      "SALES": "OUTCOME_SALES",
+    };
+
+    const objective = objectiveMap[payload.objective?.toUpperCase() || "LEADS"] || "OUTCOME_LEADS";
+    const dailyBudget = payload.daily_budget || 10;
+    const campaignName = payload.name || `Tara Campaign - ${new Date().toLocaleDateString()}`;
+
+    const profile = await prisma.profile.findUnique({
+      where: { id: ctx.user_id },
+      select: { businessType: true },
+    });
+
+    const isHousing = profile?.businessType?.toLowerCase().includes("real estate") ||
+      profile?.businessType?.toLowerCase().includes("property") ||
+      profile?.businessType?.toLowerCase().includes("mortgage");
+
+    try {
+      const result = await client.createCampaign(adAccount.adAccountId, {
+        name: campaignName,
+        objective,
+        status: "PAUSED",
+        special_ad_categories: isHousing ? ["HOUSING"] : [],
+      });
+
+      await syncMetaAdAccount(adAccount.id);
+
+      const newCampaign = await prisma.metaCampaign.findFirst({
+        where: {
+          adAccountId: adAccount.id,
+          metaCampaignId: result.id,
+        },
+      });
+
+      await recordChange(
+        ctx.run_id,
+        action.action_id,
+        "MetaCampaign",
+        newCampaign?.id || result.id,
+        "create",
+        null,
+        { metaCampaignId: result.id, name: campaignName, objective, dailyBudget }
+      );
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          campaign_id: result.id,
+          name: campaignName,
+          objective: payload.objective || "LEADS",
+          daily_budget: dailyBudget,
+          status: "PAUSED",
+          note: "Campaign created in PAUSED state. You'll need to add an ad set with targeting and creative in Meta Ads Manager to go live. I'll send you the link.",
+          ads_manager_url: `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${adAccount.adAccountId.replace("act_", "")}`,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Failed to create campaign on Facebook: ${message}`,
+      };
+    }
+  },
+
+  "ads.pause_campaign": async (action, ctx) => {
+    if (action.type !== "ads.pause_campaign") throw new Error("Invalid action type");
+
+    const payload = action.payload as { campaign_name?: string };
+
+    if (!payload.campaign_name) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Which campaign should I pause?",
+      };
+    }
+
+    const adAccount = await prisma.metaAdAccount.findFirst({
+      where: { userId: ctx.user_id, status: "active" },
+    });
+
+    if (!adAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No Facebook ad account connected.",
+      };
+    }
+
+    const campaign = await prisma.metaCampaign.findFirst({
+      where: {
+        adAccountId: adAccount.id,
+        name: { contains: payload.campaign_name, mode: "insensitive" },
+        status: { not: "PAUSED" },
+      },
+    });
+
+    if (!campaign) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Couldn't find an active campaign matching "${payload.campaign_name}".`,
+      };
+    }
+
+    try {
+      const client = createMetaClient(adAccount.accessToken);
+      await client.updateCampaignStatus(campaign.metaCampaignId, "PAUSED");
+
+      const before = { ...campaign };
+      await prisma.metaCampaign.update({
+        where: { id: campaign.id },
+        data: { status: "PAUSED" },
+      });
+
+      await recordChange(
+        ctx.run_id,
+        action.action_id,
+        "MetaCampaign",
+        campaign.id,
+        "update",
+        before,
+        { ...campaign, status: "PAUSED" }
+      );
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          campaign_name: campaign.name,
+          previous_status: campaign.status,
+          new_status: "PAUSED",
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Failed to pause campaign: ${message}`,
+      };
+    }
+  },
+
+  "ads.resume_campaign": async (action, ctx) => {
+    if (action.type !== "ads.resume_campaign") throw new Error("Invalid action type");
+
+    const payload = action.payload as { campaign_name?: string };
+
+    if (!payload.campaign_name) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Which campaign should I resume?",
+      };
+    }
+
+    const adAccount = await prisma.metaAdAccount.findFirst({
+      where: { userId: ctx.user_id, status: "active" },
+    });
+
+    if (!adAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No Facebook ad account connected.",
+      };
+    }
+
+    const campaign = await prisma.metaCampaign.findFirst({
+      where: {
+        adAccountId: adAccount.id,
+        name: { contains: payload.campaign_name, mode: "insensitive" },
+        status: "PAUSED",
+      },
+    });
+
+    if (!campaign) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Couldn't find a paused campaign matching "${payload.campaign_name}".`,
+      };
+    }
+
+    try {
+      const client = createMetaClient(adAccount.accessToken);
+      await client.updateCampaignStatus(campaign.metaCampaignId, "ACTIVE");
+
+      const before = { ...campaign };
+      await prisma.metaCampaign.update({
+        where: { id: campaign.id },
+        data: { status: "ACTIVE" },
+      });
+
+      await recordChange(
+        ctx.run_id,
+        action.action_id,
+        "MetaCampaign",
+        campaign.id,
+        "update",
+        before,
+        { ...campaign, status: "ACTIVE" }
+      );
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          campaign_name: campaign.name,
+          previous_status: "PAUSED",
+          new_status: "ACTIVE",
+          daily_budget: campaign.dailyBudget,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Failed to resume campaign: ${message}`,
+      };
+    }
   },
 };
 

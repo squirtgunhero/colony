@@ -56,7 +56,7 @@ export type PlannerOutput = PlannerResult | PlannerError;
 // System Prompt
 // ============================================================================
 
-const SYSTEM_PROMPT = `You are Colony LAM (Large Action Model), an AI that converts natural language into structured CRM actions.
+const SYSTEM_PROMPT = `You are Tara, the AI assistant inside Colony. You convert natural language into structured CRM actions. You're direct, warm, and competent — like a trusted coworker who always has your back.
 
 IMPORTANT: You MUST respond with valid JSON only. No markdown, no explanation, just the JSON object.
 
@@ -83,11 +83,15 @@ You analyze user requests and generate a precise ActionPlan that the system will
 17. email.send - Send an email (REQUIRES APPROVAL)
 18. sms.send - Send an SMS (REQUIRES APPROVAL)
 19. referral.create - Post a new referral to the marketplace. Requires: title (short description), category (e.g. "plumbing", "photography", "real_estate", "legal", "finance", "contractor", "other"). Optional: description, locationText, valueEstimate.
+20. ads.create_campaign - Create a new Facebook/Instagram ad campaign. Requires: objective (one of: LEADS, TRAFFIC, AWARENESS, ENGAGEMENT). Optional: daily_budget (number in dollars, default 10), name (auto-generated if not provided). REQUIRES APPROVAL since it spends money.
+21. ads.check_performance - Check how ads are performing. Returns campaign metrics (impressions, clicks, spend, leads). No parameters needed — returns all active campaigns. If user asks about a specific campaign, include campaign_name in payload.
+22. ads.pause_campaign - Pause a running campaign. Requires: campaign_name (will match by name).
+23. ads.resume_campaign - Resume a paused campaign. Requires: campaign_name (will match by name).
 
 ## Risk Tiers
-- Tier 0: Read-only actions (crm.search) - auto-execute
-- Tier 1: Mutations (create/update/single delete) - auto-execute with undo capability
-- Tier 2: Bulk deletes (deleteAll) and external communications (email/sms) - requires user approval
+- Tier 0: Read-only actions (crm.search, ads.check_performance) - auto-execute
+- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign) - auto-execute with undo capability
+- Tier 2: Bulk deletes (deleteAll), external communications (email/sms), and spending money (ads.create_campaign) - requires user approval
 
 ## Critical Rules
 1. For lead.update: Include "name" in payload to identify the contact. System will auto-lookup by name. NO crm.search needed before an update!
@@ -104,6 +108,11 @@ You analyze user requests and generate a precise ActionPlan that the system will
 12. For "delete [name]" or "remove [name]" — use the appropriate .delete action (lead.delete, deal.delete, task.delete). Use name/title to identify. NEVER refuse a delete request — the system supports it.
 13. For "delete all contacts/deals/tasks" or "clear all [entity]" or "remove everything" — use the appropriate .deleteAll action. Set confirm: true. These require user approval before executing.
 14. For "delete" requests, ALWAYS generate the delete action. NEVER respond saying deletion is not supported.
+15. For "I need new business", "run some ads", "get me leads", "advertise" — use ads.create_campaign with objective LEADS. Ask about budget if not specified.
+16. For "how are my ads doing", "ad performance", "what's my spend" — use ads.check_performance.
+17. For "pause my ads", "stop the campaign" — use ads.pause_campaign.
+18. For "turn my ads back on", "resume the campaign" — use ads.resume_campaign.
+19. For ads.create_campaign, if the user hasn't connected Facebook yet, set follow_up_question to "You'll need to connect your Facebook account first. Go to Settings to connect it."
 
 ## Output Format
 Return a JSON object matching this schema:
@@ -215,6 +224,7 @@ function normalizeActionType(type: string): ActionType {
     "crm.search",
     "email.send", "sms.send",
     "referral.create",
+    "ads.create_campaign", "ads.check_performance", "ads.pause_campaign", "ads.resume_campaign",
   ];
 
   const normalized = type.toLowerCase().replace(/_/g, ".");
@@ -236,6 +246,14 @@ function normalizeActionType(type: string): ActionType {
     "delete_deal": "deal.delete",
     "delete_task": "task.delete",
     "delete_note": "note.delete",
+    "ads.createcampaign": "ads.create_campaign",
+    "ads.checkperformance": "ads.check_performance",
+    "ads.pausecampaign": "ads.pause_campaign",
+    "ads.resumecampaign": "ads.resume_campaign",
+    "create_campaign": "ads.create_campaign",
+    "check_performance": "ads.check_performance",
+    "pause_campaign": "ads.pause_campaign",
+    "resume_campaign": "ads.resume_campaign",
   };
 
   return typeMap[type.toLowerCase()] || "lead.create";
@@ -334,6 +352,24 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
       return {
         id: payload.id || payload.noteId || "",
       };
+    case "ads.create_campaign":
+      return {
+        objective: payload.objective || "LEADS",
+        daily_budget: payload.daily_budget || payload.budget || 10,
+        name: payload.name || payload.campaign_name,
+      };
+    case "ads.check_performance":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+      };
+    case "ads.pause_campaign":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+      };
+    case "ads.resume_campaign":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+      };
     default:
       return payload;
   }
@@ -375,6 +411,14 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: "task", deleted_all: true };
     case "note.delete":
       return { entity_type: "note", deleted: true };
+    case "ads.create_campaign":
+      return { entity_type: "campaign", created: true };
+    case "ads.check_performance":
+      return { entity_type: "campaign", results_returned: true };
+    case "ads.pause_campaign":
+      return { entity_type: "campaign", paused: true };
+    case "ads.resume_campaign":
+      return { entity_type: "campaign", resumed: true };
     default:
       return { entity_type: actionType.split(".")[0], success: true };
   }

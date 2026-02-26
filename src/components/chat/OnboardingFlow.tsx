@@ -55,7 +55,7 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
   useEffect(() => {
     const name = firstName || "there";
     addColonyMessage(
-      `Hey ${name}. I'm Colony — I run your business while you do the actual work. Let's get set up.\n\nWhat kind of business do you run?`
+      `Hey ${name}. I'm Tara — I'll be running your business behind the scenes while you do the actual work. Let's get set up real quick.\n\nWhat kind of business do you run?`
     );
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -179,7 +179,7 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
   const finishOnboarding = () => {
     setTimeout(() => {
       addColonyMessage(
-        `All set. I'll check in with you every evening at 6pm with a summary of your day. You can text me anytime at ${colonyNumber}.\n\nGo do your thing — I've got this.`
+        `All set. I'll text you every evening around 6pm with a recap of your day. You can text me anytime at ${colonyNumber}.\n\nGo do your thing — I've got this.`
       );
       setStep("complete");
 

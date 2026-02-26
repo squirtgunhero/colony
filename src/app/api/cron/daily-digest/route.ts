@@ -66,7 +66,7 @@ async function buildDigest(
   todayStart: Date,
   weekAgo: Date
 ): Promise<string | null> {
-  const [newContacts, stageChanges, newClaims, overdueTasks, pipeline, pipelineWeekAgo] =
+  const [newContacts, stageChanges, newClaims, overdueTasks, pipeline, pipelineWeekAgo, metaAccount] =
     await Promise.all([
       prisma.contact.findMany({
         where: { userId, createdAt: { gte: todayStart } },
@@ -116,6 +116,15 @@ async function buildDigest(
         },
         _sum: { value: true },
       }),
+      prisma.metaAdAccount.findFirst({
+        where: { userId, status: "active" },
+        include: {
+          campaigns: {
+            where: { status: "ACTIVE" },
+            select: { name: true, spend: true, clicks: true, impressions: true, conversions: true },
+          },
+        },
+      }),
     ]);
 
   const parts: string[] = [];
@@ -160,7 +169,16 @@ async function buildDigest(
   }
   pipelineLine += ".";
 
-  const header = `Hey. ${parts.length} thing${parts.length > 1 ? "s" : ""} today.`;
+  if (metaAccount && metaAccount.campaigns.length > 0) {
+    const totalSpend = metaAccount.campaigns.reduce((s, c) => s + c.spend, 0);
+    const totalLeads = metaAccount.campaigns.reduce((s, c) => s + c.conversions, 0);
+    const totalClicks = metaAccount.campaigns.reduce((s, c) => s + c.clicks, 0);
+    if (totalSpend > 0) {
+      parts.push(`Ads: $${totalSpend.toFixed(0)} spent, ${totalLeads} lead${totalLeads !== 1 ? "s" : ""}, ${totalClicks} clicks.`);
+    }
+  }
+
+  const header = `Hey, it's Tara. ${parts.length} thing${parts.length > 1 ? "s" : ""} for you today.`;
 
   return [header, ...parts, pipelineLine].join("\n");
 }

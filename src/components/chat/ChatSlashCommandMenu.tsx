@@ -19,6 +19,9 @@ import {
   Handshake,
   Phone,
   Undo2,
+  Megaphone,
+  TrendingUp,
+  Pause,
 } from "lucide-react";
 
 interface SlashCommandMenuProps {
@@ -53,6 +56,11 @@ const CHAT_SLASH_COMMANDS: SlashCommand[] = [
   { id: "search", command: "/search", label: "Search", description: "Search contacts, deals, properties", icon: Search, category: "action" },
   { id: "draft-email", command: "/draft-email", label: "Draft Email", description: "Compose an email", icon: Mail, category: "action" },
   
+  // Ads commands
+  { id: "run-ads", command: "/run-ads", label: "Run Ads", description: "Create a Facebook/Instagram ad campaign", icon: Megaphone, category: "action" },
+  { id: "ad-performance", command: "/ad-performance", label: "Ad Performance", description: "Check how your ads are doing", icon: TrendingUp, category: "action" },
+  { id: "pause-ads", command: "/pause-ads", label: "Pause Ads", description: "Pause a running campaign", icon: Pause, category: "action" },
+
   // Other
   { id: "undo", command: "/undo", label: "Undo", description: "Undo the last action", icon: Undo2, category: "other" },
 ];

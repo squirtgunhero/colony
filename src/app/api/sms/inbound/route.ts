@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (!userPhone) {
       await sendSMS(
         from,
-        "Hey! Looks like you don't have a Colony account linked to this number yet. Sign up at mycolonyhq.com and verify your phone in settings."
+        "Hey, this is Tara from Colony. I don't have your number on file yet — sign up at mycolonyhq.com and verify your phone, then text me back."
       );
       return TWIML_EMPTY;
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     const rateCheck = await checkRateLimit(profileId);
     if (!rateCheck.allowed) {
-      await sendSMS(from, "You've hit your usage limit. Try again later.");
+      await sendSMS(from, "Hey, you've hit your limit for now. I'll be back online soon — try again in a bit.");
       return TWIML_EMPTY;
     }
 
@@ -124,14 +124,38 @@ export async function POST(request: NextRequest) {
       take: 10,
     });
 
-    const contextPrefix = history.length > 1
-      ? "Previous conversation:\n" +
-        history
-          .slice(0, -1)
-          .map((m) => `${m.role}: ${m.content}`)
-          .join("\n") +
-        "\n\nNew message: "
-      : "";
+    // Load recent web conversation context for cross-channel continuity
+    const recentWebMessages = await prisma.conversationMessage.findMany({
+      where: {
+        conv: { profileId, channel: "web" },
+        createdAt: { gte: windowCutoff },
+      },
+      orderBy: { createdAt: "asc" },
+      take: 5,
+    });
+
+    let contextPrefix = "";
+    if (recentWebMessages.length > 0) {
+      const webContext = recentWebMessages
+        .map((m) => `${m.role}: ${m.content}`)
+        .join("\n");
+
+      if (history.length > 1) {
+        contextPrefix = "Previous SMS conversation:\n" +
+          history.slice(0, -1).map((m) => `${m.role}: ${m.content}`).join("\n") +
+          "\n\nRecent web chat context:\n" + webContext +
+          "\n\nNew SMS message: ";
+      } else {
+        contextPrefix = "Recent web chat context:\n" + webContext +
+          "\n\nNew SMS message: ";
+      }
+    } else {
+      contextPrefix = history.length > 1
+        ? "Previous conversation:\n" +
+          history.slice(0, -1).map((m) => `${m.role}: ${m.content}`).join("\n") +
+          "\n\nNew message: "
+        : "";
+    }
 
     const lowerBody = body.toLowerCase().trim();
     const helpKeywords = ["help", "?", "commands", "what can you do", "what do you do", "how does this work"];
@@ -149,6 +173,9 @@ export async function POST(request: NextRequest) {
         "\u2022 Add a note \u2014 \"Note on Sarah: prefers email\"",
         "\u2022 Search anything \u2014 \"Show my pipeline\" or \"Who are my leads?\"",
         "\u2022 Show referrals \u2014 \"Show my referrals\"",
+        "\u2022 Run ads \u2014 \"I need new business\" or \"Run a Facebook ad for $15/day\"",
+        "\u2022 Check ad performance \u2014 \"How are my ads doing?\"",
+        "\u2022 Pause/resume ads \u2014 \"Pause my Facebook campaign\"",
         "",
         "Just text me like you'd text a coworker. I'll figure it out.",
       ].join("\n");
@@ -198,13 +225,13 @@ export async function POST(request: NextRequest) {
 
       if (result.response.requires_approval) {
         replyText +=
-          "\n\n(This action needs your approval. Open Colony to confirm.)";
+          "\n\nI need your OK before I send that. Open Colony to approve it.";
       }
 
       recordUsage(profileId, LAM_LIMITS.ESTIMATED_COST_PER_REQUEST);
     } catch (error) {
       console.error("LAM SMS error:", error);
-      replyText = "Something went wrong. Try again in a sec.";
+      replyText = "Sorry, I hit a snag on that one. Try again in a sec.";
     }
 
     // SMS has a 1600-char limit; truncate gracefully
@@ -243,7 +270,7 @@ export async function POST(request: NextRequest) {
     console.error("SMS inbound error:", error);
 
     try {
-      await sendSMS(from, "Something went wrong. Try again in a sec.");
+      await sendSMS(from, "Sorry, I hit a snag on that one. Try again in a sec.");
     } catch {
       // Swallow — we already failed, don't mask the original error
     }

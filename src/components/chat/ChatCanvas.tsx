@@ -57,6 +57,7 @@ export function ChatCanvas() {
     cancelAction,
     setInput,
     isListening,
+    loadHistory,
   } = useAssistantStore();
 
   const { activeChips, clearChips } = useModeStore();
@@ -86,7 +87,9 @@ export function ChatCanvas() {
         if (data) setSuggestions(data);
       })
       .catch(() => {});
-  }, []);
+
+    loadHistory();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (messagesEndRef.current) {

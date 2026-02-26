@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { runLam } from "@/lam";
 import { checkRateLimit, recordUsage, LAM_LIMITS } from "@/lam/rateLimit";
 import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
+
+const CONVERSATION_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,9 +54,62 @@ export async function POST(request: NextRequest) {
     const recent_context = Array.isArray(body.recent_context) ? body.recent_context : undefined;
     const dry_run = body.dry_run === true;
 
+    // Find or create active web conversation (same window logic as SMS)
+    const windowCutoff = new Date(Date.now() - CONVERSATION_WINDOW_MS);
+
+    let conversation = await prisma.conversation.findFirst({
+      where: {
+        profileId: user.id,
+        channel: "web",
+        lastActiveAt: { gte: windowCutoff },
+      },
+      orderBy: { lastActiveAt: "desc" },
+    });
+
+    if (!conversation) {
+      conversation = await prisma.conversation.create({
+        data: { profileId: user.id, channel: "web" },
+      });
+    }
+
+    // Save inbound user message
+    await prisma.$transaction([
+      prisma.conversationMessage.create({
+        data: {
+          convId: conversation.id,
+          role: "user",
+          content: message,
+          channel: "web",
+        },
+      }),
+      prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { lastActiveAt: new Date() },
+      }),
+    ]);
+
+    // Load conversation history for context
+    const history = await prisma.conversationMessage.findMany({
+      where: { convId: conversation.id },
+      orderBy: { createdAt: "asc" },
+      take: 20,
+    });
+
+    let contextPrefix = "";
+    if (history.length > 1) {
+      const priorMessages = history.slice(0, -1);
+      contextPrefix = "Previous conversation:\n" +
+        priorMessages
+          .map((m) => `${m.role}: ${m.content}`)
+          .join("\n") +
+        "\n\nNew message: ";
+    }
+
+    const messageWithContext = contextPrefix + message;
+
     // Execute LAM run
     const result = await runLam({
-      message,
+      message: messageWithContext,
       user_id: user.id,
       recent_context: recent_context?.map((ctx: { entity_type: string; entity_id: string; entity_name?: string; last_touched?: string }) => ({
         ...ctx,
@@ -67,6 +123,20 @@ export async function POST(request: NextRequest) {
 
     // Record usage AFTER successful API call
     recordUsage(user.id, LAM_LIMITS.ESTIMATED_COST_PER_REQUEST);
+
+    // Save assistant response
+    const assistantContent = result.response.message +
+      (result.response.follow_up_question ? "\n\n" + result.response.follow_up_question : "");
+
+    await prisma.conversationMessage.create({
+      data: {
+        convId: conversation.id,
+        role: "assistant",
+        content: assistantContent,
+        channel: "web",
+        lamRunId: result.run_id,
+      },
+    });
 
     return NextResponse.json({
       success: true,
