@@ -126,7 +126,7 @@ export function ChatCanvas() {
         transition: "background 500ms ease-in-out, color 500ms ease-in-out",
       }}
     >
-      <div className="mx-auto w-full max-w-2xl px-4 py-8 flex-1 flex flex-col relative z-10">
+      <div className={`mx-auto w-full max-w-2xl px-4 py-8 flex flex-col relative z-10 ${hasMessages ? "flex-1" : ""}`}>
         {/* Onboarding Flow */}
         {showOnboarding && !hasMessages && (
           <OnboardingFlow
@@ -137,7 +137,7 @@ export function ChatCanvas() {
 
         {/* Empty State */}
         {!hasMessages && !showOnboarding && (
-          <div className="flex flex-col items-center justify-center text-center px-4 my-auto pb-36">
+          <div className="flex flex-col items-center justify-center text-center px-4 min-h-[calc(100dvh-12rem)]">
             {/* Chat / Today toggle */}
             <div className="flex gap-1 mb-6 rounded-xl p-1" style={{ backgroundColor: withAlpha(theme.text, 0.05) }}>
               {(["chat", "today"] as const).map((tab) => (
