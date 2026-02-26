@@ -129,9 +129,9 @@ export function ChatCanvas() {
 
         {/* Empty State */}
         {!hasMessages && !showOnboarding && (
-          <div className="flex flex-col items-center text-center px-4 pt-[6vh]">
+          <div className="flex flex-col items-center text-center px-4">
             {/* Chat / Today toggle */}
-            <div className="flex gap-1 mb-6 rounded-xl p-1" style={{ backgroundColor: withAlpha(theme.text, 0.05) }}>
+            <div className="flex gap-1 mb-4 rounded-xl p-1" style={{ backgroundColor: withAlpha(theme.text, 0.05) }}>
               {(["chat", "today"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -152,7 +152,7 @@ export function ChatCanvas() {
             ) : (
             <>
             {/* Waveform — Colony's presence */}
-            <div className="mb-10">
+            <div className="mb-6">
               <WaveformVisualizer state={waveformState} />
             </div>
 
@@ -172,7 +172,7 @@ export function ChatCanvas() {
             {/* Summary line */}
             {summary && (
               <p
-                className="text-sm max-w-md mb-8"
+                className="text-sm max-w-md mb-5"
                 style={{
                   fontFamily: "var(--font-dm-sans), sans-serif",
                   color: theme.text,
