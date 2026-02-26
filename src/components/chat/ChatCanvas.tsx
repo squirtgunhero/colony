@@ -38,13 +38,6 @@ function formatPipeline(value: number): string {
   return "$0";
 }
 
-const quickActions = [
-  { label: "Add a contact", prompt: "Create a new contact" },
-  { label: "Check my pipeline", prompt: "Show me my pipeline summary" },
-  { label: "Draft a follow-up", prompt: "Help me draft a follow-up message" },
-  { label: "Show referrals", prompt: "Show my referrals" },
-];
-
 export function ChatCanvas() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -55,7 +48,6 @@ export function ChatCanvas() {
     pendingActions,
     applyAction,
     cancelAction,
-    setInput,
     isListening,
     loadHistory,
   } = useAssistantStore();
@@ -195,57 +187,13 @@ export function ChatCanvas() {
               </p>
             )}
 
-            {/* AI suggestions or onboarding prompts */}
+            {/* AI suggestions — capped to 2 to fit above command bar */}
             {suggestions && (
               <ColonySuggestions
-                suggestions={suggestions.suggestions}
+                suggestions={suggestions.suggestions.slice(0, 2)}
                 isNewUser={suggestions.isNewUser}
               />
             )}
-
-            {/* Quick action chips — neumorphic, 2×2 grid on narrow screens */}
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center gap-3 max-w-md mx-auto sm:max-w-none">
-              {quickActions.map((action) => {
-                const raised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
-                const hover = `2px 2px 4px rgba(0,0,0,0.3), -2px -2px 4px rgba(255,255,255,0.03), 0 0 12px ${withAlpha(theme.accent, 0.1)}`;
-                const pressed = `inset 3px 3px 6px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(255,255,255,0.04)`;
-                return (
-                  <button
-                    key={action.label}
-                    onClick={() => setInput(action.prompt)}
-                    className="px-4 py-2.5 sm:px-6 sm:py-3 rounded-3xl text-sm transition-all duration-300 text-center"
-                    style={{
-                      fontFamily: "var(--font-dm-sans), sans-serif",
-                      color: theme.text,
-                      opacity: 0.7,
-                      backgroundColor: theme.bgGlow,
-                      border: "none",
-                      boxShadow: raised,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = hover;
-                      e.currentTarget.style.opacity = "0.9";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = raised;
-                      e.currentTarget.style.opacity = "0.7";
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.boxShadow = pressed;
-                      e.currentTarget.style.color = theme.accent;
-                      e.currentTarget.style.opacity = "1";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.boxShadow = hover;
-                      e.currentTarget.style.color = theme.text;
-                      e.currentTarget.style.opacity = "0.9";
-                    }}
-                  >
-                    {action.label}
-                  </button>
-                );
-              })}
-            </div>
             </>
             )}
           </div>
