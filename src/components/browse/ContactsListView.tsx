@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Search, User, Mail, Phone, MoreHorizontal } from "lucide-react";
+import { Search, User, Mail, Phone, MoreHorizontal, Trash2 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import { formatDate } from "@/lib/date-utils";
+import { deleteContact } from "@/app/(dashboard)/contacts/actions";
 
 interface Contact {
   id: string;
@@ -27,10 +28,32 @@ interface ContactsListViewProps {
   contacts: Contact[];
 }
 
-export function ContactsListView({ contacts }: ContactsListViewProps) {
+export function ContactsListView({ contacts: initialContacts }: ContactsListViewProps) {
   const { theme } = useColonyTheme();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [contacts, setContacts] = useState(initialContacts);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    if (openMenuId) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [openMenuId]);
+
+  async function handleDelete(contactId: string, contactName: string) {
+    setOpenMenuId(null);
+    if (!confirm(`Delete ${contactName}? This can't be undone.`)) return;
+    await deleteContact(contactId);
+    setContacts((prev) => prev.filter((c) => c.id !== contactId));
+  }
 
   const filteredContacts = contacts.filter((contact) => {
     const matchesSearch =
@@ -205,13 +228,50 @@ export function ContactsListView({ contacts }: ContactsListViewProps) {
               </div>
 
               {/* Actions */}
-              <button
-                className="h-8 w-8 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ color: theme.textMuted }}
-                onClick={(e) => e.preventDefault()}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
+              <div className="relative">
+                <button
+                  className="h-8 w-8 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ color: theme.textMuted }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setOpenMenuId(openMenuId === contact.id ? null : contact.id);
+                  }}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+
+                {openMenuId === contact.id && (
+                  <div
+                    ref={menuRef}
+                    className="absolute right-0 top-full mt-1 z-50 rounded-xl py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-150"
+                    style={{
+                      backgroundColor: theme.bgGlow,
+                      border: `1px solid ${withAlpha(theme.text, 0.1)}`,
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDelete(contact.id, contact.name);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors"
+                      style={{ color: "#ef4444" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = withAlpha("#ef4444", 0.1);
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
             </Link>
           ))
         )}

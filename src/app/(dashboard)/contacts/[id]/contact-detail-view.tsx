@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, forwardRef } from "react";
+import { useState, useRef, useEffect, forwardRef } from "react";
 import Link from "next/link";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
@@ -19,6 +19,7 @@ import {
   FileText,
   Pencil,
   MoreHorizontal,
+  Trash2,
   MessageSquare,
   CheckSquare,
   Plus,
@@ -27,6 +28,8 @@ import {
 import { RelationshipScoreRing } from "@/components/contacts/RelationshipScoreRing";
 import type { RelationshipScoreResult } from "@/lib/relationship-score";
 import { createQuickNote } from "@/components/quick-capture/actions";
+import { deleteContact } from "@/app/(dashboard)/contacts/actions";
+import { useRouter } from "next/navigation";
 
 interface Deal {
   id: string;
@@ -133,8 +136,30 @@ export function ContactDetailView({
   lastContactedDate,
 }: ContactDetailViewProps) {
   const { theme } = useColonyTheme();
+  const router = useRouter();
   const [quickNote, setQuickNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    }
+    if (showMoreMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showMoreMenu]);
+
+  async function handleDelete() {
+    setShowMoreMenu(false);
+    if (!confirm(`Delete ${contact.name}? This can't be undone.`)) return;
+    await deleteContact(contact.id);
+    router.push("/browse/contacts");
+  }
 
   const totalDealValue = contact.deals.reduce((sum, d) => sum + (d.value || 0), 0);
   const activeDeals = contact.deals.filter((d) => d.stage !== "closed");
@@ -191,14 +216,42 @@ export function ContactDetailView({
               <Pencil className="h-4 w-4" />
             </button>
           </ContactDialog>
-          <button
-            className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-            style={{ color: theme.textMuted }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
+          <div className="relative" ref={moreMenuRef}>
+            <button
+              className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
+              style={{ color: theme.textMuted }}
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+            {showMoreMenu && (
+              <div
+                className="absolute right-0 top-full mt-1 z-50 rounded-xl py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-150"
+                style={{
+                  backgroundColor: theme.bgGlow,
+                  border: `1px solid ${withAlpha(theme.text, 0.1)}`,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                }}
+              >
+                <button
+                  onClick={handleDelete}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors"
+                  style={{ color: "#ef4444" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = withAlpha("#ef4444", 0.1);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
