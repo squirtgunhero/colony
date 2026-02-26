@@ -117,7 +117,7 @@ export function ChatCanvas() {
   return (
     <div
       ref={scrollContainerRef}
-      className="flex-1 flex flex-col overflow-y-auto pb-32 relative"
+      className="flex-1 flex flex-col overflow-y-auto pb-40 relative"
       style={{
         background: `linear-gradient(160deg, ${theme.bg} 0%, ${theme.bgGlow} 50%, ${theme.bg} 100%)`,
         backgroundSize: "400% 400%",
@@ -137,7 +137,7 @@ export function ChatCanvas() {
 
         {/* Empty State */}
         {!hasMessages && !showOnboarding && (
-          <div className="flex flex-col items-center justify-center text-center px-4 min-h-[calc(100dvh-12rem)]">
+          <div className="flex flex-col items-center text-center px-4 pt-[6vh]">
             {/* Chat / Today toggle */}
             <div className="flex gap-1 mb-6 rounded-xl p-1" style={{ backgroundColor: withAlpha(theme.text, 0.05) }}>
               {(["chat", "today"] as const).map((tab) => (
