@@ -1,6 +1,8 @@
-# Regganism CRM
+# Colony CRM
 
-A modern real estate CRM built with Next.js 14, featuring contact management, property listings, deal pipeline tracking, and task management.
+An AI-powered CRM for small businesses, built by [Jersey Proper](https://jerseyproper.com). Colony is built with Next.js 14 and features contact management, deal pipeline tracking, a unified communications inbox, and task management — all designed to help small businesses spend less time in software and more time doing the work.
+
+🔗 [jerseyproper.com/colony](https://jerseyproper.com/colony)
 
 ## Tech Stack
 
@@ -14,23 +16,27 @@ A modern real estate CRM built with Next.js 14, featuring contact management, pr
 ## Features
 
 ### Dashboard
+
 - Overview metrics (contacts, properties, deals, tasks)
 - Recent activity feed
 - Upcoming tasks list
 
 ### Contacts
+
 - CRUD operations for contacts
 - Contact types: Lead, Client, Agent, Vendor
 - Search and filter capabilities
 - Contact detail with email and phone
 
 ### Properties
+
 - Property listings with grid view
 - Status tracking: Available, Under Contract, Sold, Off Market
 - Property details: bedrooms, bathrooms, square footage
 - Link properties to contact owners
 
 ### Deals Pipeline
+
 - Kanban-style board for deal stages
 - Stages: New Lead → Qualified → Showing → Offer → Negotiation → Closed
 - Drag-and-drop deal movement
@@ -38,6 +44,7 @@ A modern real estate CRM built with Next.js 14, featuring contact management, pr
 - Deal value tracking
 
 ### Tasks
+
 - Create tasks linked to contacts, properties, or deals
 - Due date tracking with overdue highlighting
 - Priority levels: Low, Medium, High
@@ -45,9 +52,11 @@ A modern real estate CRM built with Next.js 14, featuring contact management, pr
 - Separate tabs for pending and completed tasks
 
 ### Inbox (Unified Communications Hub)
+
 A Follow Up Boss–style inbox that centralizes all communication with contacts.
 
 **Features:**
+
 - **Multi-channel support**: Email, SMS (Phase 2), and Call events (Phase 2)
 - **Thread-based conversations**: Messages grouped by contact into conversation threads
 - **Split-pane layout**: Thread list on left, conversation detail on right
@@ -63,16 +72,19 @@ A Follow Up Boss–style inbox that centralizes all communication with contacts.
 - **Inbox Zero workflow**: Replying, archiving, or snoozing clears threads from default view
 
 **Thread Matching:**
+
 - Email messages match by sender/recipient email → contact email
 - SMS/Call messages match by phone number (E.164 normalized)
 - Unknown senders create threads labeled "Unknown" until linked to a contact
 - Archived/snoozed threads auto-reopen on new inbound messages
 
 **Integration:**
+
 - Outbound emails sent from anywhere in the CRM automatically create inbox messages
 - Activities are logged to contact timeline when messages are sent
 
 **Data Model:**
+
 - `inbox_threads`: Conversation threads linked to contacts
 - `inbox_messages`: Individual messages (email, SMS, call events)
 - `inbox_participants`: Per-user read state tracking
@@ -80,23 +92,27 @@ A Follow Up Boss–style inbox that centralizes all communication with contacts.
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - npm
 
 ### Installation
 
 1. Install dependencies:
-```bash
+
+```
 npm install
 ```
 
 2. Set up the database:
-```bash
+
+```
 npx prisma migrate dev
 ```
 
 3. Start the development server:
-```bash
+
+```
 npm run dev
 ```
 
@@ -144,3 +160,7 @@ npm run dev
 ## UI Theme
 
 Dark mode with amber/gold accents for a luxurious real estate feel. The color scheme evokes elegance while maintaining excellent readability and accessibility.
+
+## License
+
+© 2026 Colony · Built by [Jersey Proper](https://jerseyproper.com)
