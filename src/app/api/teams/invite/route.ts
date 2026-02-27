@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
+import { resend } from "@/lib/resend";
 
 // POST /api/teams/invite - Send an invitation
 export async function POST(request: NextRequest) {
@@ -98,20 +99,41 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send email with invitation link
-    // For now, return the invite link directly
     const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invite/${token}`;
+    const invitedByName = invitation.invitedBy.fullName || invitation.invitedBy.email;
+
+    // Send invitation email (non-fatal: invitation is still valid if email fails)
+    let emailSent = true;
+    try {
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL || "Colony CRM <noreply@colony.app>",
+        to: email,
+        subject: `You've been invited to join ${invitation.team.name} on Colony`,
+        html: `
+          <p>Hi there,</p>
+          <p><strong>${invitedByName}</strong> has invited you to join <strong>${invitation.team.name}</strong> as a <strong>${role}</strong>.</p>
+          <p>Click the link below to accept the invitation. This link expires in 7 days.</p>
+          <p><a href="${inviteLink}" style="display:inline-block;padding:10px 20px;background:#000;color:#fff;border-radius:6px;text-decoration:none;">Accept Invitation</a></p>
+          <p>Or copy and paste this URL into your browser:<br />${inviteLink}</p>
+          <p>If you did not expect this invitation, you can safely ignore this email.</p>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Failed to send invitation email:", emailError);
+      emailSent = false;
+    }
 
     return NextResponse.json({
       success: true,
+      emailSent,
       invitation: {
         id: invitation.id,
         email: invitation.email,
         role: invitation.role,
         teamName: invitation.team.name,
-        invitedBy: invitation.invitedBy.fullName || invitation.invitedBy.email,
+        invitedBy: invitedByName,
         expiresAt: invitation.expiresAt,
-        inviteLink, // Include for now - remove in production after email is set up
+        ...(emailSent ? {} : { inviteLink }),
       },
     });
   } catch (error) {

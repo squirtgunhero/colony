@@ -4,7 +4,7 @@
 // Team Settings Page
 // ============================================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTeamStore } from "@/lib/team/store";
 import { TeamMembersList } from "@/components/team/TeamMembersList";
 import { InviteMemberModal } from "@/components/team/InviteMemberModal";
@@ -147,7 +147,7 @@ function PendingInvitations({ teamId }: { teamId: string }) {
   }>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useState(() => {
+  useEffect(() => {
     const fetchInvitations = async () => {
       try {
         const res = await fetch(`/api/teams/invite?teamId=${teamId}`);
@@ -162,7 +162,7 @@ function PendingInvitations({ teamId }: { teamId: string }) {
       }
     };
     fetchInvitations();
-  });
+  }, [teamId]);
 
   return (
     <Card>

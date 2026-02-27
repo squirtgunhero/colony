@@ -101,14 +101,20 @@ export async function executeAction(action: Action): Promise<ActionResult> {
       }
 
       case "summarize": {
-        // This would call an AI service for summarization
-        // For now, return a placeholder
+        const entityMap: Record<string, string> = {
+          lead: "contacts",
+          deal: "deals",
+          property: "properties",
+        };
+        const endpoint = entityMap[action.payload.entity];
+        if (!endpoint) throw new Error(`Unsupported entity type: ${action.payload.entity}`);
+        const res = await fetch(`/api/${endpoint}/${action.payload.id}`);
+        if (!res.ok) throw new Error(`Failed to fetch ${action.payload.entity}`);
+        const data = await res.json();
         return {
           success: true,
-          message: `Summary for ${action.payload.entity} ${action.payload.id}`,
-          data: {
-            summary: "This lead was created recently and has shown strong engagement. They have a budget range of $800K-$1.2M and are interested in properties in the downtown area.",
-          }
+          message: `Fetched ${action.payload.entity} details`,
+          data,
         };
       }
 
