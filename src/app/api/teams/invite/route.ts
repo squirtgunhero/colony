@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
-import { resend } from "@/lib/resend";
+import { getResend } from "@/lib/resend";
 
 // POST /api/teams/invite - Send an invitation
 export async function POST(request: NextRequest) {
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     // Send invitation email (non-fatal: invitation is still valid if email fails)
     let emailSent = true;
     try {
-      await resend.emails.send({
+      await getResend().emails.send({
         from: process.env.RESEND_FROM_EMAIL || "Colony CRM <noreply@colony.app>",
         to: email,
         subject: `You've been invited to join ${invitation.team.name} on Colony`,

@@ -9,13 +9,6 @@ export function getResend(): Resend {
   return _resend;
 }
 
-/** @deprecated Use getResend() instead */
-export const resend = new Proxy({} as Resend, {
-  get(_target, prop) {
-    return (getResend() as Record<string | symbol, unknown>)[prop];
-  },
-});
-
 // Email templates
 export interface EmailTemplateProps {
   to: string;
