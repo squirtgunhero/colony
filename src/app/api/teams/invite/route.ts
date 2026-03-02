@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
     // Send invitation email (non-fatal: invitation is still valid if email fails)
     let emailSent = true;
     try {
-      await getResend().emails.send({
+      const resend = await getResend();
+      await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL || "Colony CRM <noreply@colony.app>",
         to: email,
         subject: `You've been invited to join ${invitation.team.name} on Colony`,

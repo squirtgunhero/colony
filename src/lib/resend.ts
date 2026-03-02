@@ -1,10 +1,11 @@
-import { Resend } from "resend";
+import type { Resend } from "resend";
 
 let _resend: Resend | null = null;
 
-export function getResend(): Resend {
+export async function getResend(): Promise<Resend> {
   if (!_resend) {
-    _resend = new Resend(process.env.RESEND_API_KEY);
+    const { Resend: ResendClient } = await import("resend");
+    _resend = new ResendClient(process.env.RESEND_API_KEY);
   }
   return _resend;
 }
