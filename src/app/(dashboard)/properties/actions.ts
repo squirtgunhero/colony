@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
+import { notifyNewLead } from "@/lib/lead-alerts";
 
 interface ContactData {
   name?: string;
@@ -46,6 +47,11 @@ export async function createProperty(data: CreatePropertyWithContactData) {
       },
     });
     ownerId = contact.id;
+
+    notifyNewLead({
+      userId,
+      contactName: contact.name,
+    }).catch(() => {});
   }
   
   const property = await prisma.property.create({

@@ -60,7 +60,9 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/og") ||
     request.nextUrl.pathname.startsWith("/opengraph-image") ||
     request.nextUrl.pathname.startsWith("/api/sms/") ||
-    request.nextUrl.pathname.startsWith("/api/cron/")
+    request.nextUrl.pathname.startsWith("/api/cron/") ||
+    request.nextUrl.pathname.startsWith("/marketplace") ||
+    request.nextUrl.pathname.startsWith("/api/marketplace")
   );
 
   if (!user && !isPublicRoute) {

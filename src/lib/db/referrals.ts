@@ -10,6 +10,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
+import { notifyReferralClaim } from "@/lib/referral-alerts";
 import type { Prisma } from "@prisma/client";
 
 // ============================================================================
@@ -646,6 +647,13 @@ export async function claimReferral(
 
     return claim;
   });
+
+  notifyReferralClaim({
+    referralId,
+    referralTitle: referral.title,
+    referralCategory: referral.category,
+    claimantMessage: message,
+  }).catch(() => {});
 
   return { claimId: result.id };
 }

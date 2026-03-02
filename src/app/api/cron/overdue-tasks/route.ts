@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSMS } from "@/lib/twilio";
+import { isQuietHours } from "@/lib/quiet-hours";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   }
 
   const autopilotUsers = await prisma.userPhone.findMany({
-    where: { autopilotEnabled: true, verified: true },
+    where: { autopilotEnabled: true, verified: true, overdueRemindersEnabled: true },
     include: { profile: true },
   });
 
@@ -24,6 +25,10 @@ export async function GET(request: NextRequest) {
   let sent = 0;
 
   for (const userPhone of autopilotUsers) {
+    if (isQuietHours(userPhone.quietStart, userPhone.quietEnd)) {
+      continue;
+    }
+
     const userId = userPhone.profileId;
 
     try {

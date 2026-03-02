@@ -19,12 +19,13 @@ import { Loader2, Hand } from "lucide-react";
 interface ClaimDialogProps {
   referralId: string;
   referralTitle: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  defaultOpen?: boolean;
 }
 
-export function ClaimDialog({ referralId, referralTitle, children }: ClaimDialogProps) {
+export function ClaimDialog({ referralId, referralTitle, children, defaultOpen = false }: ClaimDialogProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -56,7 +57,7 @@ export function ClaimDialog({ referralId, referralTitle, children }: ClaimDialog
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

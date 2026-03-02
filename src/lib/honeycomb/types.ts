@@ -47,11 +47,13 @@ export interface DashboardResponse {
 // ============================================
 
 export type CampaignStatus = "draft" | "active" | "paused" | "completed" | "archived";
+export type AdChannel = "meta" | "native" | "llm" | "google" | "bing" | "local";
 
 export interface Campaign {
   id: string;
   name: string;
   status: CampaignStatus;
+  channel?: AdChannel;
   impressions: number;
   clicks: number;
   conversions: number;
@@ -68,10 +70,16 @@ export interface CreateCampaignInput {
   name: string;
   description?: string;
   objective?: "awareness" | "traffic" | "engagement" | "leads" | "sales";
+  channel?: AdChannel;
   budget?: number;
   dailyBudget?: number;
   startDate?: string;
   endDate?: string;
+  businessName?: string;
+  category?: string;
+  serviceArea?: string;
+  phone?: string;
+  website?: string;
 }
 
 // ============================================

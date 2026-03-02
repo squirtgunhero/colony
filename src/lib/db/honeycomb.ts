@@ -23,6 +23,7 @@ export interface CampaignListItem {
   description: string | null;
   status: CampaignStatus;
   objective: CampaignObjective | null;
+  channel: AdChannel;
   budget: number | null;
   dailyBudget: number | null;
   startDate: Date | null;
@@ -77,6 +78,8 @@ export interface SegmentListItem {
 // CREATE INPUT TYPES
 // ============================================================================
 
+export type AdChannel = "meta" | "native" | "llm" | "google" | "bing" | "local";
+
 export interface CreateCampaignInput {
   name: string;
   description?: string;
@@ -85,6 +88,8 @@ export interface CreateCampaignInput {
   dailyBudget?: number;
   startDate?: Date;
   endDate?: Date;
+  channel?: AdChannel;
+  status?: CampaignStatus;
 }
 
 export interface CreateCreativeInput {
@@ -137,6 +142,7 @@ export async function getCampaigns(): Promise<CampaignListItem[]> {
     description: c.description,
     status: c.status as CampaignStatus,
     objective: c.objective as CampaignObjective | null,
+    channel: (c.channel || "native") as AdChannel,
     budget: c.budget,
     dailyBudget: c.dailyBudget,
     startDate: c.startDate,
@@ -196,6 +202,7 @@ export async function getCampaignById(id: string): Promise<CampaignDetail | null
     description: campaign.description,
     status: campaign.status as CampaignStatus,
     objective: campaign.objective as CampaignObjective | null,
+    channel: (campaign.channel || "native") as AdChannel,
     budget: campaign.budget,
     dailyBudget: campaign.dailyBudget,
     startDate: campaign.startDate,
@@ -252,11 +259,12 @@ export async function createCampaign(input: CreateCampaignInput): Promise<Campai
       name: input.name,
       description: input.description,
       objective: input.objective,
+      channel: input.channel || "native",
       budget: input.budget,
       dailyBudget: input.dailyBudget,
       startDate: input.startDate,
       endDate: input.endDate,
-      status: "draft",
+      status: input.status || "draft",
     },
     include: {
       _count: {
@@ -274,6 +282,7 @@ export async function createCampaign(input: CreateCampaignInput): Promise<Campai
     description: campaign.description,
     status: campaign.status as CampaignStatus,
     objective: campaign.objective as CampaignObjective | null,
+    channel: (campaign.channel || "native") as AdChannel,
     budget: campaign.budget,
     dailyBudget: campaign.dailyBudget,
     startDate: campaign.startDate,
@@ -324,6 +333,7 @@ export async function updateCampaignStatus(
     description: campaign.description,
     status: campaign.status as CampaignStatus,
     objective: campaign.objective as CampaignObjective | null,
+    channel: (campaign.channel || "native") as AdChannel,
     budget: campaign.budget,
     dailyBudget: campaign.dailyBudget,
     startDate: campaign.startDate,

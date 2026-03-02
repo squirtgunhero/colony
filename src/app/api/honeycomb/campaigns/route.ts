@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUser } from "@/lib/supabase/auth";
 import { getCampaigns, createCampaign } from "@/lib/db/honeycomb";
+import { prisma } from "@/lib/prisma";
 import type { CampaignsResponse } from "@/lib/honeycomb/types";
 
 /**
@@ -21,6 +22,7 @@ export async function GET() {
         id: c.id,
         name: c.name,
         status: c.status,
+        channel: c.channel,
         impressions: c.impressions,
         clicks: c.clicks,
         conversions: c.conversions,
@@ -60,6 +62,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const channel = body.channel || "native";
+    const validChannels = ["meta", "native", "llm", "google", "bing", "local"];
+    if (!validChannels.includes(channel)) {
+      return NextResponse.json(
+        { error: "Invalid channel. Use: meta, native, llm, google, bing, local" },
+        { status: 400 }
+      );
+    }
+
+    const status = (channel === "google" || channel === "bing") ? "draft" : undefined;
+
     const campaign = await createCampaign({
       name: body.name.trim(),
       description: body.description?.trim(),
@@ -68,12 +81,31 @@ export async function POST(request: NextRequest) {
       dailyBudget: body.dailyBudget ? parseFloat(body.dailyBudget) : undefined,
       startDate: body.startDate ? new Date(body.startDate) : undefined,
       endDate: body.endDate ? new Date(body.endDate) : undefined,
+      channel,
+      ...(status ? { status } : {}),
     });
+
+    if (channel === "llm") {
+      const profile = await prisma.profile.findUnique({ where: { id: user.id } });
+      await prisma.llmListing.create({
+        data: {
+          campaignId: campaign.id,
+          userId: user.id,
+          businessName: body.businessName || profile?.fullName || "Business",
+          category: body.category || profile?.businessType || "other",
+          description: body.description || "",
+          serviceArea: body.serviceArea || "",
+          phone: body.phone,
+          website: body.website,
+        },
+      });
+    }
 
     return NextResponse.json({
       id: campaign.id,
       name: campaign.name,
       status: campaign.status,
+      channel: campaign.channel,
       impressions: campaign.impressions,
       clicks: campaign.clicks,
       conversions: campaign.conversions,

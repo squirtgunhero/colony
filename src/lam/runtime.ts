@@ -1421,78 +1421,107 @@ const executors: Record<string, ActionExecutor> = {
 
     const payload = action.payload as { campaign_name?: string };
 
-    const adAccount = await prisma.metaAdAccount.findFirst({
-      where: { userId: ctx.user_id, status: "active" },
-    });
+    const metaData: { campaigns: unknown[]; weekly_totals: unknown; last_synced: unknown; account_name: unknown } | null = await (async () => {
+      const adAccount = await prisma.metaAdAccount.findFirst({
+        where: { userId: ctx.user_id, status: "active" },
+      });
+      if (!adAccount) return null;
 
-    if (!adAccount) {
-      return {
-        action_id: action.action_id,
-        action_type: action.type,
-        status: "failed" as const,
-        error: "You haven't connected a Facebook ad account yet. Go to Settings to connect one.",
-      };
-    }
+      const whereClause: Record<string, unknown> = { adAccountId: adAccount.id };
+      if (payload.campaign_name) {
+        whereClause.name = { contains: payload.campaign_name, mode: "insensitive" };
+      }
 
-    const whereClause: Record<string, unknown> = {
-      adAccountId: adAccount.id,
-    };
+      const campaigns = await prisma.metaCampaign.findMany({
+        where: whereClause,
+        orderBy: { updatedAt: "desc" },
+        take: 10,
+        select: { id: true, name: true, objective: true, status: true, effectiveStatus: true, dailyBudget: true, impressions: true, clicks: true, spend: true, reach: true, conversions: true, updatedAt: true },
+      });
 
+      const last7Days = new Date();
+      last7Days.setDate(last7Days.getDate() - 7);
+      const recentInsights = await prisma.metaInsight.findMany({
+        where: { adAccountId: adAccount.id, date: { gte: last7Days } },
+        orderBy: { date: "desc" },
+        take: 30,
+      });
+
+      const weeklyTotals = recentInsights.reduce(
+        (acc, i) => ({ impressions: acc.impressions + i.impressions, clicks: acc.clicks + i.clicks, spend: acc.spend + i.spend, conversions: acc.conversions + i.conversions }),
+        { impressions: 0, clicks: 0, spend: 0, conversions: 0 }
+      );
+
+      return { campaigns, weekly_totals: weeklyTotals, last_synced: adAccount.lastSyncedAt, account_name: adAccount.adAccountName };
+    })();
+
+    const honeycombWhere: Record<string, unknown> = { userId: ctx.user_id };
     if (payload.campaign_name) {
-      whereClause.name = { contains: payload.campaign_name, mode: "insensitive" };
+      honeycombWhere.name = { contains: payload.campaign_name, mode: "insensitive" };
     }
 
-    const campaigns = await prisma.metaCampaign.findMany({
-      where: whereClause,
+    const honeycombCampaigns = await prisma.honeycombCampaign.findMany({
+      where: honeycombWhere,
       orderBy: { updatedAt: "desc" },
       take: 10,
-      select: {
-        id: true,
-        name: true,
-        objective: true,
-        status: true,
-        effectiveStatus: true,
-        dailyBudget: true,
-        impressions: true,
-        clicks: true,
-        spend: true,
-        reach: true,
-        conversions: true,
-        updatedAt: true,
-      },
+      select: { id: true, name: true, channel: true, status: true, objective: true, dailyBudget: true, impressions: true, clicks: true, conversions: true, spend: true, updatedAt: true },
     });
 
-    const last7Days = new Date();
-    last7Days.setDate(last7Days.getDate() - 7);
+    const campaignIds = honeycombCampaigns.map((c) => c.id);
+    const nativeEvents = campaignIds.length > 0
+      ? await prisma.adEvent.groupBy({
+          by: ["campaignId", "eventType"],
+          where: { campaignId: { in: campaignIds } },
+          _count: true,
+        })
+      : [];
 
-    const recentInsights = await prisma.metaInsight.findMany({
-      where: {
-        adAccountId: adAccount.id,
-        date: { gte: last7Days },
-      },
-      orderBy: { date: "desc" },
-      take: 30,
+    const eventMap: Record<string, { impressions: number; clicks: number }> = {};
+    for (const ev of nativeEvents) {
+      if (!eventMap[ev.campaignId]) eventMap[ev.campaignId] = { impressions: 0, clicks: 0 };
+      if (ev.eventType === "impression") eventMap[ev.campaignId].impressions += ev._count;
+      else if (ev.eventType === "click") eventMap[ev.campaignId].clicks += ev._count;
+    }
+
+    const llmListings = await prisma.llmListing.findMany({
+      where: { userId: ctx.user_id },
+      select: { campaignId: true, businessName: true, impressions: true, clicks: true, serviceArea: true },
     });
 
-    const weeklyTotals = recentInsights.reduce(
-      (acc, i) => ({
-        impressions: acc.impressions + i.impressions,
-        clicks: acc.clicks + i.clicks,
-        spend: acc.spend + i.spend,
-        conversions: acc.conversions + i.conversions,
-      }),
-      { impressions: 0, clicks: 0, spend: 0, conversions: 0 }
-    );
+    const llmMap = new Map(llmListings.map((l) => [l.campaignId, l]));
+
+    const nativeAndLocalCampaigns = honeycombCampaigns
+      .filter((c) => ["native", "local", "llm", "google", "bing"].includes(c.channel))
+      .map((c) => {
+        const events = eventMap[c.id];
+        const listing = llmMap.get(c.id);
+        return {
+          id: c.id,
+          name: c.name,
+          channel: c.channel,
+          status: c.status,
+          objective: c.objective,
+          dailyBudget: c.dailyBudget,
+          impressions: (events?.impressions || 0) + (listing?.impressions || 0) + c.impressions,
+          clicks: (events?.clicks || 0) + (listing?.clicks || 0) + c.clicks,
+          conversions: c.conversions,
+          updatedAt: c.updatedAt,
+        };
+      });
 
     return {
       action_id: action.action_id,
       action_type: action.type,
       status: "success" as const,
       data: {
-        campaigns,
-        weekly_totals: weeklyTotals,
-        last_synced: adAccount.lastSyncedAt,
-        account_name: adAccount.adAccountName,
+        meta: metaData,
+        honeycomb_campaigns: nativeAndLocalCampaigns,
+        llm_listings: llmListings.map((l) => ({
+          business_name: l.businessName,
+          impressions: l.impressions,
+          clicks: l.clicks,
+          service_area: l.serviceArea,
+        })),
       },
     };
   },
@@ -1501,105 +1530,304 @@ const executors: Record<string, ActionExecutor> = {
     if (action.type !== "ads.create_campaign") throw new Error("Invalid action type");
 
     const payload = action.payload as {
+      channel?: string;
       objective?: string;
       daily_budget?: number;
       name?: string;
+      business_name?: string;
+      category?: string;
+      description?: string;
+      service_area?: string;
+      phone?: string;
+      website?: string;
+      keywords?: string[];
     };
 
-    const adAccount = await prisma.metaAdAccount.findFirst({
-      where: { userId: ctx.user_id, status: "active" },
-    });
-
-    if (!adAccount) {
-      return {
-        action_id: action.action_id,
-        action_type: action.type,
-        status: "failed" as const,
-        error: "You haven't connected a Facebook ad account yet. Go to Settings to connect one.",
-      };
-    }
-
-    if (adAccount.tokenExpiresAt && adAccount.tokenExpiresAt < new Date()) {
-      return {
-        action_id: action.action_id,
-        action_type: action.type,
-        status: "failed" as const,
-        error: "Your Facebook connection has expired. Go to Settings to reconnect.",
-      };
-    }
-
-    const client = createMetaClient(adAccount.accessToken);
-
-    const objectiveMap: Record<string, string> = {
-      "LEADS": "OUTCOME_LEADS",
-      "TRAFFIC": "OUTCOME_TRAFFIC",
-      "AWARENESS": "OUTCOME_AWARENESS",
-      "ENGAGEMENT": "OUTCOME_ENGAGEMENT",
-      "SALES": "OUTCOME_SALES",
-    };
-
-    const objective = objectiveMap[payload.objective?.toUpperCase() || "LEADS"] || "OUTCOME_LEADS";
+    const channel = payload.channel || "native";
     const dailyBudget = payload.daily_budget || 10;
     const campaignName = payload.name || `Tara Campaign - ${new Date().toLocaleDateString()}`;
 
-    const profile = await prisma.profile.findUnique({
-      where: { id: ctx.user_id },
-      select: { businessType: true },
-    });
+    switch (channel) {
+      case "meta": {
+        const adAccount = await prisma.metaAdAccount.findFirst({
+          where: { userId: ctx.user_id, status: "active" },
+        });
 
-    const isHousing = profile?.businessType?.toLowerCase().includes("real estate") ||
-      profile?.businessType?.toLowerCase().includes("property") ||
-      profile?.businessType?.toLowerCase().includes("mortgage");
+        if (!adAccount) {
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "failed" as const,
+            error: "You haven't connected a Facebook ad account yet. Go to Settings to connect one.",
+          };
+        }
 
-    try {
-      const result = await client.createCampaign(adAccount.adAccountId, {
-        name: campaignName,
-        objective,
-        status: "PAUSED",
-        special_ad_categories: isHousing ? ["HOUSING"] : [],
-      });
+        if (adAccount.tokenExpiresAt && adAccount.tokenExpiresAt < new Date()) {
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "failed" as const,
+            error: "Your Facebook connection has expired. Go to Settings to reconnect.",
+          };
+        }
 
-      await syncMetaAdAccount(adAccount.id);
+        const client = createMetaClient(adAccount.accessToken);
 
-      const newCampaign = await prisma.metaCampaign.findFirst({
-        where: {
-          adAccountId: adAccount.id,
-          metaCampaignId: result.id,
-        },
-      });
+        const objectiveMap: Record<string, string> = {
+          "LEADS": "OUTCOME_LEADS",
+          "TRAFFIC": "OUTCOME_TRAFFIC",
+          "AWARENESS": "OUTCOME_AWARENESS",
+          "ENGAGEMENT": "OUTCOME_ENGAGEMENT",
+          "SALES": "OUTCOME_SALES",
+        };
 
-      await recordChange(
-        ctx.run_id,
-        action.action_id,
-        "MetaCampaign",
-        newCampaign?.id || result.id,
-        "create",
-        null,
-        { metaCampaignId: result.id, name: campaignName, objective, dailyBudget }
-      );
+        const objective = objectiveMap[payload.objective?.toUpperCase() || "LEADS"] || "OUTCOME_LEADS";
 
-      return {
-        action_id: action.action_id,
-        action_type: action.type,
-        status: "success" as const,
-        data: {
-          campaign_id: result.id,
-          name: campaignName,
-          objective: payload.objective || "LEADS",
-          daily_budget: dailyBudget,
-          status: "PAUSED",
-          note: "Campaign created in PAUSED state. You'll need to add an ad set with targeting and creative in Meta Ads Manager to go live. I'll send you the link.",
-          ads_manager_url: `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${adAccount.adAccountId.replace("act_", "")}`,
-        },
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      return {
-        action_id: action.action_id,
-        action_type: action.type,
-        status: "failed" as const,
-        error: `Failed to create campaign on Facebook: ${message}`,
-      };
+        const profile = await prisma.profile.findUnique({
+          where: { id: ctx.user_id },
+          select: { businessType: true },
+        });
+
+        const isHousing = profile?.businessType?.toLowerCase().includes("real estate") ||
+          profile?.businessType?.toLowerCase().includes("property") ||
+          profile?.businessType?.toLowerCase().includes("mortgage");
+
+        try {
+          const result = await client.createCampaign(adAccount.adAccountId, {
+            name: campaignName,
+            objective,
+            status: "PAUSED",
+            special_ad_categories: isHousing ? ["HOUSING"] : [],
+          });
+
+          await syncMetaAdAccount(adAccount.id);
+
+          const newCampaign = await prisma.metaCampaign.findFirst({
+            where: { adAccountId: adAccount.id, metaCampaignId: result.id },
+          });
+
+          await recordChange(ctx.run_id, action.action_id, "MetaCampaign", newCampaign?.id || result.id, "create", null, { metaCampaignId: result.id, name: campaignName, objective, dailyBudget });
+
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "success" as const,
+            data: {
+              channel: "meta",
+              campaign_id: result.id,
+              name: campaignName,
+              objective: payload.objective || "LEADS",
+              daily_budget: dailyBudget,
+              status: "PAUSED",
+              note: "Campaign created in PAUSED state. You'll need to add an ad set with targeting and creative in Meta Ads Manager to go live.",
+              ads_manager_url: `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${adAccount.adAccountId.replace("act_", "")}`,
+            },
+          };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unknown error";
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "failed" as const,
+            error: `Failed to create campaign on Facebook: ${message}`,
+          };
+        }
+      }
+
+      case "native": {
+        const campaign = await prisma.honeycombCampaign.create({
+          data: {
+            userId: ctx.user_id,
+            name: campaignName,
+            channel: "native",
+            objective: payload.objective?.toLowerCase() || "leads",
+            dailyBudget,
+            status: "active",
+          },
+        });
+
+        await recordChange(ctx.run_id, action.action_id, "HoneycombCampaign", campaign.id, "create", null, campaign);
+
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "success" as const,
+          data: {
+            channel: "native",
+            campaign_id: campaign.id,
+            name: campaignName,
+            daily_budget: dailyBudget,
+            status: "active",
+            note: "Native campaign created and active. It will serve ads on the Honeycomb Network once you add creatives.",
+          },
+        };
+      }
+
+      case "llm": {
+        const campaign = await prisma.honeycombCampaign.create({
+          data: {
+            userId: ctx.user_id,
+            name: campaignName,
+            channel: "llm",
+            objective: payload.objective?.toLowerCase() || "leads",
+            dailyBudget,
+            status: "active",
+          },
+        });
+
+        const profile = await prisma.profile.findUnique({
+          where: { id: ctx.user_id },
+          select: { fullName: true, businessType: true },
+        });
+
+        const listing = await prisma.llmListing.create({
+          data: {
+            campaignId: campaign.id,
+            userId: ctx.user_id,
+            businessName: payload.business_name || profile?.fullName || "Business",
+            category: payload.category || profile?.businessType || "other",
+            description: payload.description || "",
+            serviceArea: payload.service_area || "",
+            phone: payload.phone,
+            website: payload.website,
+          },
+        });
+
+        await recordChange(ctx.run_id, action.action_id, "HoneycombCampaign", campaign.id, "create", null, { campaign, listing });
+
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "success" as const,
+          data: {
+            channel: "llm",
+            campaign_id: campaign.id,
+            listing_id: listing.id,
+            name: campaignName,
+            business_name: listing.businessName,
+            category: listing.category,
+            service_area: listing.serviceArea,
+            note: "LLM listing created. Your business will now appear in AI-powered recommendations and chatbot responses for your service area.",
+          },
+        };
+      }
+
+      case "google":
+      case "bing": {
+        const campaign = await prisma.honeycombCampaign.create({
+          data: {
+            userId: ctx.user_id,
+            name: campaignName,
+            channel,
+            objective: payload.objective?.toLowerCase() || "leads",
+            dailyBudget,
+            status: "draft",
+            metadata: payload.keywords ? { keywords: payload.keywords } : {},
+          },
+        });
+
+        await recordChange(ctx.run_id, action.action_id, "HoneycombCampaign", campaign.id, "create", null, campaign);
+
+        const platformName = channel === "google" ? "Google Ads" : "Microsoft Ads";
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "success" as const,
+          data: {
+            channel,
+            campaign_id: campaign.id,
+            name: campaignName,
+            daily_budget: dailyBudget,
+            status: "draft",
+            note: `${platformName} integration is coming soon. Your campaign has been saved and will activate when the integration is live.`,
+          },
+        };
+      }
+
+      case "local": {
+        const profile = await prisma.profile.findUnique({
+          where: { id: ctx.user_id },
+          select: { businessType: true },
+        });
+
+        const campaign = await prisma.honeycombCampaign.create({
+          data: {
+            userId: ctx.user_id,
+            name: campaignName,
+            channel: "local",
+            objective: payload.objective?.toLowerCase() || "leads",
+            dailyBudget,
+            status: "active",
+            metadata: {
+              serviceArea: payload.service_area || "",
+              category: payload.category || profile?.businessType || "other",
+            },
+          },
+        });
+
+        const myCategory = (payload.category || profile?.businessType || "other").toLowerCase().replace(/\s+/g, "_");
+        const otherLocalCampaigns = await prisma.honeycombCampaign.findMany({
+          where: { channel: "local", status: "active", userId: { not: ctx.user_id } },
+          select: { userId: true, metadata: true },
+          distinct: ["userId"],
+        });
+
+        let matchCount = 0;
+        for (const other of otherLocalCampaigns) {
+          const otherProfile = await prisma.profile.findUnique({
+            where: { id: other.userId },
+            select: { businessType: true },
+          });
+          const otherCategory = (otherProfile?.businessType || "other").toLowerCase().replace(/\s+/g, "_");
+          if (otherCategory === myCategory) continue;
+
+          const existing = await prisma.localExchangePair.findFirst({
+            where: {
+              OR: [
+                { userAId: ctx.user_id, userBId: other.userId },
+                { userAId: other.userId, userBId: ctx.user_id },
+              ],
+            },
+          });
+          if (existing) continue;
+
+          await prisma.localExchangePair.create({
+            data: {
+              userAId: ctx.user_id,
+              userBId: other.userId,
+              userACategory: myCategory,
+              userBCategory: otherCategory,
+              status: "proposed",
+            },
+          });
+          matchCount++;
+        }
+
+        await recordChange(ctx.run_id, action.action_id, "HoneycombCampaign", campaign.id, "create", null, campaign);
+
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "success" as const,
+          data: {
+            channel: "local",
+            campaign_id: campaign.id,
+            name: campaignName,
+            matches_found: matchCount,
+            note: matchCount > 0
+              ? `Local exchange campaign created! Found ${matchCount} potential business partner(s) for cross-promotion. They'll be notified to accept the exchange.`
+              : "Local exchange campaign created. We'll match you with non-competing local businesses as they join the network.",
+          },
+        };
+      }
+
+      default:
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: `Unknown channel: ${channel}. Use: meta, native, llm, google, bing, or local.`,
+        };
     }
   },
 

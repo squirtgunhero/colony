@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
 import { revalidatePath } from "next/cache";
+import { notifyNewLead } from "@/lib/lead-alerts";
 
 interface ContactData {
   name: string;
@@ -67,6 +68,12 @@ export async function createContact(data: CreateContactWithPropertyData) {
       },
     });
   }
+
+  notifyNewLead({
+    userId,
+    contactName: contact.name,
+    source: data.source,
+  }).catch(() => {});
 
   revalidatePath("/contacts");
   revalidatePath("/properties");

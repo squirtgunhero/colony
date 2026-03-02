@@ -107,7 +107,11 @@ export function CreateReferralDialog({ children }: CreateReferralDialogProps) {
       }
 
       const data = await response.json();
-      toast.success("Referral created successfully");
+      if (visibility === "public") {
+        toast.success("Your referral is now live on the marketplace!");
+      } else {
+        toast.success("Referral created successfully");
+      }
       setOpen(false);
       resetForm();
       router.push(`/referrals/${data.id}`);

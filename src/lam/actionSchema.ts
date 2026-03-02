@@ -376,9 +376,17 @@ export const CrmSearchActionSchema = BaseActionSchema.extend({
 // ============================================================================
 
 export const AdsCreateCampaignPayloadSchema = z.object({
+  channel: z.enum(["meta", "native", "llm", "google", "bing", "local"]).default("native"),
   objective: z.enum(["LEADS", "TRAFFIC", "AWARENESS", "ENGAGEMENT", "SALES"]).default("LEADS"),
   daily_budget: z.number().optional().default(10),
   name: z.string().optional(),
+  business_name: z.string().optional(),
+  category: z.string().optional(),
+  description: z.string().optional(),
+  service_area: z.string().optional(),
+  phone: z.string().optional(),
+  website: z.string().optional(),
+  keywords: z.array(z.string()).optional(),
 });
 
 export const AdsCreateCampaignExpectedOutcomeSchema = z.object({

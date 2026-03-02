@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSMS } from "@/lib/twilio";
+import { isQuietHours } from "@/lib/quiet-hours";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -12,13 +13,28 @@ export async function GET(request: NextRequest) {
   }
 
   const autopilotUsers = await prisma.userPhone.findMany({
-    where: { autopilotEnabled: true, verified: true },
+    where: { autopilotEnabled: true, verified: true, digestEnabled: true },
     include: { profile: true },
   });
 
   if (autopilotUsers.length === 0) {
     return Response.json({ sent: 0 });
   }
+
+  // Determine current hour in Eastern time so each user only gets
+  // their digest during the hour that matches their digestTime preference.
+  const easternHour = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "2-digit",
+    hour12: false,
+  }).format(new Date());
+
+  const currentHour = parseInt(easternHour, 10);
+
+  const usersToDigest = autopilotUsers.filter((up) => {
+    const digestHour = parseInt((up.digestTime ?? "18:00").split(":")[0], 10);
+    return digestHour === currentHour;
+  });
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -28,7 +44,11 @@ export async function GET(request: NextRequest) {
 
   let sent = 0;
 
-  for (const userPhone of autopilotUsers) {
+  for (const userPhone of usersToDigest) {
+    if (isQuietHours(userPhone.quietStart, userPhone.quietEnd)) {
+      continue;
+    }
+
     const userId = userPhone.profileId;
 
     try {
@@ -58,7 +78,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return Response.json({ sent, total: autopilotUsers.length });
+  return Response.json({ sent, matched: usersToDigest.length, total: autopilotUsers.length });
 }
 
 async function buildDigest(

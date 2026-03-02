@@ -411,6 +411,7 @@ model HoneycombCampaign {
   description String?
   status      String    @default("draft") // draft | active | paused | completed | archived
   objective   String?   // awareness | traffic | engagement | leads | sales
+  channel     String    @default("native") // meta | native | llm | google | bing | local
   budget      Float?
   dailyBudget Float?    @map("daily_budget")
   startDate   DateTime? @map("start_date")
@@ -557,9 +558,89 @@ model HoneycombPublisher {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  // Relations
+  zones       AdZone[]
+
   @@index([userId, status])
   @@index([userId, createdAt(sort: Desc)])
   @@map("honeycomb_publishers")
+}
+
+// Ad placement zone — a specific slot on a publisher's website (for native + local channels)
+model AdZone {
+  id            String   @id @default(cuid())
+  publisherId   String   @map("publisher_id")
+  publisher     HoneycombPublisher @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+  name          String
+  format        String
+  siteUrl       String   @map("site_url")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  events AdEvent[]
+
+  @@index([publisherId, active])
+  @@map("ad_zones")
+}
+
+// Tracks every impression and click across native + local channels
+model AdEvent {
+  id          String   @id @default(cuid())
+  zoneId      String   @map("zone_id")
+  zone        AdZone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  campaignId  String   @map("campaign_id")
+  creativeId  String   @map("creative_id")
+  eventType   String   // "impression" | "click"
+  channel     String   // "native" | "local" | "llm"
+  ip          String?
+  userAgent   String?  @map("user_agent")
+  referer     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([zoneId, createdAt(sort: Desc)])
+  @@index([campaignId, eventType, createdAt(sort: Desc)])
+  @@index([creativeId, eventType])
+  @@map("ad_events")
+}
+
+// LLM ad placement — structured business listing for AI recommendation
+model LlmListing {
+  id            String   @id @default(cuid())
+  campaignId    String   @map("campaign_id")
+  userId        String   @map("user_id") @db.Uuid
+  businessName  String   @map("business_name")
+  category      String
+  description   String
+  serviceArea   String   @map("service_area")
+  phone         String?
+  website       String?
+  active        Boolean  @default(true)
+  impressions   Int      @default(0)
+  clicks        Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([category, serviceArea, active])
+  @@index([userId])
+  @@map("llm_listings")
+}
+
+// Local exchange match — pairs non-competing businesses for cross-promotion
+model LocalExchangePair {
+  id              String   @id @default(cuid())
+  userAId         String   @map("user_a_id") @db.Uuid
+  userBId         String   @map("user_b_id") @db.Uuid
+  userACategory   String   @map("user_a_category")
+  userBCategory   String   @map("user_b_category")
+  status          String   @default("proposed") // proposed | active | paused | ended
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([userAId, userBId])
+  @@index([userAId, status])
+  @@index([userBId, status])
+  @@map("local_exchange_pairs")
 }
 
 // ============================================================================
