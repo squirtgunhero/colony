@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
+import { BRAND } from "@/components/marketplace/marketplace-theme";
 import { ClaimDialog } from "@/components/referrals/claim-dialog";
 import { SignUpPrompt } from "@/components/marketplace/sign-up-prompt";
 import {
@@ -135,7 +135,7 @@ export function MarketplaceDetailView({
   userClaimStatus,
   autoOpenClaim,
 }: MarketplaceDetailViewProps) {
-  const { theme } = useColonyTheme();
+  const theme = BRAND;
   const router = useRouter();
   const [signUpOpen, setSignUpOpen] = useState(false);
 

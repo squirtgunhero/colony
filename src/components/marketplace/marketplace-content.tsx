@@ -9,8 +9,8 @@ import {
   type MarketplaceReferral,
 } from "./marketplace-referral-card";
 import { SignUpPrompt } from "./sign-up-prompt";
-import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
+import { BRAND } from "./marketplace-theme";
 import { Loader2 } from "lucide-react";
 
 interface MarketplaceContentProps {
@@ -18,7 +18,7 @@ interface MarketplaceContentProps {
 }
 
 export function MarketplaceContent({ isLoggedIn }: MarketplaceContentProps) {
-  const { theme } = useColonyTheme();
+  const theme = BRAND;
   const router = useRouter();
 
   const [referrals, setReferrals] = useState<MarketplaceReferral[]>([]);

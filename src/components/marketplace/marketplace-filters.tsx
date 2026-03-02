@@ -1,7 +1,7 @@
 "use client";
 
-import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
+import { BRAND } from "./marketplace-theme";
 import { MapPin } from "lucide-react";
 
 const CATEGORIES = [
@@ -44,7 +44,7 @@ export function MarketplaceFilters({
   onLocationChange,
   onLocationSubmit,
 }: MarketplaceFiltersProps) {
-  const { theme } = useColonyTheme();
+  const theme = BRAND;
 
   return (
     <div className="space-y-4">

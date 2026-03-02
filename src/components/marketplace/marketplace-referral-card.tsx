@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
+import { BRAND } from "./marketplace-theme";
 import {
   MapPin,
   DollarSign,
@@ -105,7 +105,7 @@ export function MarketplaceReferralCard({
   referral,
   onClaim,
 }: MarketplaceReferralCardProps) {
-  const { theme } = useColonyTheme();
+  const theme = BRAND;
   const neumorphicRaised =
     "4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)";
   const CategoryIcon = CATEGORY_ICONS[referral.category] ?? MoreHorizontal;

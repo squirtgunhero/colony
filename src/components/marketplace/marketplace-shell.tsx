@@ -3,8 +3,8 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
+import { BRAND } from "./marketplace-theme";
 import { Toaster } from "sonner";
 
 interface MarketplaceShellProps {
@@ -13,7 +13,7 @@ interface MarketplaceShellProps {
 }
 
 export function MarketplaceShell({ children, isLoggedIn }: MarketplaceShellProps) {
-  const { theme } = useColonyTheme();
+  const theme = BRAND;
 
   return (
     <div

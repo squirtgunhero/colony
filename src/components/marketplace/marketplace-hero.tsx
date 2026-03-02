@@ -1,8 +1,8 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
+import { BRAND } from "./marketplace-theme";
 
 export interface MarketplaceStats {
   totalOpen: number;
@@ -36,7 +36,7 @@ export function MarketplaceHero({
   onSearchChange,
   onSearchSubmit,
 }: MarketplaceHeroProps) {
-  const { theme } = useColonyTheme();
+  const theme = BRAND;
 
   const statItems = stats
     ? [
