@@ -1,6 +1,6 @@
 # Colony CRM
 
-An AI-powered CRM for small businesses, built by [Jersey Proper](https://jerseyproper.com). Colony is built with Next.js 14 and features contact management, deal pipeline tracking, a unified communications inbox, and task management — all designed to help small businesses spend less time in software and more time doing the work.
+Colony is an AI-powered CRM and small business operating system built with Next.js 14. Contact management, deal pipeline tracking, a unified communications inbox, and task management — all designed to help small businesses spend less time in software and more time doing the work. Built by [Jersey Proper](https://jerseyproper.com).
 
 🔗 [jerseyproper.com/colony](https://jerseyproper.com/colony)
 

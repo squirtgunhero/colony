@@ -125,7 +125,7 @@ export function CalendarSync() {
             </CardHeader>
             <CardContent>
               <Button variant="outline" className="w-full gap-2" asChild>
-                <a href="/api/calendar" download="regganism-tasks.ics">
+                <a href="/api/calendar" download="colony-tasks.ics">
                   <Download className="h-4 w-4" />
                   Download .ics File
                 </a>

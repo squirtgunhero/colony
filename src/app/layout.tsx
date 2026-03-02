@@ -38,26 +38,26 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://mycolonyhq.com'),
-  title: "Colony | Real Estate CRM",
-  description: "Modern real estate CRM for managing contacts, properties, and deals",
+  title: "Colony | AI-Powered CRM for Small Business",
+  description: "Colony is an AI-powered CRM and small business operating system. Your business runs on conversations.",
   openGraph: {
-    title: "Colony | Real Estate CRM",
-    description: "Modern real estate CRM for managing contacts, properties, and deals",
+    title: "Colony | AI-Powered CRM for Small Business",
+    description: "Colony is an AI-powered CRM and small business operating system. Your business runs on conversations.",
     type: "website",
     images: [
       {
-        url: "https://dummyimage.com/1200x630/1a1a1a/c9a962.png&text=COLONY+Real+Estate+CRM",
+        url: "https://dummyimage.com/1200x630/1a1a1a/c9a962.png&text=COLONY",
         width: 1200,
         height: 630,
-        alt: "Colony Real Estate CRM",
+        alt: "Colony — AI-Powered CRM for Small Business",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Colony | Real Estate CRM",
-    description: "Modern real estate CRM for managing contacts, properties, and deals",
-    images: ["https://dummyimage.com/1200x630/1a1a1a/c9a962.png&text=COLONY+Real+Estate+CRM"],
+    title: "Colony | AI-Powered CRM for Small Business",
+    description: "Colony is an AI-powered CRM and small business operating system. Your business runs on conversations.",
+    images: ["https://dummyimage.com/1200x630/1a1a1a/c9a962.png&text=COLONY"],
   },
 };
 

@@ -16,7 +16,7 @@ function generateICalEvent(task: {
     return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   };
 
-  const uid = `${task.id}@regganism-crm`;
+  const uid = `${task.id}@colony-crm`;
   const dtstamp = formatDate(new Date());
   const dtstart = formatDate(task.dueDate);
   
@@ -66,7 +66,7 @@ ${events}END:VCALENDAR`;
     return new NextResponse(icalContent, {
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
-        "Content-Disposition": 'attachment; filename="regganism-tasks.ics"',
+        "Content-Disposition": 'attachment; filename="colony-tasks.ics"',
       },
     });
   } catch (error) {

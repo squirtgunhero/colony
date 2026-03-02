@@ -60,7 +60,7 @@ export async function GET() {
             fontWeight: '300',
           }}
         >
-          Real Estate CRM
+          AI-Powered CRM
         </div>
       </div>
     ),
