@@ -1,7 +1,20 @@
 import { Resend } from "resend";
 
-// Initialize Resend with API key from environment
-export const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+
+export function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
+
+/** @deprecated Use getResend() instead */
+export const resend = new Proxy({} as Resend, {
+  get(_target, prop) {
+    return (getResend() as Record<string | symbol, unknown>)[prop];
+  },
+});
 
 // Email templates
 export interface EmailTemplateProps {
