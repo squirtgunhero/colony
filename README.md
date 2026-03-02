@@ -1,166 +1,294 @@
-# Colony CRM
+# Colony
 
-Colony is an AI-powered CRM and small business operating system built with Next.js 14. Contact management, deal pipeline tracking, a unified communications inbox, and task management — all designed to help small businesses spend less time in software and more time doing the work. Built by [Jersey Proper](https://jerseyproper.com).
+An AI-powered CRM and small business operating system. Talk to it, text it, or let it run on autopilot. Colony handles contacts, deals, referrals, marketing, and communications through a single conversational interface powered by a proprietary Large Action Model (LAM).
 
-🔗 [jerseyproper.com/colony](https://jerseyproper.com/colony)
+Built by [Jersey Proper](https://jerseyproper.com).
+
+## How It Works
+
+Colony is conversation-first. The default interface is a chat — not a dashboard. You tell Colony what you need in plain English, and the LAM (Large Action Model) interprets your request, executes actions across the system, and responds with results. No forms, no dropdowns, no 12-step workflows.
+
+**Example:**
+> "Add Sarah Chen as a lead — she called about a bathroom remodel, budget around $25k"
+
+Colony creates the contact, opens a deal, tags it, and schedules a follow-up. One sentence, four actions.
+
+The LAM supports 23 action types across leads, deals, tasks, notes, email, SMS, referrals, and ad campaigns — with risk-tiered execution, undo support, and approval gates for destructive or high-stakes operations.
+
+## Architecture
+
+Colony is built around three modes and three platforms:
+
+### Modes
+
+| Mode | Route | Purpose |
+|------|-------|---------|
+| **Chat** | `/chat` | Default. Conversational CRM with slash commands, voice input, and context drawers |
+| **Browse** | `/browse` | Traditional list views for contacts, properties, and deals |
+| **Analyze** | `/analyze` | Dashboard with charts, KPIs, pipeline visualization, and reports |
+
+### Platforms
+
+| Platform | Description |
+|----------|-------------|
+| **Colony CRM** | Contact management, deal pipeline, tasks, unified inbox, documents, calendar |
+| **Honeycomb** | Marketing suite — campaigns, creatives, audience segments, publishers, billing, keyword planner, Chat Studio |
+| **Referral Network** | Industry-agnostic referral marketplace with claims, conversations, and visibility controls |
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Database**: SQLite with Prisma ORM
-- **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui
-- **Icons**: Lucide React
-- **Forms**: React Hook Form + Zod validation
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Database**: PostgreSQL via Prisma ORM
+- **Auth**: Supabase (SSR)
+- **Styling**: Tailwind CSS 4
+- **UI**: shadcn/ui + Radix primitives
+- **State**: Zustand
+- **Forms**: React Hook Form + Zod
+- **Email**: Gmail OAuth + Resend
+- **SMS**: Twilio
+- **Ads**: Meta (Facebook/Instagram) Ads API
+- **Files**: UploadThing
+- **Testing**: Vitest + Playwright
+- **Deployment**: Vercel
+
+## LAM (Large Action Model)
+
+The LAM is Colony's AI engine. It converts natural language into structured action plans, executes them, verifies results, and summarizes outcomes conversationally.
+
+### Pipeline
+
+```
+User message > Planner (LLM) > ActionPlan > Runtime > Verifier > Summarizer > Response
+                                                |
+                                          Audit + Change Log (undo support)
+```
+
+### Action Types
+
+| Domain | Actions |
+|--------|---------|
+| **Leads** | `lead.create`, `lead.update`, `lead.delete`, `lead.deleteAll` |
+| **Deals** | `deal.create`, `deal.update`, `deal.moveStage`, `deal.delete`, `deal.deleteAll` |
+| **Tasks** | `task.create`, `task.complete`, `task.delete`, `task.deleteAll` |
+| **Notes** | `note.append`, `note.delete` |
+| **Search** | `crm.search` (contacts, deals, tasks, properties, referrals) |
+| **Comms** | `email.send`, `sms.send` |
+| **Referrals** | `referral.create` |
+| **Ads** | `ads.create_campaign`, `ads.check_performance`, `ads.pause_campaign`, `ads.resume_campaign` |
+
+### Risk Tiers
+
+| Tier | Behavior | Examples |
+|------|----------|---------|
+| **0** | Auto-execute | Search, read, check performance |
+| **1** | Auto-execute + undo | Create, update, single delete |
+| **2** | Requires approval | Bulk delete, send email/SMS, create ad campaign |
+
+### Safety Features
+
+- **Idempotency keys** prevent duplicate operations
+- **Change logs** capture before/after state for every mutation
+- **Undo** reverses Tier 1 actions
+- **Approval gates** require confirmation for Tier 2 actions
+- **Verification** checks execution results against expected outcomes
 
 ## Features
 
-### Dashboard
+### CRM Core
 
-- Overview metrics (contacts, properties, deals, tasks)
-- Recent activity feed
-- Upcoming tasks list
+- **Contacts**: CRUD, tagging (lead/client/agent/vendor), source tracking, favorites, relationship scoring
+- **Deals Pipeline**: Kanban board with stages (New Lead > Qualified > Showing > Offer > Negotiation > Closed), drag-and-drop, value tracking
+- **Tasks**: Linked to contacts/properties/deals, priority levels, due date tracking, completion toggle
+- **Properties**: Grid view, status tracking (pre-listing through sold), linked to owners and deals
+- **Documents**: Upload and attach to properties and deals
+- **Activities**: Automatic timeline logging across all entity interactions
 
-### Contacts
+### Unified Inbox
 
-- CRUD operations for contacts
-- Contact types: Lead, Client, Agent, Vendor
-- Search and filter capabilities
-- Contact detail with email and phone
+Follow Up Boss-style communications hub with thread-based conversations.
 
-### Properties
+- Multi-channel: email, SMS, calls
+- Split-pane layout with thread list and conversation detail
+- Per-user read/unread tracking
+- Thread actions: assign, archive, snooze, internal notes
+- Auto-matching by email/phone to contacts
+- Inbox zero workflow
 
-- Property listings with grid view
-- Status tracking: Available, Under Contract, Sold, Off Market
-- Property details: bedrooms, bathrooms, square footage
-- Link properties to contact owners
+### Honeycomb (Marketing Suite)
 
-### Deals Pipeline
+- **Campaigns**: Create, manage, and track marketing campaigns
+- **Creatives**: Image, video, carousel, and HTML ad creative management
+- **Audience Segments**: Custom, saved, and lookalike segment builder
+- **Targeting**: Demographic and interest-based targeting configuration
+- **Publishers**: Ad network and direct publisher integrations
+- **Keyword Planner**: Keyword research and planning tools
+- **Chat Studio**: AI-powered chatbot builder
+- **Analytics**: Campaign performance dashboards
+- **Billing**: Budget tracking and spend management
+- **Meta Integration**: Full Facebook/Instagram Ads API — accounts, campaigns, ad sets, ads, insights syncing
 
-- Kanban-style board for deal stages
-- Stages: New Lead → Qualified → Showing → Offer → Negotiation → Closed
-- Drag-and-drop deal movement
-- Quick navigation buttons to move deals between stages
-- Deal value tracking
+### Referral Network
 
-### Tasks
+Industry-agnostic referral marketplace. Conversation lives inside each referral — no standalone DMs.
 
-- Create tasks linked to contacts, properties, or deals
-- Due date tracking with overdue highlighting
-- Priority levels: Low, Medium, High
-- Task completion with checkbox toggle
-- Separate tabs for pending and completed tasks
+- **Visibility levels**: Public, network, or org-only
+- **Claim workflow**: Request > accept/reject > assign > close
+- **Embedded conversation**: Public comments, private messages, system events per referral
+- **Categories**: Real estate, plumbing, finance, legal, contractor, and custom
 
-### Inbox (Unified Communications Hub)
+### Autopilot / Invisibleware
 
-A Follow Up Boss–style inbox that centralizes all communication with contacts.
+Colony can run silently in the background via SMS.
 
-**Features:**
+- **Daily digest**: Cron job sends end-of-day summary via text
+- **Overdue task reminders**: Automated nudges for missed follow-ups
+- **Configurable**: Per-user autopilot toggle, quiet hours, digest time
+- **Inbound SMS to LAM**: Users text Colony and get actions executed without logging in
 
-- **Multi-channel support**: Email, SMS (Phase 2), and Call events (Phase 2)
-- **Thread-based conversations**: Messages grouped by contact into conversation threads
-- **Split-pane layout**: Thread list on left, conversation detail on right
-- **Read/unread tracking**: Per-user read state for accurate unread counts
-- **Thread actions**:
-  - Mark as read/unread
-  - Assign to user
-  - Archive (remove from default view)
-  - Snooze until specific date/time
-  - Add internal notes
-- **Filtering**: By status (open/archived/snoozed), channel, unread only
-- **Search**: Search across contact names, emails, phones, and message content
-- **Inbox Zero workflow**: Replying, archiving, or snoozing clears threads from default view
+### Teams
 
-**Thread Matching:**
+- Multi-user CRM with role-based access (owner, admin, member, viewer)
+- Team invitations via email with token-based acceptance
+- All CRM entities scoped to teams
 
-- Email messages match by sender/recipient email → contact email
-- SMS/Call messages match by phone number (E.164 normalized)
-- Unknown senders create threads labeled "Unknown" until linked to a contact
-- Archived/snoozed threads auto-reopen on new inbound messages
+### Onboarding
 
-**Integration:**
+- Phone verification via SMS
+- Business type selection
+- Conversational setup — Colony asks questions and configures itself
 
-- Outbound emails sent from anywhere in the CRM automatically create inbox messages
-- Activities are logged to contact timeline when messages are sent
+### Chat Interface
 
-**Data Model:**
-
-- `inbox_threads`: Conversation threads linked to contacts
-- `inbox_messages`: Individual messages (email, SMS, call events)
-- `inbox_participants`: Per-user read state tracking
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm
-
-### Installation
-
-1. Install dependencies:
-
-```
-npm install
-```
-
-2. Set up the database:
-
-```
-npx prisma migrate dev
-```
-
-3. Start the development server:
-
-```
-npm run dev
-```
-
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+- Slash commands with autocomplete
+- Voice input with waveform visualization
+- Context drawers for inline CRM data
+- Suggestion chips after assistant responses
+- Themeable UI (multiple color schemes)
+- Conversation history and summaries
 
 ## Project Structure
 
 ```
 /src
   /app
-    /dashboard        # Main dashboard
-    /inbox            # Unified communications inbox
-    /contacts         # Contact management
-    /properties       # Property listings
-    /deals            # Sales pipeline
-    /tasks            # Task management
-    /api/inbox        # Inbox API routes
+    /(auth)              Sign in, sign up, password reset
+    /(dashboard)         Legacy dashboard routes + CRM modules
+      /contacts          Contact management
+      /deals             Sales pipeline
+      /properties        Property listings
+      /tasks             Task management
+      /inbox             Unified communications
+      /referrals         Referral marketplace
+      /reports           Analytics and reporting
+      /settings          App configuration
+      /email             Email management
+      /documents         Document management
+      /activities        Activity timeline
+      /favorites         Favorited entities
+      /notifications     Notification center
+      /search            Global search
+      /export            Data export
+    /(honeycomb)         Marketing suite
+      /honeycomb
+        /analytics       Campaign analytics
+        /billing         Budget and spend
+        /campaigns       Campaign management
+        /chat-studio     AI chatbot builder
+        /creatives       Ad creative management
+        /keyword-planner Keyword research
+        /publishers      Ad network integrations
+        /settings        Honeycomb configuration
+        /targeting       Audience targeting
+    /(modes)             Mode-based UI
+      /chat              Conversational interface (default)
+      /browse            List views
+      /analyze           Dashboard and charts
+    /api
+      /assistant         Assistant API
+      /auth              Auth + Gmail OAuth
+      /calendar          iCal export
+      /chat              Chat history, suggestions, summaries, themes
+      /cron              Daily digest, overdue task reminders
+      /honeycomb         Full marketing API
+      /inbox             Thread management, unread counts
+      /lam               LAM run, approve, undo, usage
+      /meta              Meta Ads integration
+      /onboarding        Phone verification, profile setup
+      /pipeline          Pipeline summary
+      /referrals         Referral CRUD + categories
+      /settings          Autopilot configuration
+      /sms               Inbound/outbound SMS
+      /teams             Team management + invitations
+      /uploadthing       File uploads
+      /voice             Voice transcription
+      /widget            Embeddable widget
   /components
-    /ui               # shadcn components
-    /layout           # Sidebar, page header
-    /inbox            # Inbox components (ThreadList, ThreadDetail, etc.)
-    /dashboard        # Dashboard-specific components
-    /contacts         # Contact components
-    /properties       # Property components
-    /deals            # Deal/pipeline components
-    /tasks            # Task components
+    /assistant           Command bar, message bubbles, action previews, voice input
+    /browse              List views for contacts, deals, properties
+    /chat                Chat canvas, command bar, panels, onboarding, themes
+    /contacts            Contact dialogs, tables, relationship scoring
+    /dashboard           Charts, metrics, activity feed, pipeline
+    /deals               Deal dialogs, Kanban board, pipeline stats
+    /documents           Document list and uploader
+    /email               Email history and compose dialog
+    /favorites           Favorite buttons per entity type
+    /honeycomb           Honeycomb sidebar and page shell
+    /inbox               Thread list, thread detail, filters
+    /layout              Mode sidebar, top nav, view toggle
+    /properties          Property dialogs and grid
+    /quick-capture       Floating action button, quick capture sheet
+    /referrals           Referral cards, feed, filters, conversation, claims
+    /reports             Analytics cards (revenue, leads, conversion, activity)
+    /settings            Email accounts, settings panel
+    /tasks               Task dialogs and list
+    /team                Team creation, invitations, member list, switcher
+    /widget-builder      Command palette for widget configuration
+    /ui                  shadcn/ui primitives
+  /lam
+    actionSchema.ts      23 action types with Zod validation
+    planner.ts           LLM-powered natural language to ActionPlan
+    runtime.ts           Action execution engine (2000+ lines)
+    verifier.ts          Post-execution verification
+    audit.ts             Run recording and change tracking
+    undo.ts              Undo support via change logs
+    llm.ts               LLM provider abstraction
+    llmParser.ts         Response parsing utilities
+    rateLimit.ts         Rate limiting for LAM runs
+    index.ts             Orchestration: plan > execute > verify > summarize
   /lib
-    /db
-      inbox.ts        # Inbox data access layer
-      user-data.ts    # User-scoped database operations
-    prisma.ts         # Prisma client
-    utils.ts          # Utility functions
-    date-utils.ts     # Date formatting utilities
+    /assistant           Assistant store, actions, types
+    /db                  Data access layers (honeycomb, inbox, referrals, user-data)
+    /honeycomb           Honeycomb API client, hooks, types
+    /lam/actions         LAM action implementations
+    /meta                Meta Ads client, sync, types
+    /mode                Mode state management
+    /supabase            Auth, client, middleware, server
+    /team                Team state management
+    /widget-builder      Widget parser, persistence, registry, schemas
+    prisma.ts            Prisma client
+    twilio.ts            Twilio SMS client
+    gmail.ts             Gmail API client
+    resend.ts            Resend email client
+    themes.ts            UI theme definitions
+    utils.ts             Utility functions
+    date-utils.ts        Date formatting
+    relationship-score.ts Contact relationship scoring
+    email-templates.ts   Email template definitions
 /prisma
-  schema.prisma       # Database schema
+  schema.prisma          30+ models across CRM, inbox, referrals, honeycomb, LAM, meta, SMS
+/supabase
+  /migrations            Database migrations
+/docs
+  MODE_ARCHITECTURE.md   Mode-based UI architecture documentation
+  referrals.md           Referral system design documentation
+/scripts
+  seed-lam.ts            LAM seed data
+  check-contacts.mjs     Contact verification utility
+/e2e
+  example.spec.ts        Playwright end-to-end tests
 ```
-
-## Database Schema
-
-- **Contact**: Stores leads, clients, agents, and vendors
-- **Property**: Property listings with details
-- **Deal**: Sales opportunities linked to contacts and properties
-- **Task**: To-dos and follow-ups linked to contacts, properties, or deals
-
-## UI Theme
-
-Dark mode with amber/gold accents for a luxurious real estate feel. The color scheme evokes elegance while maintaining excellent readability and accessibility.
 
 ## License
 
-© 2026 Colony · Built by [Jersey Proper](https://jerseyproper.com)
+Proprietary. All rights reserved.
