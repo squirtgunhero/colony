@@ -182,7 +182,7 @@ export function ChatCommandBar() {
       <div className="mx-auto max-w-2xl px-4 pb-6" suppressHydrationWarning>
         {/* Waveform — anchored above input when conversation is active */}
         {hasMessages && (
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-4 overflow-hidden pointer-events-none" style={{ maxHeight: 60 }}>
             <WaveformVisualizer state={waveformState} mini />
           </div>
         )}

@@ -109,7 +109,7 @@ export function ChatCanvas() {
   return (
     <div
       ref={scrollContainerRef}
-      className="flex-1 flex flex-col overflow-y-auto pb-40 relative"
+      className="flex-1 flex flex-col overflow-y-auto pb-72 relative"
       style={{
         background: `linear-gradient(160deg, ${theme.bg} 0%, ${theme.bgGlow} 50%, ${theme.bg} 100%)`,
         backgroundSize: "400% 400%",
