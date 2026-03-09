@@ -44,114 +44,7 @@ export interface LLMProvider {
 }
 
 // ============================================================================
-// OpenAI Provider
-// ============================================================================
-
-export class OpenAIProvider implements LLMProvider {
-  name = "openai";
-  private apiKey: string;
-  private model: string;
-  private baseUrl: string;
-
-  constructor(options?: { apiKey?: string; model?: string; baseUrl?: string }) {
-    this.apiKey = options?.apiKey || process.env.OPENAI_API_KEY || "";
-    this.model = options?.model || "gpt-4o";
-    this.baseUrl = options?.baseUrl || "https://api.openai.com/v1";
-  }
-
-  async complete(
-    messages: LLMMessage[],
-    options?: LLMCompletionOptions
-  ): Promise<LLMCompletionResult> {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        temperature: options?.temperature ?? 0.1,
-        max_tokens: options?.maxTokens ?? 4096,
-        stop: options?.stopSequences,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${error}`);
-    }
-
-    const data = await response.json();
-    const choice = data.choices[0];
-
-    return {
-      content: choice.message.content || "",
-      usage: {
-        promptTokens: data.usage?.prompt_tokens ?? 0,
-        completionTokens: data.usage?.completion_tokens ?? 0,
-        totalTokens: data.usage?.total_tokens ?? 0,
-      },
-      finishReason: choice.finish_reason === "stop" ? "stop" : "length",
-    };
-  }
-
-  async completeJSON<T>(
-    messages: LLMMessage[],
-    schema: z.ZodType<T>,
-    options?: LLMCompletionOptions
-  ): Promise<{ data: T; usage: LLMCompletionResult["usage"] }> {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        temperature: options?.temperature ?? 0.1,
-        max_tokens: options?.maxTokens ?? 4096,
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${error}`);
-    }
-
-    const result = await response.json();
-    const content = result.choices[0].message.content || "{}";
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      throw new Error(`Failed to parse LLM JSON response: ${content}`);
-    }
-
-    const validated = schema.safeParse(parsed);
-    if (!validated.success) {
-      throw new Error(
-        `LLM response validation failed: ${validated.error.message}`
-      );
-    }
-
-    return {
-      data: validated.data,
-      usage: {
-        promptTokens: result.usage?.prompt_tokens ?? 0,
-        completionTokens: result.usage?.completion_tokens ?? 0,
-        totalTokens: result.usage?.total_tokens ?? 0,
-      },
-    };
-  }
-}
-
-// ============================================================================
-// Anthropic Provider
+// Anthropic Provider (Tara uses Claude)
 // ============================================================================
 
 export class AnthropicProvider implements LLMProvider {
@@ -271,31 +164,27 @@ export class AnthropicProvider implements LLMProvider {
 // Factory
 // ============================================================================
 
-export type LLMProviderType = "openai" | "anthropic";
+export type LLMProviderType = "anthropic";
 
 export function createLLMProvider(
   type: LLMProviderType,
   options?: Record<string, string>
 ): LLMProvider {
-  switch (type) {
-    case "openai":
-      return new OpenAIProvider(options);
-    case "anthropic":
-      return new AnthropicProvider(options);
-    default:
-      throw new Error(`Unknown LLM provider: ${type}`);
+  if (type === "anthropic") {
+    return new AnthropicProvider(options);
   }
+  throw new Error(`Unknown LLM provider: ${type}`);
 }
 
 export function getDefaultProvider(): LLMProvider {
-  if (process.env.OPENAI_API_KEY) {
-    return new OpenAIProvider();
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error(
+      "Tara requires ANTHROPIC_API_KEY. Get one at console.anthropic.com"
+    );
   }
-  if (process.env.ANTHROPIC_API_KEY) {
-    return new AnthropicProvider();
-  }
-  throw new Error(
-    "No LLM API key configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in your environment."
+  const modelOverride = process.env.TARA_LLM_MODEL;
+  return new AnthropicProvider(
+    modelOverride ? { model: modelOverride } : undefined
   );
 }
 

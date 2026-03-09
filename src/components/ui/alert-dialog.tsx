@@ -6,25 +6,25 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-const alertDialogLightVars = {
-  "--background": "#f8f8f6",
-  "--foreground": "#1a1a1a",
-  "--card": "#ffffff",
-  "--card-foreground": "#1a1a1a",
-  "--popover": "#ffffff",
-  "--popover-foreground": "#1a1a1a",
-  "--primary": "#c2410c",
-  "--primary-foreground": "#ffffff",
-  "--secondary": "#f5f5f3",
-  "--secondary-foreground": "#1a1a1a",
-  "--muted": "#f5f5f3",
-  "--muted-foreground": "#6b6b6b",
-  "--accent": "#fef7ed",
-  "--accent-foreground": "#9a3412",
-  "--destructive": "#b91c1c",
-  "--border": "rgba(0, 0, 0, 0.08)",
-  "--input": "rgba(0, 0, 0, 0.08)",
-  "--ring": "#c2410c",
+const alertDialogDarkVars = {
+  "--background": "#1a1a1a",
+  "--foreground": "#f0e8d8",
+  "--card": "#242424",
+  "--card-foreground": "#f0e8d8",
+  "--popover": "#242424",
+  "--popover-foreground": "#f0e8d8",
+  "--primary": "#c9a962",
+  "--primary-foreground": "#1a1a1a",
+  "--secondary": "#2a2a2a",
+  "--secondary-foreground": "#f0e8d8",
+  "--muted": "#2a2a2a",
+  "--muted-foreground": "#a0977e",
+  "--accent": "rgba(201, 169, 98, 0.15)",
+  "--accent-foreground": "#c9a962",
+  "--destructive": "#ef4444",
+  "--border": "rgba(255, 255, 255, 0.1)",
+  "--input": "rgba(255, 255, 255, 0.1)",
+  "--ring": "#c9a962",
   color: "#1a1a1a",
 } as React.CSSProperties
 
@@ -76,10 +76,10 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          "bg-white border border-neutral-200 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl p-6 shadow-lg duration-200 sm:max-w-lg",
+          "bg-neutral-900 border border-white/10 shadow-2xl text-neutral-100 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl p-6 shadow-lg duration-200 sm:max-w-lg",
           className
         )}
-        style={alertDialogLightVars}
+        style={alertDialogDarkVars}
         {...props}
       />
     </AlertDialogPortal>

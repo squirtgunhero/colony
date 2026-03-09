@@ -72,7 +72,7 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} ${geist.variable} ${spectral.variable} ${dmSans.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
-        <ThemeProvider defaultTheme="system" storageKey="colony-theme">
+        <ThemeProvider defaultTheme="dark" storageKey="colony-theme">
           <ColonyThemeProvider>
             {children}
           </ColonyThemeProvider>
