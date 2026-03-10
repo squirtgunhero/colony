@@ -123,6 +123,7 @@ model Contact {
   activities   Activity[]
   inboxThreads InboxThread[]
   noteRecords  Note[]
+  savedSearches SavedSearch[]
 
   @@index([teamId])
 }
@@ -644,6 +645,45 @@ model LocalExchangePair {
   @@index([userAId, status])
   @@index([userBId, status])
   @@map("local_exchange_pairs")
+}
+
+// ============================================================================
+// SAVED SEARCHES - Buyer property criteria for matching & alerts
+// ============================================================================
+
+model SavedSearch {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id") @db.Uuid
+  contactId     String?  @map("contact_id")
+  contact       Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  name          String?  // e.g. "John's Westside Search"
+
+  // Price range
+  priceMin      Float?   @map("price_min")
+  priceMax      Float?   @map("price_max")
+
+  // Property criteria
+  bedsMin       Int?     @map("beds_min")
+  bathsMin      Float?   @map("baths_min")
+  propertyTypes String[] @default([]) @map("property_types") // single_family, condo, townhouse, etc.
+
+  // Location criteria
+  neighborhoods String[] @default([])
+  cities        String[] @default([])
+  zipCodes      String[] @default([]) @map("zip_codes")
+
+  // Feature criteria
+  mustHaves     String[] @default([]) @map("must_haves") // garage, pool, yard, no_hoa, etc.
+
+  isActive      Boolean  @default(true) @map("is_active")
+  notes         String?
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, isActive])
+  @@index([contactId])
+  @@map("saved_searches")
 }
 
 // ============================================================================

@@ -712,6 +712,110 @@ export const ContactsImportActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// SavedSearch Actions
+// ============================================================================
+
+export const SavedSearchCreatePayloadSchema = z.object({
+  contactId:     z.string().optional(),
+  contactName:   z.string().optional(), // runtime resolves to id
+  name:          z.string().optional(),
+  priceMin:      z.number().optional(),
+  priceMax:      z.number().optional(),
+  bedsMin:       z.number().int().optional(),
+  bathsMin:      z.number().optional(),
+  propertyTypes: z.array(z.string()).optional(),
+  neighborhoods: z.array(z.string()).optional(),
+  cities:        z.array(z.string()).optional(),
+  zipCodes:      z.array(z.string()).optional(),
+  mustHaves:     z.array(z.string()).optional(),
+  notes:         z.string().optional(),
+});
+
+export const SavedSearchCreateExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("saved_search"),
+  created: z.literal(true),
+});
+
+export const SavedSearchCreateActionSchema = BaseActionSchema.extend({
+  type: z.literal("savedSearch.create"),
+  payload: SavedSearchCreatePayloadSchema,
+  expected_outcome: SavedSearchCreateExpectedOutcomeSchema,
+});
+
+export const SavedSearchUpdatePayloadSchema = z.object({
+  id:          z.string().optional(),
+  contactName: z.string().optional(), // find active search by buyer name if no id
+  patch: z.object({
+    name:          z.string().optional(),
+    priceMin:      z.number().optional(),
+    priceMax:      z.number().optional(),
+    bedsMin:       z.number().int().optional(),
+    bathsMin:      z.number().optional(),
+    propertyTypes: z.array(z.string()).optional(),
+    neighborhoods: z.array(z.string()).optional(),
+    cities:        z.array(z.string()).optional(),
+    zipCodes:      z.array(z.string()).optional(),
+    mustHaves:     z.array(z.string()).optional(),
+    notes:         z.string().optional(),
+    isActive:      z.boolean().optional(),
+  }),
+});
+
+export const SavedSearchUpdateExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("saved_search"),
+  updated: z.literal(true),
+});
+
+export const SavedSearchUpdateActionSchema = BaseActionSchema.extend({
+  type: z.literal("savedSearch.update"),
+  payload: SavedSearchUpdatePayloadSchema,
+  expected_outcome: SavedSearchUpdateExpectedOutcomeSchema,
+});
+
+export const SavedSearchListPayloadSchema = z.object({
+  contactName: z.string().optional(),
+  contactId:   z.string().optional(),
+  active:      z.boolean().optional(),
+});
+
+export const SavedSearchListExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("saved_search"),
+  results_returned: z.literal(true),
+});
+
+export const SavedSearchListActionSchema = BaseActionSchema.extend({
+  type: z.literal("savedSearch.list"),
+  payload: SavedSearchListPayloadSchema,
+  expected_outcome: SavedSearchListExpectedOutcomeSchema,
+});
+
+// ============================================================================
+// Deal Milestone Actions
+// ============================================================================
+
+export const DealAddMilestonesPayloadSchema = z.object({
+  dealId:               z.string().optional(),
+  dealTitle:            z.string().optional(), // runtime resolves to id
+  milestoneType:        z.enum(["buyer_under_contract", "seller_listing", "seller_under_contract"]),
+  closingDate:          z.string().optional(), // ISO date — anchor for calculated task dates
+  inspectionDate:       z.string().optional(),
+  appraisalDate:        z.string().optional(),
+  loanContingencyDate:  z.string().optional(),
+  walkThroughDate:      z.string().optional(),
+});
+
+export const DealAddMilestonesExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("deal"),
+  tasks_created: z.boolean(),
+});
+
+export const DealAddMilestonesActionSchema = BaseActionSchema.extend({
+  type: z.literal("deal.addMilestones"),
+  payload: DealAddMilestonesPayloadSchema,
+  expected_outcome: DealAddMilestonesExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // Union Action Type
 // ============================================================================
 
@@ -751,6 +855,10 @@ export const ActionSchema = z.discriminatedUnion("type", [
   GoogleAddNegativesActionSchema,
   GoogleAdjustBidActionSchema,
   ContactsImportActionSchema,
+  SavedSearchCreateActionSchema,
+  SavedSearchUpdateActionSchema,
+  SavedSearchListActionSchema,
+  DealAddMilestonesActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -804,6 +912,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "ads.suggest_optimizations":
     case "ads.research_competitors":
     case "google.analyze_keywords":
+    case "savedSearch.list":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
@@ -825,6 +934,9 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "google.pause_campaign":
     case "google.resume_campaign":
     case "google.add_negatives":
+    case "savedSearch.create":
+    case "savedSearch.update":
+    case "deal.addMilestones":
       return 1;
     // Tier 2: Destructive bulk actions + external communications + spending money
     case "lead.deleteAll":
@@ -962,6 +1074,14 @@ export function getActionDescription(action: Action): string {
       return `Adjust Google budget: ${action.payload.campaign_name} → $${action.payload.new_daily_budget}/day`;
     case "contacts.import":
       return `Import contacts from ${action.payload.source}`;
+    case "savedSearch.create":
+      return `Create saved search${action.payload.contactName ? ` for ${action.payload.contactName}` : ""}`;
+    case "savedSearch.update":
+      return `Update saved search${action.payload.contactName ? ` for ${action.payload.contactName}` : ""}`;
+    case "savedSearch.list":
+      return `List saved searches${action.payload.contactName ? ` for ${action.payload.contactName}` : ""}`;
+    case "deal.addMilestones":
+      return `Add milestone tasks for deal${action.payload.dealTitle ? `: ${action.payload.dealTitle}` : ""}`;
     default:
       return "Unknown action";
   }

@@ -3626,6 +3626,354 @@ Keep it practical and actionable. Format as plain text, not markdown.`;
       },
     };
   },
+
+  // ============================================================================
+  // SavedSearch executors
+  // ============================================================================
+
+  "savedSearch.create": async (action, ctx) => {
+    if (action.type !== "savedSearch.create") throw new Error("Invalid action type");
+    const p = action.payload;
+
+    // Resolve contactId from name if needed
+    let contactId = p.contactId;
+    if (!contactId && p.contactName) {
+      const contact = await prisma.contact.findFirst({
+        where: { userId: ctx.user_id, name: { contains: p.contactName, mode: "insensitive" } },
+        select: { id: true },
+      });
+      contactId = contact?.id;
+    }
+
+    const search = await prisma.savedSearch.create({
+      data: {
+        userId:        ctx.user_id,
+        contactId:     contactId ?? null,
+        name:          p.name ?? null,
+        priceMin:      p.priceMin ?? null,
+        priceMax:      p.priceMax ?? null,
+        bedsMin:       p.bedsMin ?? null,
+        bathsMin:      p.bathsMin ?? null,
+        propertyTypes: p.propertyTypes ?? [],
+        neighborhoods: p.neighborhoods ?? [],
+        cities:        p.cities ?? [],
+        zipCodes:      p.zipCodes ?? [],
+        mustHaves:     p.mustHaves ?? [],
+        notes:         p.notes ?? null,
+      },
+    });
+
+    await recordChange(ctx.run_id, action.action_id, "SavedSearch", search.id, "create", null, search);
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: search,
+      entity_id: search.id,
+      after_state: search,
+    };
+  },
+
+  "savedSearch.update": async (action, ctx) => {
+    if (action.type !== "savedSearch.update") throw new Error("Invalid action type");
+    const p = action.payload;
+
+    // Find the search: by id, or by contactName (most recent active)
+    let search = p.id
+      ? await prisma.savedSearch.findUnique({ where: { id: p.id } })
+      : null;
+
+    if (!search && p.contactName) {
+      const contact = await prisma.contact.findFirst({
+        where: { userId: ctx.user_id, name: { contains: p.contactName, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (contact) {
+        search = await prisma.savedSearch.findFirst({
+          where: { userId: ctx.user_id, contactId: contact.id, isActive: true },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+    }
+
+    if (!search) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed",
+        error: "Saved search not found. Use savedSearch.create to create one first.",
+      };
+    }
+
+    const before = { ...search };
+    const patch = p.patch;
+    const updated = await prisma.savedSearch.update({
+      where: { id: search.id },
+      data: {
+        ...(patch.name          !== undefined && { name: patch.name }),
+        ...(patch.priceMin      !== undefined && { priceMin: patch.priceMin }),
+        ...(patch.priceMax      !== undefined && { priceMax: patch.priceMax }),
+        ...(patch.bedsMin       !== undefined && { bedsMin: patch.bedsMin }),
+        ...(patch.bathsMin      !== undefined && { bathsMin: patch.bathsMin }),
+        ...(patch.propertyTypes !== undefined && { propertyTypes: patch.propertyTypes }),
+        ...(patch.neighborhoods !== undefined && { neighborhoods: patch.neighborhoods }),
+        ...(patch.cities        !== undefined && { cities: patch.cities }),
+        ...(patch.zipCodes      !== undefined && { zipCodes: patch.zipCodes }),
+        ...(patch.mustHaves     !== undefined && { mustHaves: patch.mustHaves }),
+        ...(patch.notes         !== undefined && { notes: patch.notes }),
+        ...(patch.isActive      !== undefined && { isActive: patch.isActive }),
+      },
+    });
+
+    await recordChange(ctx.run_id, action.action_id, "SavedSearch", updated.id, "update", before, updated);
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: updated,
+      entity_id: updated.id,
+      before_state: before,
+      after_state: updated,
+    };
+  },
+
+  "savedSearch.list": async (action, ctx) => {
+    if (action.type !== "savedSearch.list") throw new Error("Invalid action type");
+    const p = action.payload;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: Record<string, any> = { userId: ctx.user_id };
+
+    if (p.active !== undefined) where.isActive = p.active;
+    if (p.contactId) {
+      where.contactId = p.contactId;
+    } else if (p.contactName) {
+      const contact = await prisma.contact.findFirst({
+        where: { userId: ctx.user_id, name: { contains: p.contactName, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (contact) where.contactId = contact.id;
+    }
+
+    const searches = await prisma.savedSearch.findMany({
+      where,
+      include: { contact: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: { searches },
+    };
+  },
+
+  // ============================================================================
+  // Deal Milestone executor
+  // ============================================================================
+
+  "deal.addMilestones": async (action, ctx) => {
+    if (action.type !== "deal.addMilestones") throw new Error("Invalid action type");
+    const p = action.payload;
+
+    // Resolve deal
+    let dealId = p.dealId;
+    if (!dealId && p.dealTitle) {
+      const deal = await prisma.deal.findFirst({
+        where: { userId: ctx.user_id, title: { contains: p.dealTitle, mode: "insensitive" } },
+        select: { id: true },
+        orderBy: { createdAt: "desc" },
+      });
+      dealId = deal?.id;
+    }
+
+    // Calculate anchor dates from closingDate when individual dates aren't provided
+    const closingDate = p.closingDate ? new Date(p.closingDate) : null;
+
+    function daysBeforeClose(days: number): Date | null {
+      if (!closingDate) return null;
+      const d = new Date(closingDate);
+      d.setDate(d.getDate() - days);
+      return d;
+    }
+
+    type MilestoneTask = {
+      title: string;
+      description: string;
+      dueDate: Date | null;
+      priority: "low" | "medium" | "high";
+    };
+
+    let milestones: MilestoneTask[] = [];
+
+    if (p.milestoneType === "buyer_under_contract") {
+      milestones = [
+        {
+          title: "Schedule home inspection",
+          description: "Contact inspector and schedule within 5–7 days of acceptance.",
+          dueDate: p.inspectionDate ? new Date(p.inspectionDate) : daysBeforeClose(28),
+          priority: "high",
+        },
+        {
+          title: "Inspection contingency deadline",
+          description: "Review inspection report and submit any repair requests or cancel.",
+          dueDate: daysBeforeClose(21),
+          priority: "high",
+        },
+        {
+          title: "Order appraisal",
+          description: "Confirm lender has ordered the appraisal.",
+          dueDate: p.appraisalDate ? new Date(p.appraisalDate) : daysBeforeClose(18),
+          priority: "medium",
+        },
+        {
+          title: "Loan contingency deadline",
+          description: "Confirm loan approval in writing or request extension.",
+          dueDate: p.loanContingencyDate ? new Date(p.loanContingencyDate) : daysBeforeClose(10),
+          priority: "high",
+        },
+        {
+          title: "Final walkthrough",
+          description: "Walk the property with buyer 1–2 days before closing.",
+          dueDate: p.walkThroughDate ? new Date(p.walkThroughDate) : daysBeforeClose(2),
+          priority: "medium",
+        },
+        {
+          title: "Closing day",
+          description: "Attend closing, collect keys, confirm wire transfer completed.",
+          dueDate: closingDate,
+          priority: "high",
+        },
+        {
+          title: "Post-close: request review & referral",
+          description: "Follow up with buyer 2 weeks after close for a Google review and referral.",
+          dueDate: closingDate ? new Date(closingDate.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
+          priority: "low",
+        },
+      ];
+    } else if (p.milestoneType === "seller_listing") {
+      milestones = [
+        {
+          title: "Sign listing agreement",
+          description: "Get signed listing agreement from seller.",
+          dueDate: null,
+          priority: "high",
+        },
+        {
+          title: "Order professional photos",
+          description: "Schedule photographer for property photos.",
+          dueDate: null,
+          priority: "high",
+        },
+        {
+          title: "Prepare seller disclosures",
+          description: "Complete and send disclosure packet to seller.",
+          dueDate: null,
+          priority: "high",
+        },
+        {
+          title: "Go live on MLS",
+          description: "Upload listing to MLS and all syndication sites.",
+          dueDate: null,
+          priority: "medium",
+        },
+        {
+          title: "Schedule first open house",
+          description: "Plan open house for first or second weekend on market.",
+          dueDate: null,
+          priority: "medium",
+        },
+      ];
+    } else if (p.milestoneType === "seller_under_contract") {
+      milestones = [
+        {
+          title: "Open escrow",
+          description: "Send contract to escrow and confirm earnest money deposit.",
+          dueDate: daysBeforeClose(30),
+          priority: "high",
+        },
+        {
+          title: "Buyer inspection",
+          description: "Coordinate buyer's inspection access.",
+          dueDate: p.inspectionDate ? new Date(p.inspectionDate) : daysBeforeClose(25),
+          priority: "high",
+        },
+        {
+          title: "Respond to repair requests",
+          description: "Review buyer's repair requests and negotiate response.",
+          dueDate: daysBeforeClose(20),
+          priority: "high",
+        },
+        {
+          title: "Appraisal",
+          description: "Ensure appraiser access and review appraisal result.",
+          dueDate: p.appraisalDate ? new Date(p.appraisalDate) : daysBeforeClose(14),
+          priority: "medium",
+        },
+        {
+          title: "Final walkthrough",
+          description: "Coordinate buyer's final walkthrough.",
+          dueDate: daysBeforeClose(2),
+          priority: "medium",
+        },
+        {
+          title: "Closing day",
+          description: "Confirm wire received, keys handed over.",
+          dueDate: closingDate,
+          priority: "high",
+        },
+        {
+          title: "Post-close: referral follow-up",
+          description: "Follow up with seller 2 weeks after close.",
+          dueDate: closingDate ? new Date(closingDate.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
+          priority: "low",
+        },
+      ];
+    }
+
+    // Create all tasks
+    const created = await Promise.all(
+      milestones.map((m) =>
+        prisma.task.create({
+          data: {
+            userId:      ctx.user_id,
+            title:       m.title,
+            description: m.description,
+            dueDate:     m.dueDate ?? undefined,
+            priority:    m.priority,
+            ...(dealId && { dealId }),
+          },
+        })
+      )
+    );
+
+    // Move deal to under_contract if applicable
+    if (dealId && p.milestoneType === "buyer_under_contract") {
+      await prisma.deal.update({
+        where: { id: dealId },
+        data: {
+          stage: "negotiation", // closest stage to "under_contract" in the enum
+          ...(closingDate && { expectedCloseDate: closingDate }),
+        },
+      });
+    }
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success",
+      data: {
+        tasks_created: created.length,
+        deal_id: dealId ?? null,
+        milestone_type: p.milestoneType,
+        tasks: created.map((t) => ({ id: t.id, title: t.title, dueDate: t.dueDate })),
+      },
+    };
+  },
 };
 
 // ============================================================================

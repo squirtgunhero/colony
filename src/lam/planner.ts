@@ -99,10 +99,14 @@ You analyze user requests and generate a precise ActionPlan that the system will
 33. google.add_negatives - Add negative keywords to a Google Ads campaign to block wasteful searches. Requires: campaign_name, keywords (array of keywords to exclude).
 34. google.adjust_bid - Change the daily budget for a Google Ads campaign. Requires: campaign_name, new_budget (daily budget in dollars). REQUIRES APPROVAL since it changes spend.
 35. contacts.import - Bulk import contacts from CSV, paste, or HubSpot. Requires: source ("csv", "hubspot", or "paste"). Optional: raw_csv (for paste source), dedup_strategy ("skip", "update", "create" — default "skip"). REQUIRES APPROVAL. The UI opens the import panel automatically.
+36. savedSearch.create - Set a buyer up on a saved property search with their criteria. Use when agent says things like "set John up on search", "add buyer criteria", "John wants 3 beds, Westside, $400-600k". Fields: contactName (to link to buyer), priceMin, priceMax, bedsMin, bathsMin, neighborhoods (array), cities (array), propertyTypes (array), mustHaves (array e.g. ["garage","no_hoa"]), name (optional label).
+37. savedSearch.update - Update an existing buyer's search criteria. Use when agent says "John also wants X" or "update John's search". Fields: contactName (to find the search), patch (object with fields to change).
+38. savedSearch.list - View saved searches. Use for "show John's search", "what is John looking for", "show all active searches". Fields: contactName (optional filter), active (optional boolean).
+39. deal.addMilestones - Auto-create all milestone tasks when a deal goes under contract or a listing is created. Use when agent says "we're under contract", "just listed", "create milestones for". Fields: dealTitle (to find deal), milestoneType (buyer_under_contract | seller_listing | seller_under_contract), closingDate (ISO — used to calculate all other task dates if not specified), inspectionDate, appraisalDate, loanContingencyDate, walkThroughDate.
 
 ## Risk Tiers
-- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords) - auto-execute
-- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives) - auto-execute with undo capability
+- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, savedSearch.list) - auto-execute
+- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives, savedSearch.create, savedSearch.update, deal.addMilestones) - auto-execute with undo capability
 - Tier 2: Bulk deletes (deleteAll), external communications (email/sms), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid), and bulk import (contacts.import) - requires user approval
 
 ## Critical Rules
@@ -144,6 +148,12 @@ You analyze user requests and generate a precise ActionPlan that the system will
 34. LEAD GENERATION vs CONTACT CREATION: When the user says "I need leads", "get me leads", "I need seller leads", "I need buyer leads", "get me more business", "I need new clients", "run ads", "advertise", or any variation of requesting lead generation — this is an ADS request, NOT a contact creation request. Use ads.create_campaign. The ONLY time you use lead.create is when the user gives you a specific person's name and info to add to the CRM (like "add John Smith as a lead").
 35. CONVERSATIONAL CAMPAIGN CREATION: When the user triggers ads.create_campaign but hasn't specified budget, targeting area, or audience type, DO NOT just create a campaign with defaults. Instead, set the plan's follow_up_question to ask what they need. Example flow: User says "I need seller leads" → set follow_up_question to "I can set up a Facebook/Instagram campaign targeting homeowners likely to sell in your area. A few quick questions:\n\n1. What's your daily budget? ($10, $15, $25, or custom?)\n2. What area should we target — just your city or a wider radius?\n\nOnce I know that, I'll build the campaign and show you a preview before anything goes live." — When the user provides budget and targeting info in a follow-up, THEN execute ads.create_campaign with those values in the payload.
 36. AD ACCOUNT ONBOARDING: The runtime will check for a connected Meta ad account when executing ads.create_campaign. If no account is connected, it returns a helpful error guiding the user to Settings. However, to give a smoother experience: if the user asks to run ads and you suspect they may not have connected their account yet (e.g. they're a new user or this is their first ads request), you can proactively include in the follow_up_question a note like "Make sure you've connected your Facebook account in Settings > Integrations first — it takes about 30 seconds. Once connected, I can set everything up."
+37. For "set [name] up on search", "add buyer criteria", "[name] wants [beds/price/area]" — use savedSearch.create. Always include contactName so the system links the search to the buyer.
+38. For "John also wants X", "update [name]'s search", "add [feature] to [name]'s criteria" — use savedSearch.update with contactName and only the changed fields in patch.
+39. For "show [name]'s search", "what is [name] looking for", "show buyer criteria" — use savedSearch.list.
+40. For "we're under contract", "just went under contract on [address]", "create milestones for [deal]" — use deal.addMilestones. Set milestoneType=buyer_under_contract for buyer deals. Include closingDate if mentioned — the system will calculate inspection/appraisal/contingency deadlines automatically.
+41. For "just listed [address]", "create listing milestones" — use deal.addMilestones with milestoneType=seller_listing.
+42. For neighborhoods/areas, store as an array: "Westside and Culver City" → ["Westside", "Culver City"]. For mustHaves, normalize to snake_case array: "no HOA, garage, pool" → ["no_hoa", "garage", "pool"].
 
 ## Output Format
 Return a JSON object matching this schema:
@@ -250,6 +260,7 @@ function normalizeActionType(type: string): ActionType {
   const validTypes: ActionType[] = [
     "lead.create", "lead.update", "lead.delete", "lead.deleteAll",
     "deal.create", "deal.update", "deal.moveStage", "deal.delete", "deal.deleteAll",
+    "deal.addMilestones",
     "task.create", "task.complete", "task.delete", "task.deleteAll",
     "note.append", "note.delete",
     "crm.search",
@@ -260,6 +271,7 @@ function normalizeActionType(type: string): ActionType {
     "ads.research_competitors", "ads.watch_competitor",
     "google.analyze_keywords", "google.pause_campaign", "google.resume_campaign", "google.add_negatives", "google.adjust_bid",
     "contacts.import",
+    "savedSearch.create", "savedSearch.update", "savedSearch.list",
   ];
 
   const normalized = type.toLowerCase().replace(/_/g, ".");
@@ -313,6 +325,14 @@ function normalizeActionType(type: string): ActionType {
     "import_contacts": "contacts.import",
     "contact.import": "contacts.import",
     "importcontacts": "contacts.import",
+    "savedsearch.create": "savedSearch.create",
+    "savedsearch.update": "savedSearch.update",
+    "savedsearch.list": "savedSearch.list",
+    "saved_search.create": "savedSearch.create",
+    "saved_search.update": "savedSearch.update",
+    "saved_search.list": "savedSearch.list",
+    "deal.addmilestones": "deal.addMilestones",
+    "deal.add_milestones": "deal.addMilestones",
   };
 
   return typeMap[type.toLowerCase()] || "lead.create";
@@ -489,6 +509,60 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         raw_csv: payload.raw_csv,
         dedup_strategy: payload.dedup_strategy || "skip",
       };
+    case "savedSearch.create":
+      return {
+        contactId:     payload.contactId,
+        contactName:   payload.contactName || payload.buyerName || payload.name,
+        name:          payload.name,
+        priceMin:      payload.priceMin ?? payload.price_min ?? payload.budgetMin,
+        priceMax:      payload.priceMax ?? payload.price_max ?? payload.budgetMax,
+        bedsMin:       payload.bedsMin ?? payload.beds_min ?? payload.beds ?? payload.bedrooms,
+        bathsMin:      payload.bathsMin ?? payload.baths_min ?? payload.baths ?? payload.bathrooms,
+        propertyTypes: payload.propertyTypes ?? payload.property_types,
+        neighborhoods: payload.neighborhoods,
+        cities:        payload.cities,
+        zipCodes:      payload.zipCodes ?? payload.zip_codes,
+        mustHaves:     payload.mustHaves ?? payload.must_haves ?? payload.features,
+        notes:         payload.notes,
+      };
+    case "savedSearch.update": {
+      const patch = (payload.patch || {}) as Record<string, unknown>;
+      return {
+        id:          payload.id,
+        contactName: payload.contactName || payload.buyerName || payload.name,
+        patch: {
+          name:          patch.name,
+          priceMin:      patch.priceMin ?? patch.price_min,
+          priceMax:      patch.priceMax ?? patch.price_max,
+          bedsMin:       patch.bedsMin ?? patch.beds_min ?? patch.beds,
+          bathsMin:      patch.bathsMin ?? patch.baths_min ?? patch.baths,
+          propertyTypes: patch.propertyTypes ?? patch.property_types,
+          neighborhoods: patch.neighborhoods,
+          cities:        patch.cities,
+          zipCodes:      patch.zipCodes ?? patch.zip_codes,
+          mustHaves:     patch.mustHaves ?? patch.must_haves ?? patch.features,
+          notes:         patch.notes,
+          isActive:      patch.isActive ?? patch.is_active,
+        },
+      };
+    }
+    case "savedSearch.list":
+      return {
+        contactName: payload.contactName || payload.buyerName || payload.name,
+        contactId:   payload.contactId,
+        active:      payload.active ?? true,
+      };
+    case "deal.addMilestones":
+      return {
+        dealId:              payload.dealId ?? payload.id,
+        dealTitle:           payload.dealTitle ?? payload.title ?? payload.deal,
+        milestoneType:       payload.milestoneType ?? payload.type ?? "buyer_under_contract",
+        closingDate:         payload.closingDate ?? payload.closing_date ?? payload.close_date,
+        inspectionDate:      payload.inspectionDate ?? payload.inspection_date,
+        appraisalDate:       payload.appraisalDate ?? payload.appraisal_date,
+        loanContingencyDate: payload.loanContingencyDate ?? payload.loan_contingency_date,
+        walkThroughDate:     payload.walkThroughDate ?? payload.walk_through_date,
+      };
     default:
       return payload;
   }
@@ -562,6 +636,14 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: "google_campaign", budget_adjusted: true };
     case "contacts.import":
       return { entity_type: "contact", imported: true };
+    case "savedSearch.create":
+      return { entity_type: "saved_search", created: true };
+    case "savedSearch.update":
+      return { entity_type: "saved_search", updated: true };
+    case "savedSearch.list":
+      return { entity_type: "saved_search", results_returned: true };
+    case "deal.addMilestones":
+      return { entity_type: "deal", tasks_created: true };
     default:
       return { entity_type: actionType.split(".")[0], success: true };
   }
