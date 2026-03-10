@@ -71,6 +71,12 @@ export interface LamResponse {
 // Message Types
 // ============================================
 
+export interface WelcomeChip {
+  id: string;
+  label: string;
+  prompt: string;
+}
+
 export interface AssistantMessage {
   id: string;
   role: "user" | "assistant";
@@ -84,6 +90,8 @@ export interface AssistantMessage {
   isExecuted?: boolean;
   canUndo?: boolean;
   runId?: string;
+  // Welcome message chips
+  chips?: WelcomeChip[];
 }
 
 export interface PendingAction {

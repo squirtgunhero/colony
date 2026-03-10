@@ -12,7 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
-import type { AssistantMessage, PendingAction, LamAction } from "@/lib/assistant/types";
+import type { AssistantMessage, PendingAction, LamAction, WelcomeChip } from "@/lib/assistant/types";
 import { getActionTypeLabel, getRiskTierColor } from "@/lib/assistant/types";
 import { ActionPreviewCard } from "@/components/assistant/ActionPreviewCard";
 import { isMutationAction } from "@/lib/assistant/actions";
@@ -118,6 +118,31 @@ export function ChatMessageBubble({
           )
         )}
       </div>
+
+      {/* Welcome Chips */}
+      {message.chips && message.chips.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {message.chips.map((chip: WelcomeChip) => (
+            <button
+              key={chip.id}
+              onClick={() => {
+                setInput(chip.prompt);
+                sendToLam(chip.prompt);
+              }}
+              className="text-sm px-3.5 py-1.5 rounded-full transition-all duration-150 hover:scale-[1.03] active:scale-[0.98]"
+              style={{
+                color: theme.accent,
+                backgroundColor: theme.accentGlow,
+                border: `1px solid ${theme.accentSoft}`,
+                fontFamily: "var(--font-dm-sans), sans-serif",
+                fontWeight: 400,
+              }}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* LAM Execution Status */}
       {lamResponse && hasExecution && (

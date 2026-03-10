@@ -131,7 +131,32 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       if (!res.ok) return;
 
       const data = await res.json();
-      if (!data.messages || data.messages.length === 0) return;
+
+      // No history → show a personalised welcome message with quick-action chips
+      if (!data.messages || data.messages.length === 0) {
+        try {
+          const welcomeRes = await fetch("/api/lam/welcome");
+          if (welcomeRes.ok) {
+            const welcome = await welcomeRes.json();
+            const lines: string[] = [welcome.greeting];
+            if (welcome.status_lines?.length) {
+              lines.push(welcome.status_lines.join(" "));
+            }
+            lines.push("What would you like to do?");
+
+            get().addMessage({
+              id: `welcome-${Date.now()}`,
+              role: "assistant",
+              content: lines.join("\n\n"),
+              timestamp: new Date(),
+              chips: welcome.chips ?? [],
+            });
+          }
+        } catch {
+          // Welcome failed — start with empty chat, no error shown to user
+        }
+        return;
+      }
 
       const hydratedMessages: AssistantMessage[] = data.messages.map(
         (m: {
