@@ -2036,9 +2036,9 @@ const executors: Record<string, ActionExecutor> = {
             actionId: action.action_id,
             entityType: "Contact",
             entityId: c.id,
-            operation: "create",
-            beforeJson: null,
-            afterJson: c,
+            operation: "create" as const,
+            beforeJson: undefined,
+            afterJson: c as unknown as Record<string, unknown>,
           })),
         });
 
