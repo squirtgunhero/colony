@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -133,7 +133,7 @@ function parseCSV(raw: string, columnMap: Record<string, string>): ContactRow[] 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
 async function getUserId(): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user?.id ?? null;
 }
