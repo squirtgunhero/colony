@@ -15,6 +15,9 @@ import {
   Search,
   Mail,
   BookOpen,
+  DollarSign,
+  Upload,
+  Undo2,
 } from "lucide-react";
 
 interface SlashCommandMenuProps {
@@ -30,6 +33,9 @@ const iconMap: Record<string, typeof UserPlus> = {
   Search,
   Mail,
   BookOpen,
+  DollarSign,
+  Upload,
+  Undo2,
 };
 
 export function SlashCommandMenu({ query, onSelect, onClose }: SlashCommandMenuProps) {

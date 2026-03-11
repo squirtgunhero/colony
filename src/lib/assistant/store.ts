@@ -263,6 +263,14 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         runId: data.run_id,
       });
 
+      // Handle UI sentinel: open the import panel when Tara triggers contacts.import
+      // with a file/HubSpot source. Delay slightly so the message can render first.
+      if (data.execution_result?.action_signals?.open_import_panel) {
+        setTimeout(() => {
+          window.location.href = "/import";
+        }, 900);
+      }
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       addMessage({

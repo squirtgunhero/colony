@@ -32,6 +32,11 @@ export interface LamExecutionResult {
   actions_failed: number;
   actions_pending_approval: number;
   user_summary: string;
+  /** UI-level sentinel signals distilled from raw action result data. */
+  action_signals?: {
+    /** When true, the chat UI should navigate the user to the /import page. */
+    open_import_panel?: boolean;
+  };
 }
 
 export interface LamVerificationResult {
@@ -121,6 +126,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "draft-email", command: "/draft-email", label: "Draft Email", description: "Compose an email", icon: "Mail" },
   { id: "summarize", command: "/summarize", label: "Summarize", description: "Get a summary of current item", icon: "BookOpen" },
   { id: "create-deal", command: "/create-deal", label: "Create Deal", description: "Start a new deal", icon: "DollarSign" },
+  { id: "import-contacts", command: "/import-contacts", label: "Import Contacts", description: "Bulk import from CSV or HubSpot", icon: "Upload" },
   { id: "undo", command: "/undo", label: "Undo", description: "Undo the last action", icon: "Undo2" },
 ];
 

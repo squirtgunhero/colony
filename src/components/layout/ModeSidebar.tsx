@@ -14,12 +14,14 @@ import {
   Bell,
   Settings,
   Store,
+  Upload,
 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 
 const topNavItems = [
   { icon: Home, href: "/chat", label: "Home", description: "AI-first interface" },
   { icon: Layers, href: "/browse", label: "Browse", description: "Contacts, properties, deals" },
+  { icon: Upload, href: "/import", label: "Import", description: "Bulk contact import" },
   { icon: Share2, href: "/referrals", label: "Referrals", description: "Lead sharing" },
   { icon: Store, href: "/marketplace", label: "Marketplace", description: "Public referrals" },
   { icon: Inbox, href: "/inbox", label: "Inbox", description: "Messages" },

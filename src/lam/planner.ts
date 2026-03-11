@@ -115,6 +115,7 @@ You analyze user requests and generate a precise ActionPlan that the system will
 19. For "how are my ads doing", "ad performance", "what's my spend" — use ads.check_performance.
 20. For "pause my ads", "stop the campaign" — use ads.pause_campaign.
 21. For "turn my ads back on", "resume the campaign" — use ads.resume_campaign.
+22. For "import contacts", "load this CSV", "upload my spreadsheet", "import this file", "bring in my contacts" — use contacts.import with source "csv". For "import from HubSpot", "sync HubSpot", "pull my HubSpot leads" — use contacts.import with source "hubspot". For pasted tabular data — use contacts.import with source "paste". REQUIRES APPROVAL. The UI opens the import panel automatically — do NOT ask for the file in follow_up_question. Set user_summary to "I'll open the import panel so you can upload your contacts file and preview the data before anything is saved."
 
 ## Output Format
 Return a JSON object matching this schema:
@@ -227,6 +228,7 @@ function normalizeActionType(type: string): ActionType {
     "email.send", "sms.send",
     "referral.create",
     "ads.create_campaign", "ads.check_performance", "ads.pause_campaign", "ads.resume_campaign",
+    "contacts.import",
   ];
 
   const normalized = type.toLowerCase().replace(/_/g, ".");
@@ -256,6 +258,10 @@ function normalizeActionType(type: string): ActionType {
     "check_performance": "ads.check_performance",
     "pause_campaign": "ads.pause_campaign",
     "resume_campaign": "ads.resume_campaign",
+    "contacts.import": "contacts.import",
+    "import_contacts": "contacts.import",
+    "contact.import": "contacts.import",
+    "importcontacts": "contacts.import",
   };
 
   return typeMap[type.toLowerCase()] || "lead.create";
@@ -372,6 +378,12 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
       return {
         campaign_name: payload.campaign_name || payload.name,
       };
+    case "contacts.import":
+      return {
+        source: payload.source || "csv",
+        raw_csv: payload.raw_csv,
+        dedup_strategy: payload.dedup_strategy || "skip",
+      };
     default:
       return payload;
   }
@@ -421,6 +433,8 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: "campaign", paused: true };
     case "ads.resume_campaign":
       return { entity_type: "campaign", resumed: true };
+    case "contacts.import":
+      return { entity_type: "contact", imported: true };
     default:
       return { entity_type: actionType.split(".")[0], success: true };
   }

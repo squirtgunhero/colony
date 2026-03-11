@@ -13,6 +13,7 @@ import { getPipelineSummary } from "./getPipelineSummary";
 import { scheduleFollowUp } from "./scheduleFollowUp";
 import { sendSMSAction } from "./sendSMS";
 import { setThemeAction } from "./setTheme";
+import { importContacts } from "./importContacts";
 
 export type { ActionDefinition, ActionResult, LAMContext } from "./types";
 
@@ -30,6 +31,7 @@ const registry: ActionDefinition[] = [
   scheduleFollowUp,
   sendSMSAction,
   setThemeAction,
+  importContacts,
 ];
 
 const registryMap = new Map<string, ActionDefinition>(

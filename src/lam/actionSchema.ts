@@ -508,6 +508,32 @@ export const ReferralCreateActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Contacts Import Action (Bulk ingestion from CSV, paste, or HubSpot)
+// ============================================================================
+
+export const ContactsImportPayloadSchema = z.object({
+  source: z.enum(["csv", "hubspot", "paste"]),
+  // raw_csv: provided when source is "paste"; for "csv" (file), the API
+  // route pre-parses and delivers rows directly via the import UI, so this
+  // field is optional here (Tara never fills it herself).
+  raw_csv: z.string().optional(),
+  // When Tara fires this action from chat, the UI intercepts it and opens
+  // the import panel. No data fields are required at plan time.
+  dedup_strategy: z.enum(["skip", "update", "create"]).default("skip"),
+});
+
+export const ContactsImportExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("contact"),
+  imported: z.literal(true),
+});
+
+export const ContactsImportActionSchema = BaseActionSchema.extend({
+  type: z.literal("contacts.import"),
+  payload: ContactsImportPayloadSchema,
+  expected_outcome: ContactsImportExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // Union Action Type
 // ============================================================================
 
@@ -535,6 +561,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   AdsCheckPerformanceActionSchema,
   AdsPauseCampaignActionSchema,
   AdsResumeCampaignActionSchema,
+  ContactsImportActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -602,13 +629,14 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "ads.pause_campaign":
     case "ads.resume_campaign":
       return 1;
-    // Tier 2: Destructive bulk actions + external communications + spending money
+    // Tier 2: Destructive bulk actions + external communications + spending money + bulk import
     case "lead.deleteAll":
     case "deal.deleteAll":
     case "task.deleteAll":
     case "email.send":
     case "sms.send":
     case "ads.create_campaign":
+    case "contacts.import":
       return 2;
     default:
       return 2;
@@ -710,6 +738,8 @@ export function getActionDescription(action: Action): string {
       return `Pause campaign: ${action.payload.campaign_name}`;
     case "ads.resume_campaign":
       return `Resume campaign: ${action.payload.campaign_name}`;
+    case "contacts.import":
+      return `Import contacts from ${action.payload.source}`;
     default:
       return "Unknown action";
   }

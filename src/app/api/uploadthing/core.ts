@@ -34,6 +34,21 @@ export const ourFileRouter = {
       console.log("Image upload complete:", file.ufsUrl);
       return { url: file.ufsUrl };
     }),
+
+  // CSV uploader for bulk contact import
+  contactImport: f({
+    "text/csv": { maxFileSize: "4MB", maxFileCount: 1 },
+    // Also accept Excel-exported CSVs and plain text
+    "text/plain": { maxFileSize: "4MB", maxFileCount: 1 },
+    "application/vnd.ms-excel": { maxFileSize: "4MB", maxFileCount: 1 },
+  })
+    .middleware(async () => {
+      return {};
+    })
+    .onUploadComplete(async ({ file }) => {
+      console.log("Contact import CSV uploaded:", file.ufsUrl);
+      return { url: file.ufsUrl };
+    }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;
