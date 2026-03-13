@@ -3,8 +3,13 @@
 // Clean, conversation-first interface
 // ============================================
 
+import { Suspense } from "react";
 import { ChatCanvas } from "@/components/chat/ChatCanvas";
 
 export default function ChatPage() {
-  return <ChatCanvas />;
+  return (
+    <Suspense>
+      <ChatCanvas />
+    </Suspense>
+  );
 }
