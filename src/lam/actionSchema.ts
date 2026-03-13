@@ -445,6 +445,184 @@ export const AdsResumeCampaignActionSchema = BaseActionSchema.extend({
   expected_outcome: AdsResumeCampaignExpectedOutcomeSchema,
 });
 
+export const AdsLaunchCampaignPayloadSchema = z.object({
+  campaign_name: z.string(),
+});
+
+export const AdsLaunchCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  launched: z.literal(true),
+});
+
+export const AdsLaunchCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.launch_campaign"),
+  payload: AdsLaunchCampaignPayloadSchema,
+  expected_outcome: AdsLaunchCampaignExpectedOutcomeSchema,
+});
+
+export const AdsAnalyzePerformancePayloadSchema = z.object({
+  date_range: z.enum(["7d", "14d", "30d"]).optional().default("7d"),
+});
+
+export const AdsAnalyzePerformanceExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  analysis_returned: z.literal(true),
+});
+
+export const AdsAnalyzePerformanceActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.analyze_performance"),
+  payload: AdsAnalyzePerformancePayloadSchema,
+  expected_outcome: AdsAnalyzePerformanceExpectedOutcomeSchema,
+});
+
+export const AdsSuggestOptimizationsPayloadSchema = z.object({
+  date_range: z.enum(["7d", "14d", "30d"]).optional().default("7d"),
+});
+
+export const AdsSuggestOptimizationsExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  suggestions_returned: z.literal(true),
+});
+
+export const AdsSuggestOptimizationsActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.suggest_optimizations"),
+  payload: AdsSuggestOptimizationsPayloadSchema,
+  expected_outcome: AdsSuggestOptimizationsExpectedOutcomeSchema,
+});
+
+export const AdsApplyOptimizationPayloadSchema = z.object({
+  campaign_name: z.string(),
+  action: z.enum(["pause", "resume", "increase_budget", "decrease_budget"]),
+  new_budget: z.number().optional(),
+});
+
+export const AdsApplyOptimizationExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  optimization_applied: z.literal(true),
+});
+
+export const AdsApplyOptimizationActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.apply_optimization"),
+  payload: AdsApplyOptimizationPayloadSchema,
+  expected_outcome: AdsApplyOptimizationExpectedOutcomeSchema,
+});
+
+export const AdsResearchCompetitorsPayloadSchema = z.object({
+  search_term: z.string().min(1),
+  country: z.string().optional().default("US"),
+  active_only: z.boolean().optional().default(true),
+  limit: z.number().int().min(1).max(50).optional().default(25),
+});
+
+export const AdsResearchCompetitorsExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("competitor_research"),
+  research_returned: z.literal(true),
+});
+
+export const AdsResearchCompetitorsActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.research_competitors"),
+  payload: AdsResearchCompetitorsPayloadSchema,
+  expected_outcome: AdsResearchCompetitorsExpectedOutcomeSchema,
+});
+
+export const AdsWatchCompetitorPayloadSchema = z.object({
+  page_id: z.string().min(1),
+  page_name: z.string().min(1),
+  notes: z.string().optional(),
+});
+
+export const AdsWatchCompetitorExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("competitor_watch"),
+  created: z.literal(true),
+});
+
+export const AdsWatchCompetitorActionSchema = BaseActionSchema.extend({
+  type: z.literal("ads.watch_competitor"),
+  payload: AdsWatchCompetitorPayloadSchema,
+  expected_outcome: AdsWatchCompetitorExpectedOutcomeSchema,
+});
+
+// ============================================================================
+// Google Ads Actions
+// ============================================================================
+
+export const GoogleAnalyzeKeywordsPayloadSchema = z.object({
+  date_range: z.enum(["7d", "14d", "30d"]).optional().default("7d"),
+});
+
+export const GoogleAnalyzeKeywordsExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("google_keywords"),
+  analysis_returned: z.literal(true),
+});
+
+export const GoogleAnalyzeKeywordsActionSchema = BaseActionSchema.extend({
+  type: z.literal("google.analyze_keywords"),
+  payload: GoogleAnalyzeKeywordsPayloadSchema,
+  expected_outcome: GoogleAnalyzeKeywordsExpectedOutcomeSchema,
+});
+
+export const GooglePauseCampaignPayloadSchema = z.object({
+  campaign_name: z.string(),
+});
+
+export const GooglePauseCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("google_campaign"),
+  paused: z.literal(true),
+});
+
+export const GooglePauseCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("google.pause_campaign"),
+  payload: GooglePauseCampaignPayloadSchema,
+  expected_outcome: GooglePauseCampaignExpectedOutcomeSchema,
+});
+
+export const GoogleResumeCampaignPayloadSchema = z.object({
+  campaign_name: z.string(),
+});
+
+export const GoogleResumeCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("google_campaign"),
+  resumed: z.literal(true),
+});
+
+export const GoogleResumeCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("google.resume_campaign"),
+  payload: GoogleResumeCampaignPayloadSchema,
+  expected_outcome: GoogleResumeCampaignExpectedOutcomeSchema,
+});
+
+export const GoogleAddNegativesPayloadSchema = z.object({
+  campaign_name: z.string(),
+  keywords: z.array(z.string().min(1)).min(1),
+});
+
+export const GoogleAddNegativesExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("google_campaign"),
+  negatives_added: z.literal(true),
+});
+
+export const GoogleAddNegativesActionSchema = BaseActionSchema.extend({
+  type: z.literal("google.add_negatives"),
+  payload: GoogleAddNegativesPayloadSchema,
+  expected_outcome: GoogleAddNegativesExpectedOutcomeSchema,
+});
+
+export const GoogleAdjustBidPayloadSchema = z.object({
+  campaign_name: z.string(),
+  new_daily_budget: z.number().min(1),
+});
+
+export const GoogleAdjustBidExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("google_campaign"),
+  budget_adjusted: z.literal(true),
+});
+
+export const GoogleAdjustBidActionSchema = BaseActionSchema.extend({
+  type: z.literal("google.adjust_bid"),
+  payload: GoogleAdjustBidPayloadSchema,
+  expected_outcome: GoogleAdjustBidExpectedOutcomeSchema,
+});
+
 // ============================================================================
 // External Communication Actions (Tier 2 - Approval Required)
 // ============================================================================
@@ -561,6 +739,17 @@ export const ActionSchema = z.discriminatedUnion("type", [
   AdsCheckPerformanceActionSchema,
   AdsPauseCampaignActionSchema,
   AdsResumeCampaignActionSchema,
+  AdsLaunchCampaignActionSchema,
+  AdsAnalyzePerformanceActionSchema,
+  AdsSuggestOptimizationsActionSchema,
+  AdsApplyOptimizationActionSchema,
+  AdsResearchCompetitorsActionSchema,
+  AdsWatchCompetitorActionSchema,
+  GoogleAnalyzeKeywordsActionSchema,
+  GooglePauseCampaignActionSchema,
+  GoogleResumeCampaignActionSchema,
+  GoogleAddNegativesActionSchema,
+  GoogleAdjustBidActionSchema,
   ContactsImportActionSchema,
 ]);
 
@@ -611,6 +800,10 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     // Tier 0: Read-only
     case "crm.search":
     case "ads.check_performance":
+    case "ads.analyze_performance":
+    case "ads.suggest_optimizations":
+    case "ads.research_competitors":
+    case "google.analyze_keywords":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
@@ -628,14 +821,21 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "note.delete":
     case "ads.pause_campaign":
     case "ads.resume_campaign":
+    case "ads.watch_competitor":
+    case "google.pause_campaign":
+    case "google.resume_campaign":
+    case "google.add_negatives":
       return 1;
-    // Tier 2: Destructive bulk actions + external communications + spending money + bulk import
+    // Tier 2: Destructive bulk actions + external communications + spending money
     case "lead.deleteAll":
     case "deal.deleteAll":
     case "task.deleteAll":
     case "email.send":
     case "sms.send":
     case "ads.create_campaign":
+    case "ads.launch_campaign":
+    case "ads.apply_optimization":
+    case "google.adjust_bid":
     case "contacts.import":
       return 2;
     default:
@@ -738,6 +938,28 @@ export function getActionDescription(action: Action): string {
       return `Pause campaign: ${action.payload.campaign_name}`;
     case "ads.resume_campaign":
       return `Resume campaign: ${action.payload.campaign_name}`;
+    case "ads.launch_campaign":
+      return `Launch campaign: ${action.payload.campaign_name}`;
+    case "ads.analyze_performance":
+      return `Analyze ad performance (${action.payload.date_range || "7d"})`;
+    case "ads.suggest_optimizations":
+      return `Get optimization suggestions (${action.payload.date_range || "7d"})`;
+    case "ads.apply_optimization":
+      return `Apply optimization: ${action.payload.action} ${action.payload.campaign_name}${action.payload.new_budget ? ` → $${action.payload.new_budget}/day` : ""}`;
+    case "ads.research_competitors":
+      return `Research competitor ads: "${action.payload.search_term}"`;
+    case "ads.watch_competitor":
+      return `Watch competitor: ${action.payload.page_name}`;
+    case "google.analyze_keywords":
+      return `Analyze Google Ads keywords (${action.payload.date_range || "7d"})`;
+    case "google.pause_campaign":
+      return `Pause Google campaign: ${action.payload.campaign_name}`;
+    case "google.resume_campaign":
+      return `Resume Google campaign: ${action.payload.campaign_name}`;
+    case "google.add_negatives":
+      return `Add ${action.payload.keywords.length} negative keyword(s) to: ${action.payload.campaign_name}`;
+    case "google.adjust_bid":
+      return `Adjust Google budget: ${action.payload.campaign_name} → $${action.payload.new_daily_budget}/day`;
     case "contacts.import":
       return `Import contacts from ${action.payload.source}`;
     default:

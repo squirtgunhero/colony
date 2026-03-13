@@ -33,6 +33,9 @@ model Profile {
   smsMessages     SMSMessage[]
   conversations   Conversation[]
 
+  // Google Ads
+  googleAdAccounts GoogleAdAccount[]
+
   @@map("profiles")
 }
 
@@ -910,6 +913,66 @@ model MetaInsight {
   @@index([adAccountId, date])
   @@index([campaignId, date])
   @@map("meta_insights")
+}
+
+// Competitor Watch - Track competitor Facebook pages via Ad Library
+model CompetitorWatch {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id") @db.Uuid
+  pageId        String   @map("page_id") // Facebook Page ID
+  pageName      String   @map("page_name")
+  notes         String?
+  active        Boolean  @default(true)
+  lastCheckedAt DateTime? @map("last_checked_at")
+  lastAdCount   Int      @default(0) @map("last_ad_count")
+  metadata      Json?    @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, pageId])
+  @@index([userId, active])
+  @@map("competitor_watches")
+}
+
+// ============================================================================
+// GOOGLE ADS INTEGRATION
+// ============================================================================
+
+model GoogleAdAccount {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id") @db.Uuid
+  user            Profile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId      String    @map("customer_id") // Google Ads customer ID (e.g. 123-456-7890)
+  descriptiveName String?   @map("descriptive_name")
+  refreshToken    String    @map("refresh_token")
+  isActive        Boolean   @default(true) @map("is_active")
+  lastSynced      DateTime? @map("last_synced")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  campaigns GoogleCampaign[]
+
+  @@unique([userId, customerId])
+  @@index([userId])
+  @@map("google_ad_accounts")
+}
+
+model GoogleCampaign {
+  id                 String          @id @default(cuid())
+  accountId          String          @map("account_id")
+  account            GoogleAdAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  campaignId         String          @map("campaign_id") // Google Ads campaign resource name ID
+  name               String
+  status             String          // ENABLED, PAUSED, REMOVED
+  budgetAmountMicros String?         @map("budget_amount_micros") // Budget in micros (e.g., 15000000 = $15)
+  startDate          String?         @map("start_date") // YYYY-MM-DD
+  endDate            String?         @map("end_date")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  @@unique([accountId, campaignId])
+  @@index([accountId])
+  @@map("google_campaigns")
 }
 
 // ============================================================================

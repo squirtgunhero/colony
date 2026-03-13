@@ -15,6 +15,13 @@ import type {
   MetaInsightsListResponse,
   MetaInsightsParams,
   MetaErrorResponse,
+  CreateAdSetParams,
+  CreateAdSetResponse,
+  CreateAdCreativeParams,
+  CreateAdCreativeResponse,
+  CreateAdParams,
+  CreateAdResponse,
+  UploadImageResponse,
 } from "./types";
 
 const META_GRAPH_API_VERSION = "v21.0";
@@ -270,6 +277,179 @@ class MetaApiClient {
     return this.request<MetaAdsResponse>(
       `/${adSetId}/ads?fields=id,name,adset_id,status,effective_status,creative{id},preview_shareable_link,created_time,updated_time&limit=500`
     );
+  }
+
+  // ============================================
+  // Ad Set Creation
+  // ============================================
+
+  /**
+   * Create a new ad set within a campaign
+   */
+  async createAdSet(
+    adAccountId: string,
+    params: CreateAdSetParams
+  ): Promise<CreateAdSetResponse> {
+    const body = new URLSearchParams();
+    body.set("name", params.name);
+    body.set("campaign_id", params.campaign_id);
+    body.set("billing_event", params.billing_event);
+    body.set("optimization_goal", params.optimization_goal);
+    body.set("daily_budget", String(params.daily_budget));
+    body.set("targeting", JSON.stringify(params.targeting));
+    body.set("start_time", params.start_time);
+    body.set("status", params.status);
+    if (params.special_ad_categories) {
+      body.set("special_ad_categories", JSON.stringify(params.special_ad_categories));
+    }
+
+    return this.request<CreateAdSetResponse>(`/${adAccountId}/adsets`, {
+      method: "POST",
+      body,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+  }
+
+  /**
+   * Update an existing ad set (e.g., change daily_budget)
+   */
+  async updateAdSet(
+    adSetId: string,
+    params: { daily_budget?: number; status?: string }
+  ): Promise<{ success: boolean }> {
+    const body = new URLSearchParams();
+    if (params.daily_budget !== undefined) {
+      body.set("daily_budget", String(params.daily_budget));
+    }
+    if (params.status) {
+      body.set("status", params.status);
+    }
+
+    return this.request<{ success: boolean }>(`/${adSetId}`, {
+      method: "POST",
+      body,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+  }
+
+  // ============================================
+  // Ad Creative Creation
+  // ============================================
+
+  /**
+   * Create an ad creative (image + copy)
+   */
+  async createAdCreative(
+    adAccountId: string,
+    params: CreateAdCreativeParams
+  ): Promise<CreateAdCreativeResponse> {
+    const body = new URLSearchParams();
+    body.set("name", params.name);
+
+    if (params.object_story_spec) {
+      body.set("object_story_spec", JSON.stringify(params.object_story_spec));
+    }
+    if (params.asset_feed_spec) {
+      body.set("asset_feed_spec", JSON.stringify(params.asset_feed_spec));
+    }
+    if (params.degrees_of_freedom_spec) {
+      body.set("degrees_of_freedom_spec", JSON.stringify(params.degrees_of_freedom_spec));
+    }
+
+    return this.request<CreateAdCreativeResponse>(`/${adAccountId}/adcreatives`, {
+      method: "POST",
+      body,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+  }
+
+  // ============================================
+  // Ad Creation
+  // ============================================
+
+  /**
+   * Create an ad linking an ad set and creative
+   */
+  async createAd(
+    adAccountId: string,
+    params: CreateAdParams
+  ): Promise<CreateAdResponse> {
+    const body = new URLSearchParams();
+    body.set("name", params.name);
+    body.set("adset_id", params.adset_id);
+    body.set("creative", JSON.stringify(params.creative));
+    body.set("status", params.status);
+
+    return this.request<CreateAdResponse>(`/${adAccountId}/ads`, {
+      method: "POST",
+      body,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+  }
+
+  // ============================================
+  // Image Upload
+  // ============================================
+
+  /**
+   * Download an image from a URL and upload it to a Meta ad account.
+   * Returns the image hash for use in ad creatives.
+   */
+  async uploadImage(
+    adAccountId: string,
+    imageUrl: string
+  ): Promise<{ hash: string }> {
+    // Download the image
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to download image from ${imageUrl}: ${imageResponse.status}`);
+    }
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+
+    // Build multipart form data
+    const boundary = `----FormBoundary${Date.now()}`;
+    const filename = "ad_image.jpg";
+
+    const preamble = [
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="filename"; filename="${filename}"`,
+      `Content-Type: image/jpeg`,
+      "",
+      "",
+    ].join("\r\n");
+
+    const epilogue = `\r\n--${boundary}--\r\n`;
+
+    const preambleBuffer = Buffer.from(preamble);
+    const epilogueBuffer = Buffer.from(epilogue);
+    const bodyBuffer = Buffer.concat([preambleBuffer, imageBuffer, epilogueBuffer]);
+
+    const url = new URL(`${META_GRAPH_API_BASE}/${adAccountId}/adimages`);
+    url.searchParams.set("access_token", this.accessToken);
+
+    const response = await fetch(url.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": `multipart/form-data; boundary=${boundary}`,
+      },
+      body: bodyBuffer,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const error = data as { error?: { message?: string } };
+      throw new Error(error.error?.message || `Meta image upload error: ${response.status}`);
+    }
+
+    const uploadResult = data as UploadImageResponse;
+    // The response has images keyed by filename
+    const imageInfo = uploadResult.images?.[filename] || Object.values(uploadResult.images || {})[0];
+    if (!imageInfo?.hash) {
+      throw new Error("Image upload succeeded but no hash returned");
+    }
+
+    return { hash: imageInfo.hash };
   }
 
   // ============================================

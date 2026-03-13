@@ -257,6 +257,152 @@ export interface MetaErrorResponse {
 }
 
 // ============================================
+// Ad Set Creation Types
+// ============================================
+
+export interface CreateAdSetParams {
+  name: string;
+  campaign_id: string;
+  billing_event: "IMPRESSIONS";
+  optimization_goal: "LEAD_GENERATION" | "LINK_CLICKS" | "REACH" | "IMPRESSIONS";
+  daily_budget: number; // In cents (e.g., $15 = 1500)
+  targeting: {
+    geo_locations: {
+      cities?: Array<{ key: string }>;
+      zips?: Array<{ key: string }>;
+      countries?: string[];
+    };
+    targeting_automation?: {
+      advantage_audience: number;
+    };
+  };
+  start_time: string; // ISO string
+  status: "PAUSED" | "ACTIVE";
+  special_ad_categories?: string[];
+}
+
+export interface CreateAdSetResponse {
+  id: string;
+}
+
+// ============================================
+// Ad Creative Creation Types
+// ============================================
+
+export interface ObjectStorySpec {
+  page_id: string;
+  link_data: {
+    image_hash?: string;
+    message: string;
+    link: string;
+    name: string;
+    description?: string;
+    call_to_action?: {
+      type: "LEARN_MORE" | "SIGN_UP" | "CONTACT_US" | "GET_QUOTE";
+    };
+  };
+}
+
+export interface AssetFeedSpec {
+  bodies: Array<{ text: string }>;
+  titles: Array<{ text: string }>;
+  descriptions: Array<{ text: string }>;
+  ad_formats: string[];
+  call_to_action_types: string[];
+  link_urls: Array<{ website_url: string }>;
+}
+
+export interface DegreesOfFreedomSpec {
+  creative_features_spec: {
+    standard_enhancements: {
+      enroll_status: "OPT_IN" | "OPT_OUT";
+    };
+  };
+}
+
+export interface CreateAdCreativeParams {
+  name: string;
+  object_story_spec?: ObjectStorySpec;
+  asset_feed_spec?: AssetFeedSpec;
+  degrees_of_freedom_spec?: DegreesOfFreedomSpec;
+}
+
+export interface CreateAdCreativeResponse {
+  id: string;
+}
+
+// ============================================
+// Ad Creation Types
+// ============================================
+
+export interface CreateAdParams {
+  name: string;
+  adset_id: string;
+  creative: { creative_id: string };
+  status: "PAUSED" | "ACTIVE";
+}
+
+export interface CreateAdResponse {
+  id: string;
+}
+
+// ============================================
+// Image Upload Types
+// ============================================
+
+export interface UploadImageResponse {
+  images: Record<string, { hash: string; url?: string }>;
+}
+
+// ============================================
+// Ad Library Types (Public API)
+// ============================================
+
+export interface AdLibraryAd {
+  id: string;
+  ad_creation_time?: string;
+  ad_creative_bodies?: string[];
+  ad_creative_link_captions?: string[];
+  ad_creative_link_descriptions?: string[];
+  ad_creative_link_titles?: string[];
+  ad_delivery_start_time?: string;
+  ad_delivery_stop_time?: string;
+  ad_snapshot_url?: string;
+  bylines?: string;
+  currency?: string;
+  delivery_by_region?: Array<{
+    region: string;
+    percentage: number;
+  }>;
+  demographic_distribution?: Array<{
+    age: string;
+    gender: string;
+    percentage: string;
+  }>;
+  estimated_audience_size?: {
+    lower_bound: number;
+    upper_bound: number;
+  };
+  impressions?: {
+    lower_bound: number;
+    upper_bound: number;
+  };
+  page_id?: string;
+  page_name?: string;
+  publisher_platforms?: string[];
+  spend?: {
+    lower_bound: number;
+    upper_bound: number;
+  };
+  languages?: string[];
+}
+
+export interface AdLibraryResponse {
+  data: AdLibraryAd[];
+  paging?: MetaPaging;
+}
+
+// ============================================
 // Sync Types
 // ============================================
 

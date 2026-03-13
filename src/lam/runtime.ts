@@ -8,8 +8,10 @@ import { sendSMS } from "@/lib/twilio";
 import { sendGmailEmail } from "@/lib/gmail";
 import { createMetaClient } from "@/lib/meta/client";
 import { syncMetaAdAccount } from "@/lib/meta/sync";
+import type { CreateAdSetParams } from "@/lib/meta/types";
 import type { Action, ActionPlan } from "./actionSchema";
 import { validateAction } from "./actionSchema";
+import { getDefaultProvider } from "./llm";
 
 // ============================================================================
 // Types
@@ -1582,31 +1584,231 @@ const executors: Record<string, ActionExecutor> = {
         };
 
         const objective = objectiveMap[payload.objective?.toUpperCase() || "LEADS"] || "OUTCOME_LEADS";
+        const userObjective = payload.objective?.toUpperCase() || "LEADS";
 
         const profile = await prisma.profile.findUnique({
           where: { id: ctx.user_id },
-          select: { businessType: true },
+          select: {
+            businessType: true,
+            fullName: true,
+            avatarUrl: true,
+          },
         });
 
         const isHousing = profile?.businessType?.toLowerCase().includes("real estate") ||
           profile?.businessType?.toLowerCase().includes("property") ||
           profile?.businessType?.toLowerCase().includes("mortgage");
+        const specialAdCategories = isHousing ? ["HOUSING"] : [];
 
         try {
-          const result = await client.createCampaign(adAccount.adAccountId, {
+          // ---- Step 1: Create Campaign ----
+          const campaignResult = await client.createCampaign(adAccount.adAccountId, {
             name: campaignName,
             objective,
             status: "PAUSED",
-            special_ad_categories: isHousing ? ["HOUSING"] : [],
+            special_ad_categories: specialAdCategories,
           });
 
+          // Sync and find the local campaign record
           await syncMetaAdAccount(adAccount.id);
-
           const newCampaign = await prisma.metaCampaign.findFirst({
-            where: { adAccountId: adAccount.id, metaCampaignId: result.id },
+            where: { adAccountId: adAccount.id, metaCampaignId: campaignResult.id },
           });
 
-          await recordChange(ctx.run_id, action.action_id, "MetaCampaign", newCampaign?.id || result.id, "create", null, { metaCampaignId: result.id, name: campaignName, objective, dailyBudget });
+          // ---- Step 2: Generate ad copy via LLM ----
+          // Get user's location from their properties or profile metadata
+          let userCity = "your city";
+          let userState = "";
+
+          const userProperty = await prisma.property.findFirst({
+            where: { userId: ctx.user_id },
+            select: { city: true, state: true, imageUrl: true },
+            orderBy: { updatedAt: "desc" },
+          });
+
+          if (userProperty?.city) {
+            userCity = userProperty.city;
+            userState = userProperty.state || "";
+          }
+
+          const businessType = profile?.businessType || "business";
+
+          let adCopy = { headline: campaignName, primary_text: `Discover ${businessType} services in ${userCity}`, description: "Learn more today" };
+          try {
+            const llm = getDefaultProvider();
+            const copyResponse = await llm.complete([
+              { role: "system", content: "You generate Facebook ad copy. Return JSON only, no markdown." },
+              {
+                role: "user",
+                content: `Write a Facebook ad for a ${businessType} in ${userCity}${userState ? `, ${userState}` : ""}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.`,
+              },
+            ], { temperature: 0.7 });
+
+            let jsonStr = copyResponse.content.trim();
+            if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+            if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
+            if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
+            jsonStr = jsonStr.trim();
+            const parsed = JSON.parse(jsonStr);
+            adCopy = {
+              headline: String(parsed.headline || adCopy.headline).slice(0, 40),
+              primary_text: String(parsed.primary_text || adCopy.primary_text).slice(0, 125),
+              description: String(parsed.description || adCopy.description).slice(0, 30),
+            };
+          } catch {
+            // Fallback to defaults if LLM fails
+          }
+
+          // ---- Step 3: Find image and upload ----
+          let imageHash: string | null = null;
+          const logoUrl = profile?.avatarUrl;
+          const propertyImageUrl = userProperty?.imageUrl;
+
+          const imageSource = logoUrl || propertyImageUrl;
+          if (imageSource) {
+            try {
+              const uploadResult = await client.uploadImage(adAccount.adAccountId, imageSource);
+              imageHash = uploadResult.hash;
+            } catch {
+              // Continue without image — will create a link ad
+            }
+          }
+
+          // ---- Step 4: Create Ad Set with Advantage+ targeting ----
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(0, 0, 0, 0);
+
+          const optimizationGoal = userObjective === "LEADS" ? "LEAD_GENERATION" : "LINK_CLICKS";
+
+          // Build targeting — use city if available, otherwise broad targeting
+          const targeting: Record<string, unknown> = {
+            targeting_automation: { advantage_audience: 1 },
+          };
+          if (userProperty?.city) {
+            // Meta requires city keys; use the city name for geo_locations with radius
+            targeting.geo_locations = {
+              cities: [{ key: userProperty.city, radius: 25, distance_unit: "mile" }],
+            };
+          }
+
+          const adSetResult = await client.createAdSet(adAccount.adAccountId, {
+            name: `${campaignName} - Ad Set`,
+            campaign_id: campaignResult.id,
+            billing_event: "IMPRESSIONS",
+            optimization_goal: optimizationGoal as "LEAD_GENERATION" | "LINK_CLICKS",
+            daily_budget: dailyBudget * 100, // Convert dollars to cents
+            targeting: targeting as CreateAdSetParams["targeting"],
+            start_time: tomorrow.toISOString(),
+            status: "PAUSED",
+            special_ad_categories: specialAdCategories,
+          });
+
+          // ---- Step 5: Create Ad Creative ----
+          // Determine landing page URL
+          const landingUrl = payload.website || `${process.env.NEXT_PUBLIC_APP_URL || "https://colony.app"}/profile/${ctx.user_id}`;
+
+          let creativeResult: { id: string };
+          if (imageHash) {
+            // Get user's Facebook page ID from ad account metadata
+            const pageId = (adAccount.metadata as Record<string, unknown>)?.pageId as string || "";
+
+            if (pageId) {
+              creativeResult = await client.createAdCreative(adAccount.adAccountId, {
+                name: `${campaignName} - Creative`,
+                object_story_spec: {
+                  page_id: pageId,
+                  link_data: {
+                    image_hash: imageHash,
+                    message: adCopy.primary_text,
+                    link: landingUrl,
+                    name: adCopy.headline,
+                    description: adCopy.description,
+                    call_to_action: { type: "LEARN_MORE" },
+                  },
+                },
+              });
+            } else {
+              // Advantage+ creative without page_id
+              creativeResult = await client.createAdCreative(adAccount.adAccountId, {
+                name: `${campaignName} - Creative`,
+                asset_feed_spec: {
+                  bodies: [{ text: adCopy.primary_text }],
+                  titles: [{ text: adCopy.headline }],
+                  descriptions: [{ text: adCopy.description }],
+                  ad_formats: ["SINGLE_IMAGE"],
+                  call_to_action_types: ["LEARN_MORE"],
+                  link_urls: [{ website_url: landingUrl }],
+                },
+                degrees_of_freedom_spec: {
+                  creative_features_spec: {
+                    standard_enhancements: { enroll_status: "OPT_IN" },
+                  },
+                },
+              });
+            }
+          } else {
+            // No image — use Advantage+ creative with text only
+            creativeResult = await client.createAdCreative(adAccount.adAccountId, {
+              name: `${campaignName} - Creative`,
+              asset_feed_spec: {
+                bodies: [{ text: adCopy.primary_text }],
+                titles: [{ text: adCopy.headline }],
+                descriptions: [{ text: adCopy.description }],
+                ad_formats: ["SINGLE_IMAGE"],
+                call_to_action_types: ["LEARN_MORE"],
+                link_urls: [{ website_url: landingUrl }],
+              },
+              degrees_of_freedom_spec: {
+                creative_features_spec: {
+                  standard_enhancements: { enroll_status: "OPT_IN" },
+                },
+              },
+            });
+          }
+
+          // ---- Step 6: Create Ad ----
+          const adResult = await client.createAd(adAccount.adAccountId, {
+            name: `${campaignName} - Ad`,
+            adset_id: adSetResult.id,
+            creative: { creative_id: creativeResult.id },
+            status: "PAUSED",
+          });
+
+          // ---- Step 7: Update local records ----
+          // Also create a HoneycombCampaign record for unified tracking
+          const honeycombCampaign = await prisma.honeycombCampaign.create({
+            data: {
+              userId: ctx.user_id,
+              name: campaignName,
+              channel: "meta",
+              objective: userObjective.toLowerCase(),
+              dailyBudget,
+              status: "paused",
+              metadata: {
+                metaCampaignId: campaignResult.id,
+                metaAdSetId: adSetResult.id,
+                metaCreativeId: creativeResult.id,
+                metaAdId: adResult.id,
+                adCopy,
+                imageHash,
+                targetingCity: userCity,
+              },
+            },
+          });
+
+          await recordChange(ctx.run_id, action.action_id, "MetaCampaign", newCampaign?.id || campaignResult.id, "create", null, {
+            metaCampaignId: campaignResult.id,
+            metaAdSetId: adSetResult.id,
+            metaCreativeId: creativeResult.id,
+            metaAdId: adResult.id,
+            honeycombCampaignId: honeycombCampaign.id,
+            name: campaignName,
+            objective,
+            dailyBudget,
+          });
+
+          const adsManagerUrl = `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${adAccount.adAccountId.replace("act_", "")}`;
 
           return {
             action_id: action.action_id,
@@ -1614,13 +1816,20 @@ const executors: Record<string, ActionExecutor> = {
             status: "success" as const,
             data: {
               channel: "meta",
-              campaign_id: result.id,
+              campaign_id: campaignResult.id,
+              adset_id: adSetResult.id,
+              creative_id: creativeResult.id,
+              ad_id: adResult.id,
+              honeycomb_campaign_id: honeycombCampaign.id,
               name: campaignName,
-              objective: payload.objective || "LEADS",
+              objective: userObjective,
               daily_budget: dailyBudget,
               status: "PAUSED",
-              note: "Campaign created in PAUSED state. You'll need to add an ad set with targeting and creative in Meta Ads Manager to go live.",
-              ads_manager_url: `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${adAccount.adAccountId.replace("act_", "")}`,
+              ad_copy: adCopy,
+              targeting_city: userCity,
+              has_image: !!imageHash,
+              ads_manager_url: adsManagerUrl,
+              note: `Your campaign is ready! Budget: $${dailyBudget}/day targeting the ${userCity} area. Headline: "${adCopy.headline}". It's paused until you approve. Want me to take it live?`,
             },
           };
         } catch (error) {
@@ -2002,6 +2211,1336 @@ const executors: Record<string, ActionExecutor> = {
     }
   },
 
+  "ads.launch_campaign": async (action, ctx) => {
+    if (action.type !== "ads.launch_campaign") throw new Error("Invalid action type");
+
+    const payload = action.payload as { campaign_name: string };
+
+    if (!payload.campaign_name) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Which campaign should I launch?",
+      };
+    }
+
+    const adAccount = await prisma.metaAdAccount.findFirst({
+      where: { userId: ctx.user_id, status: "active" },
+    });
+
+    if (!adAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No Facebook ad account connected.",
+      };
+    }
+
+    // Find the campaign by name
+    const campaign = await prisma.metaCampaign.findFirst({
+      where: {
+        adAccountId: adAccount.id,
+        name: { contains: payload.campaign_name, mode: "insensitive" },
+        status: "PAUSED",
+      },
+      include: {
+        adSets: {
+          include: {
+            ads: true,
+          },
+        },
+      },
+    });
+
+    if (!campaign) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Couldn't find a paused campaign matching "${payload.campaign_name}".`,
+      };
+    }
+
+    // Verify it has an ad set and ad/creative attached
+    const hasAdSet = campaign.adSets.length > 0;
+    const hasAd = campaign.adSets.some((adSet) => adSet.ads.length > 0);
+
+    if (!hasAdSet || !hasAd) {
+      // Check HoneycombCampaign metadata for meta IDs (may not be synced yet)
+      const honeycombCampaign = await prisma.honeycombCampaign.findFirst({
+        where: {
+          userId: ctx.user_id,
+          channel: "meta",
+          name: { contains: payload.campaign_name, mode: "insensitive" },
+        },
+      });
+      const metadata = honeycombCampaign?.metadata as Record<string, unknown> | null;
+      if (!metadata?.metaAdSetId || !metadata?.metaAdId) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: "This campaign doesn't have a complete ad set and creative. Please create a full campaign first.",
+        };
+      }
+    }
+
+    try {
+      const client = createMetaClient(adAccount.accessToken);
+      await client.updateCampaignStatus(campaign.metaCampaignId, "ACTIVE");
+
+      const before = { ...campaign, adSets: undefined };
+      await prisma.metaCampaign.update({
+        where: { id: campaign.id },
+        data: { status: "ACTIVE" },
+      });
+
+      // Also update the HoneycombCampaign status
+      await prisma.honeycombCampaign.updateMany({
+        where: {
+          userId: ctx.user_id,
+          channel: "meta",
+          name: { contains: payload.campaign_name, mode: "insensitive" },
+          status: "paused",
+        },
+        data: { status: "active" },
+      });
+
+      await recordChange(
+        ctx.run_id,
+        action.action_id,
+        "MetaCampaign",
+        campaign.id,
+        "update",
+        before,
+        { ...before, status: "ACTIVE" }
+      );
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          campaign_name: campaign.name,
+          previous_status: "PAUSED",
+          new_status: "ACTIVE",
+          daily_budget: campaign.dailyBudget,
+          note: `Campaign "${campaign.name}" is now LIVE! It will start delivering ads and spending your budget. You can pause it anytime by saying "pause my campaign".`,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Failed to launch campaign: ${message}`,
+      };
+    }
+  },
+
+  "ads.analyze_performance": async (action, ctx) => {
+    if (action.type !== "ads.analyze_performance") throw new Error("Invalid action type");
+
+    const payload = action.payload as { date_range?: "7d" | "14d" | "30d" };
+    const dateRange = payload.date_range || "7d";
+
+    // Check for both Meta and Google accounts
+    const [metaAccount, googleAccount] = await Promise.all([
+      prisma.metaAdAccount.findFirst({
+        where: { userId: ctx.user_id, status: "active" },
+      }),
+      prisma.googleAdAccount.findFirst({
+        where: { userId: ctx.user_id, isActive: true },
+      }),
+    ]);
+
+    if (!metaAccount && !googleAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No ad accounts connected. Go to Settings to connect a Facebook or Google Ads account.",
+      };
+    }
+
+    interface CampaignAnalysis {
+      campaign_id: string;
+      campaign_name: string;
+      platform: "meta" | "google";
+      status: string;
+      spend: number;
+      impressions: number;
+      clicks: number;
+      ctr: number;
+      leads: number;
+      cost_per_lead: number | null;
+      efficiency_score: number | null;
+      flags: string[];
+    }
+
+    const analyses: CampaignAnalysis[] = [];
+    let totalSpend = 0;
+    let totalLeads = 0;
+    const platformTotals: Record<string, { spend: number; leads: number; impressions: number; clicks: number }> = {};
+
+    const datePresetMap: Record<string, string> = {
+      "7d": "last_7d",
+      "14d": "last_14d",
+      "30d": "last_30d",
+    };
+
+    try {
+      // ---- META DATA ----
+      if (metaAccount) {
+        const client = createMetaClient(metaAccount.accessToken);
+        const [campaignsRes, insightsRes] = await Promise.all([
+          client.getCampaigns(metaAccount.adAccountId),
+          client.getInsightsByCampaign(metaAccount.adAccountId, {
+            date_preset: datePresetMap[dateRange] as "last_7d" | "last_14d" | "last_30d",
+          }),
+        ]);
+
+        const campaignMap = new Map(
+          campaignsRes.data.map((c) => [c.id, { name: c.name, status: c.status, effective_status: c.effective_status }])
+        );
+
+        let metaSpend = 0, metaLeads = 0, metaImpressions = 0, metaClicks = 0;
+
+        for (const insight of insightsRes.data) {
+          const campaignId = insight.campaign_id || "";
+          const campaign = campaignMap.get(campaignId);
+          const spend = parseFloat(insight.spend || "0");
+          const impressions = parseInt(insight.impressions || "0", 10);
+          const clicks = parseInt(insight.clicks || "0", 10);
+          const ctr = parseFloat(insight.ctr || "0");
+
+          let leads = 0;
+          if (insight.actions) {
+            for (const a of insight.actions) {
+              if (
+                a.action_type === "lead" ||
+                a.action_type === "offsite_conversion.fb_pixel_lead" ||
+                a.action_type === "onsite_conversion.lead_grouped"
+              ) {
+                leads += parseInt(a.value, 10);
+              }
+            }
+          }
+
+          metaSpend += spend;
+          metaLeads += leads;
+          metaImpressions += impressions;
+          metaClicks += clicks;
+          totalSpend += spend;
+          totalLeads += leads;
+
+          analyses.push({
+            campaign_id: campaignId,
+            campaign_name: campaign?.name || insight.campaign_name || "Unknown",
+            platform: "meta",
+            status: campaign?.status || "UNKNOWN",
+            spend,
+            impressions,
+            clicks,
+            ctr,
+            leads,
+            cost_per_lead: leads > 0 ? spend / leads : null,
+            efficiency_score: null,
+            flags: [],
+          });
+        }
+
+        platformTotals.meta = { spend: metaSpend, leads: metaLeads, impressions: metaImpressions, clicks: metaClicks };
+      }
+
+      // ---- GOOGLE DATA ----
+      if (googleAccount) {
+        const { GoogleAdsClient } = await import("@/lib/google-ads/client");
+        const gClient = new GoogleAdsClient(googleAccount.refreshToken);
+        const perfData = await gClient.getCampaignPerformance(googleAccount.customerId, dateRange);
+
+        // Aggregate by campaign (rows are per-day)
+        const googleCampaigns = new Map<string, {
+          name: string; status: string; spend: number; impressions: number; clicks: number; conversions: number;
+        }>();
+
+        for (const row of perfData) {
+          const existing = googleCampaigns.get(row.campaignId);
+          if (existing) {
+            existing.spend += row.costMicros / 1_000_000;
+            existing.impressions += row.impressions;
+            existing.clicks += row.clicks;
+            existing.conversions += row.conversions;
+          } else {
+            googleCampaigns.set(row.campaignId, {
+              name: row.campaignName,
+              status: row.status,
+              spend: row.costMicros / 1_000_000,
+              impressions: row.impressions,
+              clicks: row.clicks,
+              conversions: row.conversions,
+            });
+          }
+        }
+
+        let googleSpend = 0, googleLeads = 0, googleImpressions = 0, googleClicks = 0;
+
+        for (const [campaignId, data] of googleCampaigns) {
+          googleSpend += data.spend;
+          googleLeads += data.conversions;
+          googleImpressions += data.impressions;
+          googleClicks += data.clicks;
+          totalSpend += data.spend;
+          totalLeads += data.conversions;
+
+          analyses.push({
+            campaign_id: campaignId,
+            campaign_name: data.name,
+            platform: "google",
+            status: data.status,
+            spend: data.spend,
+            impressions: data.impressions,
+            clicks: data.clicks,
+            ctr: data.impressions > 0 ? data.clicks / data.impressions : 0,
+            leads: data.conversions,
+            cost_per_lead: data.conversions > 0 ? data.spend / data.conversions : null,
+            efficiency_score: null,
+            flags: [],
+          });
+        }
+
+        platformTotals.google = { spend: googleSpend, leads: googleLeads, impressions: googleImpressions, clicks: googleClicks };
+      }
+
+      // Calculate account average CPL
+      const averageCPL = totalLeads > 0 ? totalSpend / totalLeads : 0;
+
+      // Score and flag each campaign
+      let wasteTotal = 0;
+      let topPerformer: { name: string; cpl: number; platform: string } | null = null;
+
+      for (const a of analyses) {
+        if (a.leads > 0 && a.cost_per_lead !== null && averageCPL > 0) {
+          a.efficiency_score = Math.max(0, Math.min(100, Math.round(100 - (a.cost_per_lead / averageCPL * 100) + 100)));
+        }
+
+        if (a.spend > 50 && a.leads === 0) {
+          a.flags.push("waste");
+          wasteTotal += a.spend;
+        }
+
+        if (a.cost_per_lead !== null && averageCPL > 0 && a.cost_per_lead > averageCPL * 2) {
+          a.flags.push("underperforming");
+        }
+
+        if (a.cost_per_lead !== null && (topPerformer === null || a.cost_per_lead < topPerformer.cpl)) {
+          topPerformer = { name: a.campaign_name, cpl: a.cost_per_lead, platform: a.platform };
+        }
+      }
+
+      analyses.sort((a, b) => {
+        if (a.efficiency_score === null && b.efficiency_score === null) return 0;
+        if (a.efficiency_score === null) return 1;
+        if (b.efficiency_score === null) return -1;
+        return b.efficiency_score - a.efficiency_score;
+      });
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          date_range: dateRange,
+          platforms_connected: [
+            ...(metaAccount ? ["meta"] : []),
+            ...(googleAccount ? ["google"] : []),
+          ],
+          total_spend: Math.round(totalSpend * 100) / 100,
+          total_leads: totalLeads,
+          average_cpl: averageCPL > 0 ? Math.round(averageCPL * 100) / 100 : null,
+          waste_total: Math.round(wasteTotal * 100) / 100,
+          top_performer: topPerformer ? { name: topPerformer.name, cpl: Math.round(topPerformer.cpl * 100) / 100, platform: topPerformer.platform } : null,
+          platform_breakdown: platformTotals,
+          campaigns: analyses,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Failed to analyze performance: ${message}`,
+      };
+    }
+  },
+
+  "ads.suggest_optimizations": async (action, ctx) => {
+    if (action.type !== "ads.suggest_optimizations") throw new Error("Invalid action type");
+
+    const payload = action.payload as { date_range?: "7d" | "14d" | "30d" };
+    const dateRange = payload.date_range || "7d";
+
+    // Check for both Meta and Google accounts
+    const [metaAccount, googleAccount] = await Promise.all([
+      prisma.metaAdAccount.findFirst({
+        where: { userId: ctx.user_id, status: "active" },
+      }),
+      prisma.googleAdAccount.findFirst({
+        where: { userId: ctx.user_id, isActive: true },
+      }),
+    ]);
+
+    if (!metaAccount && !googleAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No ad accounts connected. Go to Settings to connect a Facebook or Google Ads account.",
+      };
+    }
+
+    const datePresetMap: Record<string, string> = {
+      "7d": "last_7d",
+      "14d": "last_14d",
+      "30d": "last_30d",
+    };
+
+    try {
+      let totalSpend = 0;
+      let totalLeads = 0;
+
+      const campaignData: Array<{
+        name: string;
+        platform: "meta" | "google";
+        status: string;
+        daily_budget: string | null;
+        spend: number;
+        impressions: number;
+        clicks: number;
+        leads: number;
+        cost_per_lead: number | null;
+      }> = [];
+
+      // ---- META DATA ----
+      if (metaAccount) {
+        const client = createMetaClient(metaAccount.accessToken);
+        const [campaignsRes, insightsRes] = await Promise.all([
+          client.getCampaigns(metaAccount.adAccountId),
+          client.getInsightsByCampaign(metaAccount.adAccountId, {
+            date_preset: datePresetMap[dateRange] as "last_7d" | "last_14d" | "last_30d",
+          }),
+        ]);
+
+        const campaignMap = new Map(
+          campaignsRes.data.map((c) => [c.id, { name: c.name, status: c.status, daily_budget: c.daily_budget }])
+        );
+
+        for (const insight of insightsRes.data) {
+          const campaignId = insight.campaign_id || "";
+          const campaign = campaignMap.get(campaignId);
+          const spend = parseFloat(insight.spend || "0");
+          const impressions = parseInt(insight.impressions || "0", 10);
+          const clicks = parseInt(insight.clicks || "0", 10);
+
+          let leads = 0;
+          if (insight.actions) {
+            for (const a of insight.actions) {
+              if (
+                a.action_type === "lead" ||
+                a.action_type === "offsite_conversion.fb_pixel_lead" ||
+                a.action_type === "onsite_conversion.lead_grouped"
+              ) {
+                leads += parseInt(a.value, 10);
+              }
+            }
+          }
+
+          totalSpend += spend;
+          totalLeads += leads;
+
+          campaignData.push({
+            name: campaign?.name || insight.campaign_name || "Unknown",
+            platform: "meta",
+            status: campaign?.status || "UNKNOWN",
+            daily_budget: campaign?.daily_budget || null,
+            spend,
+            impressions,
+            clicks,
+            leads,
+            cost_per_lead: leads > 0 ? Math.round((spend / leads) * 100) / 100 : null,
+          });
+        }
+      }
+
+      // ---- GOOGLE DATA ----
+      if (googleAccount) {
+        const { GoogleAdsClient } = await import("@/lib/google-ads/client");
+        const gClient = new GoogleAdsClient(googleAccount.refreshToken);
+        const perfData = await gClient.getCampaignPerformance(googleAccount.customerId, dateRange);
+
+        // Also get campaign list for budget info
+        const gCampaigns = await gClient.getCampaigns(googleAccount.customerId);
+        const budgetMap = new Map(
+          gCampaigns.map((c) => [c.id, c.budgetAmountMicros])
+        );
+
+        // Aggregate by campaign (rows are per-day)
+        const googleCampaigns = new Map<string, {
+          name: string; status: string; spend: number; impressions: number; clicks: number; conversions: number;
+        }>();
+
+        for (const row of perfData) {
+          const existing = googleCampaigns.get(row.campaignId);
+          if (existing) {
+            existing.spend += row.costMicros / 1_000_000;
+            existing.impressions += row.impressions;
+            existing.clicks += row.clicks;
+            existing.conversions += row.conversions;
+          } else {
+            googleCampaigns.set(row.campaignId, {
+              name: row.campaignName,
+              status: row.status,
+              spend: row.costMicros / 1_000_000,
+              impressions: row.impressions,
+              clicks: row.clicks,
+              conversions: row.conversions,
+            });
+          }
+        }
+
+        for (const [campaignId, data] of googleCampaigns) {
+          totalSpend += data.spend;
+          totalLeads += data.conversions;
+
+          const budgetMicros = budgetMap.get(campaignId);
+          const dailyBudget = budgetMicros ? String(parseInt(budgetMicros) / 1_000_000) : null;
+
+          campaignData.push({
+            name: data.name,
+            platform: "google",
+            status: data.status,
+            daily_budget: dailyBudget,
+            spend: data.spend,
+            impressions: data.impressions,
+            clicks: data.clicks,
+            leads: data.conversions,
+            cost_per_lead: data.conversions > 0 ? Math.round((data.spend / data.conversions) * 100) / 100 : null,
+          });
+        }
+      }
+
+      const averageCPL = totalLeads > 0 ? Math.round((totalSpend / totalLeads) * 100) / 100 : 0;
+
+      // Ask Claude for suggestions
+      const llm = getDefaultProvider();
+      const platformNote = metaAccount && googleAccount
+        ? "This business runs ads on BOTH Meta (Facebook/Instagram) and Google Ads. Consider cross-platform budget allocation in your suggestions."
+        : "";
+
+      const analysisPrompt = `Campaign performance data (${dateRange} window):
+Account average CPL: ${averageCPL > 0 ? `$${averageCPL}` : "N/A (no leads yet)"}
+Total spend: $${Math.round(totalSpend * 100) / 100}
+Total leads: ${totalLeads}
+${platformNote}
+
+Campaigns:
+${JSON.stringify(campaignData, null, 2)}`;
+
+      const suggestionsResponse = await llm.complete([
+        {
+          role: "system",
+          content: `You are a senior paid media strategist reviewing ad campaign performance for a small business. Analyze this data and return exactly 3-5 specific, actionable suggestions. Each suggestion should be a JSON object with:
+- action: one of 'pause', 'increase_budget', 'decrease_budget', 'keep', 'add_negatives'
+- campaign_name: which campaign
+- platform: 'meta' or 'google'
+- reason: 1 sentence explaining why
+- expected_impact: 1 sentence on what this will achieve
+- priority: 'high', 'medium', or 'low'
+
+Rules:
+- If a campaign has zero leads and spend > $50, ALWAYS suggest pausing it (high priority)
+- If a campaign's CPL is 3x+ the average, suggest decreasing budget or pausing
+- If a campaign's CPL is below average and has headroom, suggest increasing budget
+- If both Meta and Google are present, compare cross-platform CPL and suggest shifting budget from the worse-performing platform to the better one
+- Be specific with numbers. Say 'increase budget from $15/day to $25/day', not 'increase budget'
+- Return ONLY a JSON array, no other text.`,
+        },
+        { role: "user", content: analysisPrompt },
+      ], { temperature: 0.3 });
+
+      // Parse LLM suggestions
+      let suggestions: Array<{
+        action: string;
+        campaign_name: string;
+        platform?: string;
+        reason: string;
+        expected_impact: string;
+        priority: string;
+      }> = [];
+
+      try {
+        let jsonStr = suggestionsResponse.content.trim();
+        if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+        if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
+        if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
+        jsonStr = jsonStr.trim();
+        suggestions = JSON.parse(jsonStr);
+      } catch {
+        // Fallback: generate basic suggestions programmatically
+        for (const c of campaignData) {
+          if (c.spend > 50 && c.leads === 0) {
+            suggestions.push({
+              action: "pause",
+              campaign_name: c.name,
+              platform: c.platform,
+              reason: `Spent $${c.spend} with zero leads in the last ${dateRange}.`,
+              expected_impact: `Save $${c.daily_budget ? parseFloat(c.daily_budget) : Math.round(c.spend / 7)}/day in wasted spend.`,
+              priority: "high",
+            });
+          }
+        }
+      }
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          date_range: dateRange,
+          platforms_connected: [
+            ...(metaAccount ? ["meta"] : []),
+            ...(googleAccount ? ["google"] : []),
+          ],
+          total_spend: Math.round(totalSpend * 100) / 100,
+          total_leads: totalLeads,
+          average_cpl: averageCPL > 0 ? averageCPL : null,
+          suggestions,
+          campaign_count: campaignData.length,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Failed to generate optimization suggestions: ${message}`,
+      };
+    }
+  },
+
+  "ads.apply_optimization": async (action, ctx) => {
+    if (action.type !== "ads.apply_optimization") throw new Error("Invalid action type");
+
+    const payload = action.payload as {
+      campaign_name: string;
+      action: "pause" | "resume" | "increase_budget" | "decrease_budget";
+      new_budget?: number;
+    };
+
+    if (!payload.campaign_name) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Campaign name is required.",
+      };
+    }
+
+    const adAccount = await prisma.metaAdAccount.findFirst({
+      where: { userId: ctx.user_id, status: "active" },
+    });
+
+    if (!adAccount) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No Facebook ad account connected.",
+      };
+    }
+
+    const campaign = await prisma.metaCampaign.findFirst({
+      where: {
+        adAccountId: adAccount.id,
+        name: { contains: payload.campaign_name, mode: "insensitive" },
+      },
+    });
+
+    if (!campaign) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Couldn't find a campaign matching "${payload.campaign_name}".`,
+      };
+    }
+
+    const metaClient = createMetaClient(adAccount.accessToken);
+
+    try {
+      const before = { ...campaign };
+
+      switch (payload.action) {
+        case "pause": {
+          await metaClient.updateCampaignStatus(campaign.metaCampaignId, "PAUSED");
+          await prisma.metaCampaign.update({
+            where: { id: campaign.id },
+            data: { status: "PAUSED" },
+          });
+
+          await recordChange(ctx.run_id, action.action_id, "MetaCampaign", campaign.id, "update", before, { ...before, status: "PAUSED" });
+
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "success" as const,
+            data: {
+              campaign_name: campaign.name,
+              optimization: "pause",
+              previous_status: campaign.status,
+              new_status: "PAUSED",
+              note: `Paused "${campaign.name}" to stop wasted spend.`,
+            },
+          };
+        }
+
+        case "resume": {
+          await metaClient.updateCampaignStatus(campaign.metaCampaignId, "ACTIVE");
+          await prisma.metaCampaign.update({
+            where: { id: campaign.id },
+            data: { status: "ACTIVE" },
+          });
+
+          await recordChange(ctx.run_id, action.action_id, "MetaCampaign", campaign.id, "update", before, { ...before, status: "ACTIVE" });
+
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "success" as const,
+            data: {
+              campaign_name: campaign.name,
+              optimization: "resume",
+              previous_status: campaign.status,
+              new_status: "ACTIVE",
+              note: `Resumed "${campaign.name}".`,
+            },
+          };
+        }
+
+        case "increase_budget":
+        case "decrease_budget": {
+          if (!payload.new_budget) {
+            return {
+              action_id: action.action_id,
+              action_type: action.type,
+              status: "failed" as const,
+              error: "new_budget is required for budget changes.",
+            };
+          }
+
+          // Find the campaign's ad sets
+          const adSets = await metaClient.getCampaignAdSets(campaign.metaCampaignId);
+          if (adSets.data.length === 0) {
+            return {
+              action_id: action.action_id,
+              action_type: action.type,
+              status: "failed" as const,
+              error: "Campaign has no ad sets to adjust budget on.",
+            };
+          }
+
+          const newBudgetCents = Math.round(payload.new_budget * 100);
+          const previousBudget = campaign.dailyBudget;
+
+          // Update all ad sets for this campaign
+          for (const adSet of adSets.data) {
+            await metaClient.updateAdSet(adSet.id, { daily_budget: newBudgetCents });
+          }
+
+          // Update local record
+          await prisma.metaCampaign.update({
+            where: { id: campaign.id },
+            data: { dailyBudget: payload.new_budget },
+          });
+
+          await recordChange(ctx.run_id, action.action_id, "MetaCampaign", campaign.id, "update", before, { ...before, dailyBudget: payload.new_budget });
+
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "success" as const,
+            data: {
+              campaign_name: campaign.name,
+              optimization: payload.action,
+              previous_budget: previousBudget,
+              new_budget: payload.new_budget,
+              ad_sets_updated: adSets.data.length,
+              note: `Updated "${campaign.name}" budget from $${previousBudget || "?"}/day to $${payload.new_budget}/day.`,
+            },
+          };
+        }
+
+        default:
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "failed" as const,
+            error: `Unknown optimization action: ${payload.action}`,
+          };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Failed to apply optimization: ${message}`,
+      };
+    }
+  },
+
+  // ============================================================================
+  // Competitor Research via Ad Library
+  // ============================================================================
+
+  "ads.research_competitors": async (action, ctx) => {
+    if (action.type !== "ads.research_competitors") throw new Error("Invalid action type");
+
+    try {
+      const { createAdLibraryClient } = await import("@/lib/meta/adLibrary");
+      const adLibrary = createAdLibraryClient();
+      const payload = action.payload;
+
+      const ads = await adLibrary.searchByKeyword(payload.search_term, {
+        ad_reached_countries: [payload.country || "US"],
+        ad_active_status: payload.active_only ? "ACTIVE" : "ALL",
+        limit: payload.limit || 25,
+      });
+
+      if (ads.length === 0) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "success" as const,
+          data: {
+            search_term: payload.search_term,
+            ads_found: 0,
+            analysis: `No ads found for "${payload.search_term}" in the Meta Ad Library. This could mean competitors aren't running Meta ads, or try different search terms.`,
+          },
+        };
+      }
+
+      // Aggregate competitor data
+      const competitorMap: Record<string, {
+        page_name: string;
+        page_id: string;
+        ad_count: number;
+        platforms: Set<string>;
+        sample_headlines: string[];
+        sample_bodies: string[];
+        estimated_spend_low: number;
+        estimated_spend_high: number;
+      }> = {};
+
+      for (const ad of ads) {
+        const pageId = ad.page_id || "unknown";
+        const pageName = ad.page_name || "Unknown Advertiser";
+
+        if (!competitorMap[pageId]) {
+          competitorMap[pageId] = {
+            page_name: pageName,
+            page_id: pageId,
+            ad_count: 0,
+            platforms: new Set(),
+            sample_headlines: [],
+            sample_bodies: [],
+            estimated_spend_low: 0,
+            estimated_spend_high: 0,
+          };
+        }
+
+        const competitor = competitorMap[pageId];
+        competitor.ad_count++;
+
+        if (ad.publisher_platforms) {
+          for (const p of ad.publisher_platforms) competitor.platforms.add(p);
+        }
+        if (ad.ad_creative_link_titles && competitor.sample_headlines.length < 3) {
+          competitor.sample_headlines.push(...ad.ad_creative_link_titles.slice(0, 1));
+        }
+        if (ad.ad_creative_bodies && competitor.sample_bodies.length < 3) {
+          competitor.sample_bodies.push(...ad.ad_creative_bodies.slice(0, 1));
+        }
+        if (ad.spend) {
+          competitor.estimated_spend_low += ad.spend.lower_bound || 0;
+          competitor.estimated_spend_high += ad.spend.upper_bound || 0;
+        }
+      }
+
+      // Build competitor summaries
+      const competitors = Object.values(competitorMap)
+        .sort((a, b) => b.ad_count - a.ad_count)
+        .slice(0, 10)
+        .map((c) => ({
+          page_name: c.page_name,
+          page_id: c.page_id,
+          active_ads: c.ad_count,
+          platforms: Array.from(c.platforms),
+          sample_headlines: c.sample_headlines.slice(0, 3),
+          sample_bodies: c.sample_bodies.slice(0, 2),
+          estimated_spend: c.estimated_spend_high > 0
+            ? `$${c.estimated_spend_low} - $${c.estimated_spend_high}`
+            : "Unknown",
+        }));
+
+      // Use LLM for competitive analysis
+      const llm = getDefaultProvider();
+      const analysisPrompt = `You are a competitive intelligence analyst for digital advertising. Analyze these competitor ads found in the Meta Ad Library for the search term "${payload.search_term}".
+
+Competitor Data:
+${JSON.stringify(competitors, null, 2)}
+
+Provide a concise competitive analysis covering:
+1. Key competitors and their ad volume
+2. Common messaging themes and angles
+3. Platforms being used (Facebook, Instagram, etc.)
+4. Spend patterns (if data available)
+5. Gaps or opportunities — what angles are competitors NOT using that could work?
+6. Actionable recommendations for how to differentiate
+
+Keep it practical and actionable. Format as plain text, not markdown.`;
+
+      const analysisResponse = await llm.complete([
+        { role: "system", content: "You are a competitive intelligence analyst for digital advertising. Provide concise, actionable analysis." },
+        { role: "user", content: analysisPrompt },
+      ]);
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          search_term: payload.search_term,
+          country: payload.country || "US",
+          ads_found: ads.length,
+          unique_advertisers: Object.keys(competitorMap).length,
+          top_competitors: competitors,
+          analysis: analysisResponse.content,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Competitor research failed: ${message}`,
+      };
+    }
+  },
+
+  "ads.watch_competitor": async (action, ctx) => {
+    if (action.type !== "ads.watch_competitor") throw new Error("Invalid action type");
+
+    try {
+      const payload = action.payload;
+
+      // Check if already watching this page
+      const existing = await prisma.competitorWatch.findUnique({
+        where: {
+          userId_pageId: {
+            userId: ctx.user_id,
+            pageId: payload.page_id,
+          },
+        },
+      });
+
+      if (existing) {
+        // Reactivate if inactive
+        if (!existing.active) {
+          await prisma.competitorWatch.update({
+            where: { id: existing.id },
+            data: { active: true, notes: payload.notes || existing.notes },
+          });
+
+          await recordChange(ctx.run_id, action.action_id, "CompetitorWatch", existing.id, "update", { active: false }, { active: true });
+
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "success" as const,
+            data: {
+              watch_id: existing.id,
+              page_name: payload.page_name,
+              page_id: payload.page_id,
+              reactivated: true,
+              note: `Reactivated competitor watch for "${payload.page_name}".`,
+            },
+          };
+        }
+
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "success" as const,
+          data: {
+            watch_id: existing.id,
+            page_name: payload.page_name,
+            page_id: payload.page_id,
+            already_watching: true,
+            note: `Already watching "${payload.page_name}".`,
+          },
+        };
+      }
+
+      // Do initial search to get current ad count
+      let initialAdCount = 0;
+      try {
+        const { createAdLibraryClient } = await import("@/lib/meta/adLibrary");
+        const adLibrary = createAdLibraryClient();
+        const ads = await adLibrary.searchByPage(payload.page_id, { ad_active_status: "ACTIVE" });
+        initialAdCount = ads.length;
+      } catch {
+        // Ad library search is optional, don't fail the watch
+      }
+
+      // Create the watch record
+      const watch = await prisma.competitorWatch.create({
+        data: {
+          userId: ctx.user_id,
+          pageId: payload.page_id,
+          pageName: payload.page_name,
+          notes: payload.notes,
+          lastCheckedAt: new Date(),
+          lastAdCount: initialAdCount,
+        },
+      });
+
+      await recordChange(ctx.run_id, action.action_id, "CompetitorWatch", watch.id, "create", null, watch);
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          watch_id: watch.id,
+          page_name: payload.page_name,
+          page_id: payload.page_id,
+          current_active_ads: initialAdCount,
+          note: `Now watching "${payload.page_name}" (${initialAdCount} active ads). You'll be able to track changes in their ad strategy.`,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Failed to set up competitor watch: ${message}`,
+      };
+    }
+  },
+
+  // ============================================================================
+  // Google Ads Actions
+  // ============================================================================
+
+  "google.analyze_keywords": async (action, ctx) => {
+    if (action.type !== "google.analyze_keywords") throw new Error("Invalid action type");
+
+    try {
+      const payload = action.payload;
+      const dateRange = payload.date_range || "7d";
+
+      const googleAccount = await prisma.googleAdAccount.findFirst({
+        where: { userId: ctx.user_id, isActive: true },
+      });
+
+      if (!googleAccount) {
+        return {
+          action_id: action.action_id,
+          action_type: action.type,
+          status: "failed" as const,
+          error: "No Google Ads account connected. Go to Settings to connect one.",
+        };
+      }
+
+      const { createGoogleAdsClient } = await import("@/lib/google-ads/client");
+      const client = createGoogleAdsClient(googleAccount.refreshToken);
+
+      const [keywords, campaigns] = await Promise.all([
+        client.getKeywordPerformance(googleAccount.customerId, dateRange),
+        client.getCampaignPerformance(googleAccount.customerId, dateRange),
+      ]);
+
+      // Aggregate campaign-level metrics
+      const campaignAgg: Record<string, { name: string; spend: number; clicks: number; impressions: number; conversions: number }> = {};
+      for (const row of campaigns) {
+        if (!campaignAgg[row.campaignId]) {
+          campaignAgg[row.campaignId] = { name: row.campaignName, spend: 0, clicks: 0, impressions: 0, conversions: 0 };
+        }
+        const c = campaignAgg[row.campaignId];
+        c.spend += row.costMicros / 1_000_000;
+        c.clicks += row.clicks;
+        c.impressions += row.impressions;
+        c.conversions += row.conversions;
+      }
+
+      // Identify waste keywords (high spend, no conversions)
+      const wasteKeywords = keywords
+        .filter((k) => k.costMicros > 5_000_000 && k.conversions === 0)
+        .sort((a, b) => b.costMicros - a.costMicros)
+        .slice(0, 10)
+        .map((k) => ({
+          keyword: k.keyword,
+          match_type: k.matchType,
+          spend: `$${(k.costMicros / 1_000_000).toFixed(2)}`,
+          clicks: k.clicks,
+          conversions: k.conversions,
+        }));
+
+      // Top performing keywords
+      const topKeywords = keywords
+        .filter((k) => k.conversions > 0)
+        .sort((a, b) => {
+          const aCPConv = a.costMicros / a.conversions;
+          const bCPConv = b.costMicros / b.conversions;
+          return aCPConv - bCPConv;
+        })
+        .slice(0, 10)
+        .map((k) => ({
+          keyword: k.keyword,
+          match_type: k.matchType,
+          spend: `$${(k.costMicros / 1_000_000).toFixed(2)}`,
+          clicks: k.clicks,
+          conversions: k.conversions,
+          cost_per_conversion: `$${(k.costMicros / k.conversions / 1_000_000).toFixed(2)}`,
+        }));
+
+      const totalSpend = Object.values(campaignAgg).reduce((s, c) => s + c.spend, 0);
+      const totalConversions = Object.values(campaignAgg).reduce((s, c) => s + c.conversions, 0);
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          platform: "google",
+          date_range: dateRange,
+          total_spend: Math.round(totalSpend * 100) / 100,
+          total_conversions: totalConversions,
+          total_keywords_analyzed: keywords.length,
+          waste_keywords: wasteKeywords,
+          top_keywords: topKeywords,
+          campaigns: Object.values(campaignAgg).map((c) => ({
+            name: c.name,
+            spend: Math.round(c.spend * 100) / 100,
+            clicks: c.clicks,
+            impressions: c.impressions,
+            conversions: c.conversions,
+          })),
+          suggested_negatives: wasteKeywords.map((k) => k.keyword),
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Google keyword analysis failed: ${message}`,
+      };
+    }
+  },
+
+  "google.pause_campaign": async (action, ctx) => {
+    if (action.type !== "google.pause_campaign") throw new Error("Invalid action type");
+
+    try {
+      const payload = action.payload;
+
+      const googleAccount = await prisma.googleAdAccount.findFirst({
+        where: { userId: ctx.user_id, isActive: true },
+      });
+
+      if (!googleAccount) {
+        return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: "No Google Ads account connected." };
+      }
+
+      const campaign = await prisma.googleCampaign.findFirst({
+        where: { accountId: googleAccount.id, name: { contains: payload.campaign_name, mode: "insensitive" }, status: { not: "REMOVED" } },
+      });
+
+      if (!campaign) {
+        return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: `No Google campaign found matching "${payload.campaign_name}".` };
+      }
+
+      const { createGoogleAdsClient } = await import("@/lib/google-ads/client");
+      const client = createGoogleAdsClient(googleAccount.refreshToken);
+
+      const before = { status: campaign.status };
+      await client.pauseCampaign(googleAccount.customerId, campaign.campaignId);
+
+      await prisma.googleCampaign.update({ where: { id: campaign.id }, data: { status: "PAUSED" } });
+      await recordChange(ctx.run_id, action.action_id, "GoogleCampaign", campaign.id, "update", before, { status: "PAUSED" });
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: { campaign_name: campaign.name, previous_status: before.status, new_status: "PAUSED", note: `Paused Google campaign "${campaign.name}".` },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: `Failed to pause Google campaign: ${message}` };
+    }
+  },
+
+  "google.resume_campaign": async (action, ctx) => {
+    if (action.type !== "google.resume_campaign") throw new Error("Invalid action type");
+
+    try {
+      const payload = action.payload;
+
+      const googleAccount = await prisma.googleAdAccount.findFirst({
+        where: { userId: ctx.user_id, isActive: true },
+      });
+
+      if (!googleAccount) {
+        return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: "No Google Ads account connected." };
+      }
+
+      const campaign = await prisma.googleCampaign.findFirst({
+        where: { accountId: googleAccount.id, name: { contains: payload.campaign_name, mode: "insensitive" }, status: "PAUSED" },
+      });
+
+      if (!campaign) {
+        return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: `No paused Google campaign found matching "${payload.campaign_name}".` };
+      }
+
+      const { createGoogleAdsClient } = await import("@/lib/google-ads/client");
+      const client = createGoogleAdsClient(googleAccount.refreshToken);
+
+      const before = { status: campaign.status };
+      await client.resumeCampaign(googleAccount.customerId, campaign.campaignId);
+
+      await prisma.googleCampaign.update({ where: { id: campaign.id }, data: { status: "ENABLED" } });
+      await recordChange(ctx.run_id, action.action_id, "GoogleCampaign", campaign.id, "update", before, { status: "ENABLED" });
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: { campaign_name: campaign.name, previous_status: before.status, new_status: "ENABLED", note: `Resumed Google campaign "${campaign.name}".` },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: `Failed to resume Google campaign: ${message}` };
+    }
+  },
+
+  "google.add_negatives": async (action, ctx) => {
+    if (action.type !== "google.add_negatives") throw new Error("Invalid action type");
+
+    try {
+      const payload = action.payload;
+
+      const googleAccount = await prisma.googleAdAccount.findFirst({
+        where: { userId: ctx.user_id, isActive: true },
+      });
+
+      if (!googleAccount) {
+        return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: "No Google Ads account connected." };
+      }
+
+      const campaign = await prisma.googleCampaign.findFirst({
+        where: { accountId: googleAccount.id, name: { contains: payload.campaign_name, mode: "insensitive" }, status: { not: "REMOVED" } },
+      });
+
+      if (!campaign) {
+        return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: `No Google campaign found matching "${payload.campaign_name}".` };
+      }
+
+      const { createGoogleAdsClient } = await import("@/lib/google-ads/client");
+      const client = createGoogleAdsClient(googleAccount.refreshToken);
+
+      const result = await client.addNegativeKeywords(googleAccount.customerId, campaign.campaignId, payload.keywords);
+
+      await recordChange(ctx.run_id, action.action_id, "GoogleCampaign", campaign.id, "update", { negatives_before: "unknown" }, { negatives_added: payload.keywords });
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          campaign_name: campaign.name,
+          keywords_added: result.added,
+          keywords: payload.keywords,
+          note: `Added ${result.added} negative keyword(s) to "${campaign.name}": ${payload.keywords.join(", ")}`,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: `Failed to add negative keywords: ${message}` };
+    }
+  },
+
+  "google.adjust_bid": async (action, ctx) => {
+    if (action.type !== "google.adjust_bid") throw new Error("Invalid action type");
+
+    try {
+      const payload = action.payload;
+
+      const googleAccount = await prisma.googleAdAccount.findFirst({
+        where: { userId: ctx.user_id, isActive: true },
+      });
+
+      if (!googleAccount) {
+        return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: "No Google Ads account connected." };
+      }
+
+      const campaign = await prisma.googleCampaign.findFirst({
+        where: { accountId: googleAccount.id, name: { contains: payload.campaign_name, mode: "insensitive" }, status: { not: "REMOVED" } },
+      });
+
+      if (!campaign) {
+        return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: `No Google campaign found matching "${payload.campaign_name}".` };
+      }
+
+      const { createGoogleAdsClient } = await import("@/lib/google-ads/client");
+      const client = createGoogleAdsClient(googleAccount.refreshToken);
+
+      const newBudgetMicros = Math.round(payload.new_daily_budget * 1_000_000);
+      const previousBudgetMicros = campaign.budgetAmountMicros;
+
+      const before = { budgetAmountMicros: previousBudgetMicros };
+      await client.updateBudget(googleAccount.customerId, campaign.campaignId, newBudgetMicros);
+
+      await prisma.googleCampaign.update({ where: { id: campaign.id }, data: { budgetAmountMicros: String(newBudgetMicros) } });
+      await recordChange(ctx.run_id, action.action_id, "GoogleCampaign", campaign.id, "update", before, { budgetAmountMicros: String(newBudgetMicros) });
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          campaign_name: campaign.name,
+          previous_budget: previousBudgetMicros ? `$${(parseInt(previousBudgetMicros) / 1_000_000).toFixed(2)}/day` : "unknown",
+          new_budget: `$${payload.new_daily_budget}/day`,
+          note: `Updated "${campaign.name}" budget to $${payload.new_daily_budget}/day.`,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return { action_id: action.action_id, action_type: action.type, status: "failed" as const, error: `Failed to adjust Google campaign budget: ${message}` };
+    }
+  },
+
   // ============================================================================
   // contacts.import — Bulk contact ingestion (CSV, paste, or HubSpot)
   // The actual heavy lifting (CSV parsing, dedup, upsert) is handled by the
@@ -2038,7 +3577,7 @@ const executors: Record<string, ActionExecutor> = {
             entityId: c.id,
             operation: "create" as const,
             beforeJson: undefined,
-            afterJson: c as unknown as Record<string, unknown>,
+            afterJson: JSON.parse(JSON.stringify(c)),
           })),
         });
 

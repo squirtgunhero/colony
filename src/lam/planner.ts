@@ -83,15 +83,27 @@ You analyze user requests and generate a precise ActionPlan that the system will
 17. email.send - Send an email (REQUIRES APPROVAL)
 18. sms.send - Send an SMS (REQUIRES APPROVAL)
 19. referral.create - Post a new referral to the marketplace. Requires: title (short description), category (e.g. "plumbing", "photography", "real_estate", "legal", "finance", "contractor", "other"). Optional: description, locationText, valueEstimate.
-20. ads.create_campaign - Create an ad campaign. Requires: channel (one of: meta, native, llm, google, bing, local — default "native"). Also requires: objective (one of: LEADS, TRAFFIC, AWARENESS, ENGAGEMENT). Optional: daily_budget (number in dollars, default 10), name (auto-generated if not provided). For LLM channel, also include: business_name, category, description, service_area. REQUIRES APPROVAL since it spends money.
+20. ads.create_campaign - Create a complete Facebook/Instagram ad campaign with targeting and creative. Tara generates the ad copy and uses the user's images. Campaign starts PAUSED for approval. Requires: objective (LEADS, TRAFFIC, AWARENESS). Optional: daily_budget (default 15), name, channel (meta, native, llm, google, bing, local — default "native"). For LLM channel, also include: business_name, category, description, service_area. REQUIRES APPROVAL since it spends money.
 21. ads.check_performance - Check how ads are performing. Returns campaign metrics (impressions, clicks, spend, leads). No parameters needed — returns all active campaigns. If user asks about a specific campaign, include campaign_name in payload.
 22. ads.pause_campaign - Pause a running campaign. Requires: campaign_name (will match by name).
 23. ads.resume_campaign - Resume a paused campaign. Requires: campaign_name (will match by name).
+24. ads.launch_campaign - Activate a paused campaign to start running. Requires: campaign_name. REQUIRES APPROVAL since it starts spending money.
+25. ads.analyze_performance (read-only) - Deep analysis of all ad campaigns. Calculates cost per lead, identifies wasted spend, ranks campaigns by efficiency. Optional: date_range (7d, 14d, 30d, default 7d).
+26. ads.suggest_optimizations (read-only) - AI-powered optimization recommendations. Analyzes performance and suggests budget shifts, pauses, and bid changes. Each suggestion can be approved and executed. Optional: date_range (7d, 14d, 30d, default 7d).
+27. ads.apply_optimization - Apply a specific optimization to a campaign: pause, resume, or adjust budget. Requires: campaign_name, action (pause, resume, increase_budget, decrease_budget). Optional: new_budget (for budget changes, in dollars). REQUIRES APPROVAL.
+28. ads.research_competitors (read-only) - Search the Meta Ad Library for competitor ads. Returns competitor analysis with messaging themes, spend estimates, and strategic recommendations. Requires: search_term (competitor name, industry keyword, or niche). Optional: country (default US), active_only (default true), limit (default 25).
+29. ads.watch_competitor - Start monitoring a specific competitor's Facebook page for ad activity changes. Requires: page_id (Facebook Page ID), page_name (display name). Optional: notes.
+30. google.analyze_keywords (read-only) - Deep analysis of Google Ads keyword performance. Shows per-keyword spend, conversions, wasted spend, and quality scores. Optional: date_range (7d, 14d, 30d, default 7d), campaign_name (filter to specific campaign).
+31. google.pause_campaign - Pause a running Google Ads campaign. Requires: campaign_name.
+32. google.resume_campaign - Resume a paused Google Ads campaign. Requires: campaign_name.
+33. google.add_negatives - Add negative keywords to a Google Ads campaign to block wasteful searches. Requires: campaign_name, keywords (array of keywords to exclude).
+34. google.adjust_bid - Change the daily budget for a Google Ads campaign. Requires: campaign_name, new_budget (daily budget in dollars). REQUIRES APPROVAL since it changes spend.
+35. contacts.import - Bulk import contacts from CSV, paste, or HubSpot. Requires: source ("csv", "hubspot", or "paste"). Optional: raw_csv (for paste source), dedup_strategy ("skip", "update", "create" — default "skip"). REQUIRES APPROVAL. The UI opens the import panel automatically.
 
 ## Risk Tiers
-- Tier 0: Read-only actions (crm.search, ads.check_performance) - auto-execute
-- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign) - auto-execute with undo capability
-- Tier 2: Bulk deletes (deleteAll), external communications (email/sms), and spending money (ads.create_campaign) - requires user approval
+- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords) - auto-execute
+- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives) - auto-execute with undo capability
+- Tier 2: Bulk deletes (deleteAll), external communications (email/sms), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid), and bulk import (contacts.import) - requires user approval
 
 ## Critical Rules
 1. For lead.update: Include "name" in payload to identify the contact. System will auto-lookup by name. NO crm.search needed before an update!
@@ -115,7 +127,18 @@ You analyze user requests and generate a precise ActionPlan that the system will
 19. For "how are my ads doing", "ad performance", "what's my spend" — use ads.check_performance.
 20. For "pause my ads", "stop the campaign" — use ads.pause_campaign.
 21. For "turn my ads back on", "resume the campaign" — use ads.resume_campaign.
-22. For "import contacts", "load this CSV", "upload my spreadsheet", "import this file", "bring in my contacts" — use contacts.import with source "csv". For "import from HubSpot", "sync HubSpot", "pull my HubSpot leads" — use contacts.import with source "hubspot". For pasted tabular data — use contacts.import with source "paste". REQUIRES APPROVAL. The UI opens the import panel automatically — do NOT ask for the file in follow_up_question. Set user_summary to "I'll open the import panel so you can upload your contacts file and preview the data before anything is saved."
+22. When user approves launching a campaign (says "go ahead", "take it live", "start it", "launch it", "yes run it", etc.) after seeing a campaign preview, use ads.launch_campaign with the campaign name.
+23. For "how are my ads really doing", "which ads are wasting money", "am I wasting money on ads", "analyze my ad performance", "deep dive on my ads" — use ads.analyze_performance. This is more detailed than ads.check_performance.
+24. For "what should I change about my ads", "optimize my ads", "any suggestions for my campaigns", "help me improve my ads" — use ads.suggest_optimizations.
+25. When user approves an optimization suggestion (says "do it", "approve", "yes go ahead", "apply that" in response to a suggestion), use ads.apply_optimization with the suggested parameters.
+26. For "what are my competitors doing", "competitor ads", "spy on [name] ads", "research [name] advertising", "who else is advertising [keyword]" — use ads.research_competitors with the competitor name or keyword as search_term.
+27. For "watch [competitor name]", "monitor [competitor name] ads", "track [competitor]" — if the user provides a Facebook Page ID, use ads.watch_competitor. If they only provide a name, first use ads.research_competitors to find the page, then suggest watching specific pages from the results.
+28. For "analyze my Google keywords", "which Google keywords are wasting money", "keyword performance" — use google.analyze_keywords. If user mentions a specific campaign, include campaign_name.
+29. For "pause my Google campaign", "stop Google ads" — use google.pause_campaign with campaign_name.
+30. For "resume my Google campaign", "turn Google ads back on" — use google.resume_campaign with campaign_name.
+31. For "block these keywords on Google", "add negative keywords", "exclude [keywords] from Google" — use google.add_negatives with campaign_name and keywords array.
+32. For "change Google budget", "adjust my Google ad spend", "increase/decrease Google budget" — use google.adjust_bid with campaign_name and new_budget (in dollars).
+33. For "import contacts", "load this CSV", "upload my spreadsheet", "import this file", "bring in my contacts" — use contacts.import with source "csv". For "import from HubSpot", "sync HubSpot", "pull my HubSpot leads" — use contacts.import with source "hubspot". For pasted tabular data — use contacts.import with source "paste". REQUIRES APPROVAL. The UI opens the import panel automatically — do NOT ask for the file in follow_up_question. Set user_summary to "I'll open the import panel so you can upload your contacts file and preview the data before anything is saved."
 
 ## Output Format
 Return a JSON object matching this schema:
@@ -227,7 +250,10 @@ function normalizeActionType(type: string): ActionType {
     "crm.search",
     "email.send", "sms.send",
     "referral.create",
-    "ads.create_campaign", "ads.check_performance", "ads.pause_campaign", "ads.resume_campaign",
+    "ads.create_campaign", "ads.check_performance", "ads.pause_campaign", "ads.resume_campaign", "ads.launch_campaign",
+    "ads.analyze_performance", "ads.suggest_optimizations", "ads.apply_optimization",
+    "ads.research_competitors", "ads.watch_competitor",
+    "google.analyze_keywords", "google.pause_campaign", "google.resume_campaign", "google.add_negatives", "google.adjust_bid",
     "contacts.import",
   ];
 
@@ -258,6 +284,26 @@ function normalizeActionType(type: string): ActionType {
     "check_performance": "ads.check_performance",
     "pause_campaign": "ads.pause_campaign",
     "resume_campaign": "ads.resume_campaign",
+    "ads.launchcampaign": "ads.launch_campaign",
+    "launch_campaign": "ads.launch_campaign",
+    "ads.analyzeperformance": "ads.analyze_performance",
+    "analyze_performance": "ads.analyze_performance",
+    "ads.suggestoptimizations": "ads.suggest_optimizations",
+    "suggest_optimizations": "ads.suggest_optimizations",
+    "ads.applyoptimization": "ads.apply_optimization",
+    "apply_optimization": "ads.apply_optimization",
+    "ads.researchcompetitors": "ads.research_competitors",
+    "research_competitors": "ads.research_competitors",
+    "ads.watchcompetitor": "ads.watch_competitor",
+    "watch_competitor": "ads.watch_competitor",
+    "google.analyzekeywords": "google.analyze_keywords",
+    "analyze_keywords": "google.analyze_keywords",
+    "google.pausecampaign": "google.pause_campaign",
+    "google.resumecampaign": "google.resume_campaign",
+    "google.addnegatives": "google.add_negatives",
+    "add_negatives": "google.add_negatives",
+    "google.adjustbid": "google.adjust_bid",
+    "adjust_bid": "google.adjust_bid",
     "contacts.import": "contacts.import",
     "import_contacts": "contacts.import",
     "contact.import": "contacts.import",
@@ -378,6 +424,60 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
       return {
         campaign_name: payload.campaign_name || payload.name,
       };
+    case "ads.launch_campaign":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+      };
+    case "ads.analyze_performance":
+      return {
+        date_range: payload.date_range || "7d",
+      };
+    case "ads.suggest_optimizations":
+      return {
+        date_range: payload.date_range || "7d",
+      };
+    case "ads.apply_optimization":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+        action: payload.action,
+        new_budget: payload.new_budget || payload.budget,
+      };
+    case "ads.research_competitors":
+      return {
+        search_term: payload.search_term || payload.query || payload.keyword || payload.competitor,
+        country: payload.country || "US",
+        active_only: payload.active_only !== undefined ? payload.active_only : true,
+        limit: payload.limit || 25,
+      };
+    case "ads.watch_competitor":
+      return {
+        page_id: payload.page_id,
+        page_name: payload.page_name || payload.name,
+        notes: payload.notes,
+      };
+    case "google.analyze_keywords":
+      return {
+        date_range: payload.date_range || "7d",
+        campaign_name: payload.campaign_name || payload.name,
+      };
+    case "google.pause_campaign":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+      };
+    case "google.resume_campaign":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+      };
+    case "google.add_negatives":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+        keywords: payload.keywords || [],
+      };
+    case "google.adjust_bid":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+        new_budget: payload.new_budget || payload.budget,
+      };
     case "contacts.import":
       return {
         source: payload.source || "csv",
@@ -433,6 +533,28 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: "campaign", paused: true };
     case "ads.resume_campaign":
       return { entity_type: "campaign", resumed: true };
+    case "ads.launch_campaign":
+      return { entity_type: "campaign", launched: true };
+    case "ads.analyze_performance":
+      return { entity_type: "campaign", analysis_returned: true };
+    case "ads.suggest_optimizations":
+      return { entity_type: "campaign", suggestions_returned: true };
+    case "ads.apply_optimization":
+      return { entity_type: "campaign", optimization_applied: true };
+    case "ads.research_competitors":
+      return { entity_type: "competitor_research", research_returned: true };
+    case "ads.watch_competitor":
+      return { entity_type: "competitor_watch", created: true };
+    case "google.analyze_keywords":
+      return { entity_type: "google_campaign", analysis_returned: true };
+    case "google.pause_campaign":
+      return { entity_type: "google_campaign", paused: true };
+    case "google.resume_campaign":
+      return { entity_type: "google_campaign", resumed: true };
+    case "google.add_negatives":
+      return { entity_type: "google_campaign", negatives_added: true };
+    case "google.adjust_bid":
+      return { entity_type: "google_campaign", budget_adjusted: true };
     case "contacts.import":
       return { entity_type: "contact", imported: true };
     default:
