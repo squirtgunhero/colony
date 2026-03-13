@@ -132,9 +132,9 @@ export async function GET(request: NextRequest) {
     // Clear the OAuth state cookie
     cookieStore.delete("google_ads_oauth_state");
 
-    return NextResponse.redirect(
-      `${redirectBase}?success=google_connected&accounts=${accountCount}`
-    );
+    // Redirect to chat page with google_connected flag so Tara can greet the user
+    const chatUrl = `${process.env.NEXT_PUBLIC_APP_URL}/chat?google_connected=true&accounts=${accountCount}`;
+    return NextResponse.redirect(chatUrl);
   } catch (error) {
     console.error("Google Ads OAuth callback error:", error);
     return NextResponse.redirect(`${redirectBase}?error=google_connection_failed`);

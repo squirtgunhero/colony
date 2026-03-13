@@ -5,13 +5,22 @@ import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/honeycomb/page-shell";
 import { User, Bell, Shield, Link2, Palette, RefreshCw, Trash2, ExternalLink, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSettings, useMetaAccounts, useMetaSync, useMetaDisconnect } from "@/lib/honeycomb/hooks";
+import { useSettings, useMetaAccounts, useMetaSync, useMetaDisconnect, useGoogleAdAccounts, useGoogleAdDisconnect } from "@/lib/honeycomb/hooks";
 
 // Facebook icon component
 function FacebookIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+    </svg>
+  );
+}
+
+// Google Ads icon component
+function GoogleAdsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
     </svg>
   );
 }
@@ -29,9 +38,12 @@ function SettingsContent() {
   const { data: metaAccountsData, loading: metaLoading, refetch: refetchMetaAccounts } = useMetaAccounts();
   const { sync, syncing } = useMetaSync();
   const { disconnect, disconnecting } = useMetaDisconnect();
-  
+  const { data: googleAccountsData, loading: googleLoading, refetch: refetchGoogleAccounts } = useGoogleAdAccounts();
+  const { disconnect: disconnectGoogle, disconnecting: disconnectingGoogle } = useGoogleAdDisconnect();
+
   const settings = data?.settings;
   const metaAccounts = metaAccountsData?.accounts || [];
+  const googleAccounts = googleAccountsData?.accounts || [];
 
   // Handle URL params for OAuth callback
   useEffect(() => {
@@ -43,23 +55,32 @@ function SettingsContent() {
       setSuccessMessage(`Successfully connected ${accounts || ""} Meta ad account${accounts === "1" ? "" : "s"}!`);
       setActiveTab("integrations");
       refetchMetaAccounts();
-      // Clear message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
+
+    if (success === "google_connected") {
+      setSuccessMessage(`Successfully connected ${accounts || ""} Google Ads account${accounts === "1" ? "" : "s"}!`);
+      setActiveTab("integrations");
+      refetchGoogleAccounts();
       setTimeout(() => setSuccessMessage(null), 5000);
     }
 
     if (error) {
       const errorMessages: Record<string, string> = {
         oauth_denied: "Facebook authorization was denied.",
+        google_oauth_denied: "Google Ads authorization was denied.",
         missing_params: "Missing authorization parameters.",
         invalid_state: "Invalid authorization state. Please try again.",
         connection_failed: "Failed to connect to Facebook. Please try again.",
+        google_connection_failed: "Failed to connect to Google Ads. Please try again.",
+        token_exchange_failed: "Google token exchange failed. Please try again.",
         auth_failed: "Authentication failed. Please log in again.",
       };
       setErrorMessage(errorMessages[error] || "An error occurred.");
       setActiveTab("integrations");
       setTimeout(() => setErrorMessage(null), 5000);
     }
-  }, [searchParams, refetchMetaAccounts]);
+  }, [searchParams, refetchMetaAccounts, refetchGoogleAccounts]);
 
   const handleConnectMeta = () => {
     window.location.href = "/api/meta/auth";
@@ -88,6 +109,25 @@ function SettingsContent() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch {
       setErrorMessage("Failed to disconnect. Please try again.");
+      setTimeout(() => setErrorMessage(null), 3000);
+    }
+  };
+
+  const handleConnectGoogle = () => {
+    window.location.href = "/api/google-ads/auth";
+  };
+
+  const handleDisconnectGoogle = async (accountId: string) => {
+    if (!confirm("Are you sure you want to disconnect this Google Ads account?")) {
+      return;
+    }
+    try {
+      await disconnectGoogle(accountId);
+      setSuccessMessage("Google Ads account disconnected!");
+      refetchGoogleAccounts();
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch {
+      setErrorMessage("Failed to disconnect Google Ads. Please try again.");
       setTimeout(() => setErrorMessage(null), 3000);
     }
   };
@@ -276,7 +316,7 @@ function SettingsContent() {
                         className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
                       >
                         <FacebookIcon className="h-4 w-4 mr-2" />
-                        Connect Account
+                        {metaAccounts.length > 0 ? "Add Account" : "Connect Account"}
                       </Button>
                     </div>
 
@@ -291,33 +331,157 @@ function SettingsContent() {
                         </div>
                         <p className="text-neutral-400 mb-2">No accounts connected</p>
                         <p className="text-sm text-neutral-500">
-                          Connect your Meta Business account to sync campaigns and view real performance data.
+                          Connect your Meta Business account to let Tara create and manage your Facebook & Instagram campaigns.
                         </p>
                       </div>
                     ) : (
                       <div className="divide-y divide-[#1f1f1f]">
-                        {metaAccounts.map((account) => (
+                        {metaAccounts.map((account) => {
+                          const isExpired = account.status !== "active";
+                          return (
+                            <div key={account.id} className="px-6 py-4 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full bg-[#1f1f1f] flex items-center justify-center">
+                                  <FacebookIcon className="h-5 w-5 text-[#1877F2]" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-white font-medium">
+                                      {account.adAccountName || account.adAccountId}
+                                    </p>
+                                    {isExpired ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+                                        <AlertCircle className="h-3 w-3" />
+                                        Expired
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                                        <CheckCircle className="h-3 w-3" />
+                                        Connected
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-neutral-400">
+                                    <span>{account._count.campaigns} campaigns</span>
+                                    <span>·</span>
+                                    <span>{account.currency}</span>
+                                    {account.lastSyncedAt && (
+                                      <>
+                                        <span>·</span>
+                                        <span>
+                                          Synced {new Date(account.lastSyncedAt).toLocaleDateString()}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                  {isExpired && (
+                                    <p className="text-xs text-red-400 mt-1">
+                                      Reconnect to resume campaign management
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isExpired && (
+                                  <Button
+                                    size="sm"
+                                    onClick={handleConnectMeta}
+                                    className="bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs"
+                                  >
+                                    Reconnect
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSyncMeta(account.id)}
+                                  disabled={syncing}
+                                  className="border-[#2a2a2a] bg-transparent text-neutral-300 hover:bg-[#1f1f1f]"
+                                >
+                                  <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
+                                  Sync
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDisconnectMeta(account.id)}
+                                  disabled={disconnecting}
+                                  className="border-red-500/30 bg-transparent text-red-400 hover:bg-red-500/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Google Ads Integration */}
+                  <div className="bg-[#161616] border border-[#1f1f1f] rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-[#1f1f1f]">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-[#4285F4] flex items-center justify-center">
+                          <GoogleAdsIcon className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-white font-medium">Google Ads</h3>
+                          <p className="text-sm text-neutral-400">Search, Display, and YouTube advertising</p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={handleConnectGoogle}
+                        className="bg-[#4285F4] hover:bg-[#3367D6] text-white"
+                      >
+                        <GoogleAdsIcon className="h-4 w-4 mr-2" />
+                        {googleAccounts.length > 0 ? "Add Account" : "Connect Account"}
+                      </Button>
+                    </div>
+
+                    {googleLoading ? (
+                      <div className="p-8 flex justify-center">
+                        <div className="h-6 w-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : googleAccounts.length === 0 ? (
+                      <div className="p-8 text-center">
+                        <div className="h-12 w-12 rounded-full bg-[#1f1f1f] flex items-center justify-center mx-auto mb-3">
+                          <Link2 className="h-6 w-6 text-neutral-500" />
+                        </div>
+                        <p className="text-neutral-400 mb-2">No accounts connected</p>
+                        <p className="text-sm text-neutral-500">
+                          Connect your Google Ads account to manage search and display campaigns through Tara.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-[#1f1f1f]">
+                        {googleAccounts.map((account) => (
                           <div key={account.id} className="px-6 py-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded-full bg-[#1f1f1f] flex items-center justify-center">
-                                <FacebookIcon className="h-5 w-5 text-[#1877F2]" />
+                                <GoogleAdsIcon className="h-5 w-5 text-[#4285F4]" />
                               </div>
                               <div>
-                                <p className="text-white font-medium">
-                                  {account.adAccountName || account.adAccountId}
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-white font-medium">
+                                    {account.descriptiveName || `Account ${account.customerId}`}
+                                  </p>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                    account.isActive
+                                      ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                                      : "bg-red-500/10 text-red-400 border border-red-500/20"
+                                  }`}>
+                                    {account.isActive ? (
+                                      <><CheckCircle className="h-3 w-3" /> Connected</>
+                                    ) : (
+                                      <><AlertCircle className="h-3 w-3" /> Inactive</>
+                                    )}
+                                  </span>
+                                </div>
                                 <div className="flex items-center gap-2 text-xs text-neutral-400">
+                                  <span>ID: {account.customerId}</span>
+                                  <span>·</span>
                                   <span>{account._count.campaigns} campaigns</span>
-                                  <span>•</span>
-                                  <span>{account.currency}</span>
-                                  {account.lastSyncedAt && (
-                                    <>
-                                      <span>•</span>
-                                      <span>
-                                        Last synced {new Date(account.lastSyncedAt).toLocaleDateString()}
-                                      </span>
-                                    </>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -325,18 +489,8 @@ function SettingsContent() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleSyncMeta(account.id)}
-                                disabled={syncing}
-                                className="border-[#2a2a2a] bg-transparent text-neutral-300 hover:bg-[#1f1f1f]"
-                              >
-                                <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
-                                Sync
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDisconnectMeta(account.id)}
-                                disabled={disconnecting}
+                                onClick={() => handleDisconnectGoogle(account.id)}
+                                disabled={disconnectingGoogle}
                                 className="border-red-500/30 bg-transparent text-red-400 hover:bg-red-500/10"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -353,7 +507,6 @@ function SettingsContent() {
                     <h2 className="text-lg font-medium text-white mb-6">More Integrations</h2>
                     <div className="space-y-4">
                       {[
-                        { name: "Google Ads", description: "Search, Display, and YouTube advertising", available: false },
                         { name: "LinkedIn Ads", description: "B2B and professional advertising", available: false },
                         { name: "TikTok Ads", description: "Short-form video advertising", available: false },
                       ].map((integration) => (

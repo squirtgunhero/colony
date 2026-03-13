@@ -17,6 +17,20 @@ import type {
 } from "./types";
 
 // ============================================
+// Google Ads Types
+// ============================================
+
+interface GoogleAdAccount {
+  id: string;
+  customerId: string;
+  descriptiveName: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count: { campaigns: number };
+}
+
+// ============================================
 // Meta Ads Types
 // ============================================
 
@@ -532,6 +546,69 @@ export function useMetaDisconnect() {
       setDisconnecting(true);
       setError(null);
       const response = await fetch("/api/meta/accounts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId }),
+      });
+      if (!response.ok) throw new Error("Failed to disconnect account");
+      return await response.json();
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to disconnect account"));
+      throw err;
+    } finally {
+      setDisconnecting(false);
+    }
+  }, []);
+
+  return { disconnect, disconnecting, error };
+}
+
+// ============================================
+// Google Ads Hooks
+// ============================================
+
+/**
+ * Hook to fetch Google Ad accounts
+ */
+export function useGoogleAdAccounts(): UseApiState<{ accounts: GoogleAdAccount[] }> {
+  const [data, setData] = useState<{ accounts: GoogleAdAccount[] } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch("/api/google-ads/accounts");
+      if (!response.ok) throw new Error("Failed to fetch Google Ads accounts");
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to fetch Google Ads accounts"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
+}
+
+/**
+ * Hook to disconnect a Google Ad account
+ */
+export function useGoogleAdDisconnect() {
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const disconnect = useCallback(async (accountId: string) => {
+    try {
+      setDisconnecting(true);
+      setError(null);
+      const response = await fetch("/api/google-ads/accounts", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accountId }),

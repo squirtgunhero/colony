@@ -1560,7 +1560,7 @@ const executors: Record<string, ActionExecutor> = {
             action_id: action.action_id,
             action_type: action.type,
             status: "failed" as const,
-            error: "You haven't connected a Facebook ad account yet. Go to Settings to connect one.",
+            error: "To run Facebook/Instagram ads, you'll need to connect your Meta account first. Go to Settings > Integrations > Connect Facebook. Once connected, I can create and manage your campaigns right from here.",
           };
         }
 
@@ -1569,7 +1569,7 @@ const executors: Record<string, ActionExecutor> = {
             action_id: action.action_id,
             action_type: action.type,
             status: "failed" as const,
-            error: "Your Facebook connection has expired. Go to Settings to reconnect.",
+            error: "Your Facebook connection has expired. Go to Settings > Integrations and tap Reconnect, then come back and I'll set up your campaign.",
           };
         }
 
@@ -1844,32 +1844,39 @@ const executors: Record<string, ActionExecutor> = {
       }
 
       case "native": {
-        const campaign = await prisma.honeycombCampaign.create({
-          data: {
-            userId: ctx.user_id,
-            name: campaignName,
-            channel: "native",
-            objective: payload.objective?.toLowerCase() || "leads",
-            dailyBudget,
-            status: "active",
-          },
+        // "native" channel means the user asked generically (e.g. "I need leads").
+        // We need an actual ad platform connected to run real ads.
+        // Check for Meta account first — if connected, create on Meta instead.
+        const nativeMetaAccount = await prisma.metaAdAccount.findFirst({
+          where: { userId: ctx.user_id, status: "active" },
         });
 
-        await recordChange(ctx.run_id, action.action_id, "HoneycombCampaign", campaign.id, "create", null, campaign);
+        if (!nativeMetaAccount) {
+          // No ad platform connected — tell the user to connect one
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "failed" as const,
+            error: "To run Facebook/Instagram ads, you'll need to connect your Meta account first. Go to Settings > Integrations > Connect Facebook. Once connected, I can create and manage your campaigns right from here.",
+          };
+        }
 
-        return {
-          action_id: action.action_id,
-          action_type: action.type,
-          status: "success" as const,
-          data: {
-            channel: "native",
-            campaign_id: campaign.id,
-            name: campaignName,
-            daily_budget: dailyBudget,
-            status: "active",
-            note: "Native campaign created and active. It will serve ads on the Honeycomb Network once you add creatives.",
-          },
-        };
+        if (nativeMetaAccount.tokenExpiresAt && nativeMetaAccount.tokenExpiresAt < new Date()) {
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "failed" as const,
+            error: "Your Facebook connection has expired. Go to Settings > Integrations to reconnect, then I'll set up your campaign.",
+          };
+        }
+
+        // Meta account is connected — redirect to the "meta" channel logic
+        // by re-invoking with channel set to "meta"
+        const metaAction = {
+          ...action,
+          payload: { ...(action.payload as Record<string, unknown>), channel: "meta" },
+        } as Action;
+        return executors["ads.create_campaign"](metaAction, ctx);
       }
 
       case "llm": {

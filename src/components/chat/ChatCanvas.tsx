@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAssistantStore } from "@/lib/assistant/store";
 import { useModeStore } from "@/lib/mode";
 import { useColonyTheme } from "@/lib/chat-theme-context";
@@ -41,6 +42,7 @@ function formatPipeline(value: number): string {
 export function ChatCanvas() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
 
   const {
     messages,
@@ -50,6 +52,7 @@ export function ChatCanvas() {
     cancelAction,
     isListening,
     loadHistory,
+    addMessage,
   } = useAssistantStore();
 
   const { activeChips, clearChips } = useModeStore();
@@ -82,6 +85,33 @@ export function ChatCanvas() {
 
     loadHistory();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Detect post-OAuth connection redirects and show a welcome message
+  useEffect(() => {
+    const metaConnected = searchParams.get("meta_connected");
+    const googleConnected = searchParams.get("google_connected");
+
+    if (metaConnected === "true") {
+      addMessage({
+        id: `system-meta-connected-${Date.now()}`,
+        role: "assistant",
+        content: "Facebook Ads connected! You can now tell me to run ads anytime — just say something like \"I need seller leads\" or \"run a Facebook ad\" and I'll handle the rest.",
+        timestamp: new Date(),
+      });
+      // Clean up the URL params without a full page reload
+      window.history.replaceState({}, "", "/chat");
+    }
+
+    if (googleConnected === "true") {
+      addMessage({
+        id: `system-google-connected-${Date.now()}`,
+        role: "assistant",
+        content: "Google Ads connected! I can now help you manage your Google campaigns — analyze keywords, pause/resume campaigns, add negative keywords, and adjust budgets.",
+        timestamp: new Date(),
+      });
+      window.history.replaceState({}, "", "/chat");
+    }
+  }, [searchParams, addMessage]);
 
   useEffect(() => {
     if (messagesEndRef.current) {

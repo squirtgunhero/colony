@@ -97,11 +97,10 @@ export async function GET(request: NextRequest) {
     // Clear the OAuth state cookie
     cookieStore.delete("meta_oauth_state");
 
-    // Redirect back to settings with success message
+    // Redirect to the chat page with meta_connected flag so Tara can greet the user
     const accountCount = adAccountsResponse.data.length;
-    return NextResponse.redirect(
-      `${redirectBase}?success=meta_connected&accounts=${accountCount}`
-    );
+    const chatUrl = `${process.env.NEXT_PUBLIC_APP_URL}/chat?meta_connected=true&accounts=${accountCount}`;
+    return NextResponse.redirect(chatUrl);
   } catch (error) {
     console.error("Meta OAuth callback error:", error);
     return NextResponse.redirect(`${redirectBase}?error=connection_failed`);
