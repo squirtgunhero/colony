@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const redirectBase = `${process.env.NEXT_PUBLIC_APP_URL}/honeycomb/settings`;
+  const redirectBase = `${process.env.NEXT_PUBLIC_APP_URL}/settings`;
 
   // Handle OAuth errors
   if (error) {
@@ -97,10 +97,9 @@ export async function GET(request: NextRequest) {
     // Clear the OAuth state cookie
     cookieStore.delete("meta_oauth_state");
 
-    // Redirect to the chat page with meta_connected flag so Tara can greet the user
+    // Redirect back to settings with success flag
     const accountCount = adAccountsResponse.data.length;
-    const chatUrl = `${process.env.NEXT_PUBLIC_APP_URL}/chat?meta_connected=true&accounts=${accountCount}`;
-    return NextResponse.redirect(chatUrl);
+    return NextResponse.redirect(`${redirectBase}?meta_connected=true&accounts=${accountCount}`);
   } catch (error) {
     console.error("Meta OAuth callback error:", error);
     return NextResponse.redirect(`${redirectBase}?error=connection_failed`);

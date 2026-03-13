@@ -22,6 +22,7 @@ import {
   Download,
   Trash2,
   Sparkles,
+  Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -81,6 +82,41 @@ export function SettingsContent() {
     quietStart?: string | null;
     quietEnd?: string | null;
   } | null>(null);
+
+  // Integrations state
+  const [integrations, setIntegrations] = useState<{
+    meta: { connected: boolean; accountName?: string; status?: string; expiresAt?: string } | null;
+    google: { connected: boolean; accountName?: string; customerId?: string } | null;
+  }>({ meta: null, google: null });
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/integrations")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setIntegrations(data); })
+      .catch(() => {});
+  }, []);
+
+  const handleDisconnect = async (provider: "meta" | "google") => {
+    setDisconnecting(provider);
+    try {
+      const res = await fetch("/api/settings/integrations", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      if (res.ok) {
+        setIntegrations((prev) => ({
+          ...prev,
+          [provider]: { connected: false },
+        }));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setDisconnecting(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/settings/autopilot")
@@ -231,6 +267,115 @@ export function SettingsContent() {
                 </button>
               );
             })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Integrations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plug className="h-5 w-5" />
+            Integrations
+          </CardTitle>
+          <CardDescription>
+            Connect your ad accounts to run campaigns through Tara.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Facebook / Meta Ads */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
+                <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Facebook Ads</p>
+                {integrations.meta?.connected ? (
+                  <p className="text-xs text-muted-foreground">{integrations.meta.accountName}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Run ads on Facebook & Instagram</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {integrations.meta?.connected ? (
+                <>
+                  {integrations.meta.status === "expired" ? (
+                    <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                      Expired
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                      Connected
+                    </span>
+                  )}
+                  {integrations.meta.status === "expired" ? (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href="/api/meta/auth">Reconnect</a>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDisconnect("meta")}
+                      disabled={disconnecting === "meta"}
+                    >
+                      {disconnecting === "meta" ? "..." : "Disconnect"}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <Button variant="outline" size="sm" asChild>
+                  <a href="/api/meta/auth">Connect</a>
+                </Button>
+              )}
+            </div>
+          </div>
+          <Separator />
+          {/* Google Ads */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10">
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                  <path d="M15.634 0l-8.27 14.316 4.137 7.163L19.77 7.163z" fill="#FBBC04" />
+                  <path d="M15.634 0L7.364 14.316l-4.137-7.163L11.497 0z" fill="#4285F4" />
+                  <path d="M3.227 7.153L7.364 14.316 3.227 21.479A4.136 4.136 0 010 17.616V10.99a4.136 4.136 0 013.227-3.837z" fill="#34A853" />
+                  <path d="M19.77 7.163L15.634 14.326l4.137 7.163A4.136 4.136 0 0024 17.626V10.99a4.136 4.136 0 00-4.23-3.827z" fill="#EA4335" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Google Ads</p>
+                {integrations.google?.connected ? (
+                  <p className="text-xs text-muted-foreground">{integrations.google.accountName}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Run ads on Google Search & Display</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {integrations.google?.connected ? (
+                <>
+                  <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                    Connected
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDisconnect("google")}
+                    disabled={disconnecting === "google"}
+                  >
+                    {disconnecting === "google" ? "..." : "Disconnect"}
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" asChild>
+                  <a href="/api/google-ads/auth">Connect</a>
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

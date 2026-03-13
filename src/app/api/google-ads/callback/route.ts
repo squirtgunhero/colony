@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  const redirectBase = `${process.env.NEXT_PUBLIC_APP_URL}/honeycomb/settings`;
+  const redirectBase = `${process.env.NEXT_PUBLIC_APP_URL}/settings`;
 
   if (error) {
     console.error("Google Ads OAuth error:", error);
@@ -132,9 +132,8 @@ export async function GET(request: NextRequest) {
     // Clear the OAuth state cookie
     cookieStore.delete("google_ads_oauth_state");
 
-    // Redirect to chat page with google_connected flag so Tara can greet the user
-    const chatUrl = `${process.env.NEXT_PUBLIC_APP_URL}/chat?google_connected=true&accounts=${accountCount}`;
-    return NextResponse.redirect(chatUrl);
+    // Redirect back to settings with success flag
+    return NextResponse.redirect(`${redirectBase}?google_connected=true&accounts=${accountCount}`);
   } catch (error) {
     console.error("Google Ads OAuth callback error:", error);
     return NextResponse.redirect(`${redirectBase}?error=google_connection_failed`);

@@ -51,7 +51,7 @@ export async function GET() {
   } catch (error) {
     console.error("Google Ads OAuth init error:", error);
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/honeycomb/settings?error=google_auth_failed`
+      `${process.env.NEXT_PUBLIC_APP_URL}/settings?error=google_auth_failed`
     );
   }
 }
