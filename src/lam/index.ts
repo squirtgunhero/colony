@@ -76,24 +76,32 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
   // ── Honeycomb guardrail: intercept ads actions before execution ──
   const adsCampaignAction = plan.actions.find(a => a.type === "ads.create_campaign");
   if (adsCampaignAction) {
-    const adsPayload = adsCampaignAction.payload as Record<string, unknown>;
-    const hasBudget = adsPayload.daily_budget && Number(adsPayload.daily_budget) > 0;
-    const hasTargeting = adsPayload.service_area || (Array.isArray(adsPayload.keywords) && adsPayload.keywords.length > 0);
-
     // Check for connected Meta account BEFORE execution
     const metaAccount = await prisma.metaAdAccount.findFirst({
       where: { userId: input.user_id, status: "active" },
     });
-
     if (!metaAccount) {
       plan.actions = [];
       plan.follow_up_question = "To run ads, I need access to your Facebook Ads account. Head to Settings and tap Connect Facebook under Integrations — it takes about 30 seconds. Once you're connected, come back and I'll build your campaign.";
       plan.user_summary = plan.follow_up_question;
-    } else if (!hasBudget || !hasTargeting) {
-      plan.actions = [];
-      plan.follow_up_question = plan.follow_up_question ||
-        "I can set up a Facebook/Instagram campaign for you. Before I create anything:\n\n1. What's your daily budget? ($10, $15, $25, or custom?)\n2. What area should I target — just your city, or a wider radius?\n\nOnce I have that, I'll build the campaign and show you a preview before anything goes live.";
-      plan.user_summary = plan.follow_up_question;
+    }
+    // Only block execution on the FIRST message (no conversation context).
+    // If the user has already answered follow-up questions (message contains
+    // prior conversation context), trust the planner's output.
+    else if (!input.message.includes("Previous conversation:") && !input.message.includes("User response:")) {
+      const adsPayload = adsCampaignAction.payload as Record<string, unknown>;
+      const hasBudget = adsPayload.daily_budget && Number(adsPayload.daily_budget) > 0;
+      // Check multiple fields for location/targeting info
+      const hasTargeting = adsPayload.service_area ||
+        adsPayload.description ||
+        (adsPayload.name && String(adsPayload.name).length > 20) ||
+        (Array.isArray(adsPayload.keywords) && adsPayload.keywords.length > 0);
+      if (!hasBudget && !hasTargeting) {
+        plan.actions = [];
+        plan.follow_up_question =
+          "I can set up a Facebook/Instagram campaign for you. Before I create anything:\n\n1. What's your daily budget? ($10, $15, $25, or custom?)\n2. What area should I target — just your city, or a wider radius?\n\nOnce I have that, I'll build the campaign and show you a preview before anything goes live.";
+        plan.user_summary = plan.follow_up_question;
+      }
     }
   }
 
