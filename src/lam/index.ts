@@ -13,6 +13,7 @@ export * from "./audit";
 export * from "./undo";
 export * from "./rateLimit";
 
+import { prisma } from "@/lib/prisma";
 import { planFromMessage, type PlannerInput } from "./planner";
 import { executePlan, type ExecutionContext } from "./runtime";
 import { verify } from "./verifier";
@@ -71,6 +72,30 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
   }
 
   const plan = planResult.plan;
+
+  // ── Honeycomb guardrail: intercept ads actions before execution ──
+  const adsCampaignAction = plan.actions.find(a => a.type === "ads.create_campaign");
+  if (adsCampaignAction) {
+    const adsPayload = adsCampaignAction.payload as Record<string, unknown>;
+    const hasBudget = adsPayload.daily_budget && Number(adsPayload.daily_budget) > 0;
+    const hasTargeting = adsPayload.service_area || (Array.isArray(adsPayload.keywords) && adsPayload.keywords.length > 0);
+
+    // Check for connected Meta account BEFORE execution
+    const metaAccount = await prisma.metaAdAccount.findFirst({
+      where: { userId: input.user_id, status: "active" },
+    });
+
+    if (!metaAccount) {
+      plan.actions = [];
+      plan.follow_up_question = "To run ads, I need access to your Facebook Ads account. Head to Settings and tap Connect Facebook under Integrations — it takes about 30 seconds. Once you're connected, come back and I'll build your campaign.";
+      plan.user_summary = plan.follow_up_question;
+    } else if (!hasBudget || !hasTargeting) {
+      plan.actions = [];
+      plan.follow_up_question = plan.follow_up_question ||
+        "I can set up a Facebook/Instagram campaign for you. Before I create anything:\n\n1. What's your daily budget? ($10, $15, $25, or custom?)\n2. What area should I target — just your city, or a wider radius?\n\nOnce I have that, I'll build the campaign and show you a preview before anything goes live.";
+      plan.user_summary = plan.follow_up_question;
+    }
+  }
 
   // Step 2: Record the run
   const runId = await recordRun({
@@ -196,7 +221,11 @@ async function summarizeResults(
       .filter((r) => r.status === "failed")
       .map((r) => r.error)
       .filter(Boolean);
-    return `I ran into a problem: ${errors.join("; ") || "something went wrong"}. Want to try again?`;
+    if (errors.length === 1) {
+      // Single error — return it directly (it's already user-friendly)
+      return errors[0]!;
+    }
+    return errors.join("\n\n") || "Something went wrong. Want to try again?";
   }
 
   // If only approval-required actions, no data to summarize
