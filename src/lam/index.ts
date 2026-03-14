@@ -74,59 +74,42 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
   const plan = planResult.plan;
 
   // ── HARD OVERRIDE: Prevent lead.create from hijacking ad requests ──
-  // If the user's original message mentions generating leads, running ads,
-  // or getting business, and the planner routed to lead.create, that's WRONG.
-  // Strip the lead.create action entirely.
-  const originalMessage = input.message.toLowerCase();
+  const currentMessage = input.message.split("New message: ").pop()?.toLowerCase() || input.message.toLowerCase();
   const isAdRequest =
-    originalMessage.includes("generate") ||
-    originalMessage.includes("i need leads") ||
-    originalMessage.includes("i need seller") ||
-    originalMessage.includes("i need buyer") ||
-    originalMessage.includes("run ads") ||
-    originalMessage.includes("run some ads") ||
-    originalMessage.includes("advertise") ||
-    originalMessage.includes("get me leads") ||
-    originalMessage.includes("lead generation") ||
-    originalMessage.includes("get me more") ||
-    originalMessage.includes("need new clients") ||
-    originalMessage.includes("need more business");
+    currentMessage.includes("generate") ||
+    currentMessage.includes("i need leads") ||
+    currentMessage.includes("i need seller") ||
+    currentMessage.includes("i need buyer") ||
+    currentMessage.includes("run ads") ||
+    currentMessage.includes("advertise") ||
+    currentMessage.includes("get me leads") ||
+    currentMessage.includes("lead generation");
   if (isAdRequest) {
-    // Remove any lead.create actions — these are misrouted ad requests
     plan.actions = plan.actions.filter(a => a.type !== "lead.create");
-
-    // If we stripped all actions and there's no ads action left, check Meta account
-    const hasAdsAction = plan.actions.some(a => a.type.startsWith("ads."));
-
-    if (!hasAdsAction && plan.actions.length === 0) {
-      // Check for Meta account
-      const metaAccount = await prisma.metaAdAccount.findFirst({
-        where: { userId: input.user_id, status: "active" },
-      });
-      if (!metaAccount) {
-        plan.follow_up_question = "To run ads and generate leads, I need access to your Facebook Ads account first. Head to Settings and tap Connect Facebook under Integrations — it takes about 30 seconds. Once connected, come back and I'll build your campaign.";
-        plan.user_summary = plan.follow_up_question;
-      } else {
-        // Has Meta account but planner didn't create an ads action —
-        // this means the planner is confused. Don't create anything,
-        // just ask for what we need.
-        if (!plan.follow_up_question) {
-          plan.follow_up_question = "I can set up a Facebook/Instagram campaign for you. What's your daily budget and what area should I target?";
-          plan.user_summary = plan.follow_up_question;
-        }
-      }
-    }
   }
-  // ── Honeycomb guardrail: check Meta account for any ads actions ──
-  if (plan.actions.some(a => a.type.startsWith("ads."))) {
+
+  // ── Honeycomb guardrail: require Meta account for ads actions ──
+  const hasAdsActions = plan.actions.some(a => a.type.startsWith("ads."));
+  if (hasAdsActions) {
     const metaAccount = await prisma.metaAdAccount.findFirst({
       where: { userId: input.user_id, status: "active" },
     });
     if (!metaAccount) {
+      // Strip ads actions and tell user to connect
       plan.actions = plan.actions.filter(a => !a.type.startsWith("ads."));
-      plan.follow_up_question = "To run ads, I need access to your Facebook Ads account. Head to Settings and tap Connect Facebook under Integrations. Once connected, come back and I'll build your campaign.";
-      plan.user_summary = plan.follow_up_question;
+      if (!plan.follow_up_question) {
+        plan.follow_up_question = "To run ads, I need access to your Facebook Ads account. Head to Settings and tap Connect Facebook under Integrations — it takes about 30 seconds. Once connected, just say 'I need leads' again and I'll set everything up.";
+        plan.user_summary = plan.follow_up_question;
+      }
     }
+  }
+
+  // ── First-time ad request without details: ask for budget/area ──
+  // Only trigger on the CURRENT message (not conversation history)
+  // and only if there are NO actions at all (planner didn't create anything useful)
+  if (isAdRequest && plan.actions.length === 0 && !plan.follow_up_question) {
+    plan.follow_up_question = "I can set up a Facebook/Instagram campaign for you. Before I create anything:\n\n1. What's your daily budget? ($10, $15, $25, or custom?)\n2. What area should I target — just your city, or a wider radius?\n\nOnce I have that, I'll build the campaign and show you a preview before anything goes live.";
+    plan.user_summary = plan.follow_up_question;
   }
 
   // Step 2: Record the run
