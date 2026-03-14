@@ -224,6 +224,9 @@ class MetaApiClient {
       body.set("special_ad_category_country", JSON.stringify(["US"]));
     }
 
+    // Required by Meta API — must specify budget sharing when not using campaign budget
+    body.set("is_adset_budget_sharing_enabled", "false");
+
     console.log("[META API] createCampaign:", {
       endpoint: `/${adAccountId}/campaigns`,
       params: Object.fromEntries(body.entries()),
