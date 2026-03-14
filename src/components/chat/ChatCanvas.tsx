@@ -246,6 +246,27 @@ export function ChatCanvas() {
         {/* Messages */}
         {hasMessages && (
           <div className="space-y-6 mt-auto">
+            <button
+              onClick={async () => {
+                useAssistantStore.getState().clearMessages();
+                await fetch("/api/chat/history", { method: "DELETE" });
+              }}
+              style={{
+                position: "sticky",
+                top: 8,
+                float: "right",
+                padding: "4px 12px",
+                borderRadius: 20,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: theme.textMuted,
+                fontSize: 11,
+                cursor: "pointer",
+                zIndex: 10,
+              }}
+            >
+              Clear chat
+            </button>
             {messages.map((message, index) => (
               <div
                 key={message.id}

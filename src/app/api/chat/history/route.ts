@@ -2,6 +2,39 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
+export async function DELETE() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Find all web conversations for this user
+  const convos = await prisma.conversation.findMany({
+    where: { profileId: user.id, channel: "web" },
+    select: { id: true },
+  });
+
+  const convIds = convos.map((c) => c.id);
+
+  if (convIds.length > 0) {
+    // Delete messages first (cascade would handle it, but be explicit)
+    await prisma.conversationMessage.deleteMany({
+      where: { convId: { in: convIds } },
+    });
+
+    // Delete the conversations themselves
+    await prisma.conversation.deleteMany({
+      where: { id: { in: convIds } },
+    });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
 export async function GET() {
   const supabase = await createClient();
   const {
