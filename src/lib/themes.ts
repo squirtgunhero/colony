@@ -60,39 +60,19 @@ function buildTheme(input: ThemeInput): ColonyTheme {
   };
 }
 
-export const THEMES: ColonyTheme[] = [
-  buildTheme({
-    id: "samantha", name: "Samantha",
-    bg: "#1E1614", bgGlow: "#2A201C", accent: "#C8102E", text: "#F0E6D8",
-  }),
-  buildTheme({
-    id: "theodore", name: "Theodore",
-    bg: "#1C1A14", bgGlow: "#28261E", accent: "#C49A2A", text: "#F0EAD8",
-  }),
-  buildTheme({
-    id: "sunset", name: "Sunset",
-    bg: "#1E1416", bgGlow: "#2A1E22", accent: "#E8927C", text: "#F0E0D8",
-  }),
-  buildTheme({
-    id: "garden", name: "Garden",
-    bg: "#161A14", bgGlow: "#222A1E", accent: "#7A8A45", text: "#E4F0D8",
-  }),
-  buildTheme({
-    id: "letter", name: "Letter",
-    bg: "#1A1814", bgGlow: "#26241E", accent: "#B8864A", text: "#F0E8D8",
-  }),
-  buildTheme({
-    id: "noir", name: "Noir",
-    bg: "#181818", bgGlow: "#222222", accent: "#A0A0A0", text: "#E8E8E8",
-  }),
-];
+export const COLONY_THEME: ColonyTheme = buildTheme({
+  id: "colony", name: "Colony",
+  bg: "#151518", bgGlow: "#1E1E22", accent: "#C8A864", text: "#F5F0E6",
+});
 
-export const THEME_MAP = new Map(THEMES.map((t) => [t.id, t]));
+export const THEMES: ColonyTheme[] = [COLONY_THEME];
 
-export const DEFAULT_THEME_ID = "samantha";
+export const THEME_MAP = new Map([["colony", COLONY_THEME]]);
 
-export function getTheme(id: string): ColonyTheme {
-  return THEME_MAP.get(id) ?? THEMES[0];
+export const DEFAULT_THEME_ID = "colony";
+
+export function getTheme(_id: string): ColonyTheme {
+  return COLONY_THEME;
 }
 
 const STORAGE_KEY = "colony-chat-theme";

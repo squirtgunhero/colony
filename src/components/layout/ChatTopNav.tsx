@@ -8,7 +8,6 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { useColonyTheme } from "@/lib/chat-theme-context";
-import { ThemePicker } from "@/components/chat/ThemePicker";
 
 const mobileNavItems = [
   { label: "Home", href: "/chat" },
@@ -129,9 +128,8 @@ export function ChatTopNav() {
         Colony
       </span>
 
-      {/* Right: Theme picker + User */}
+      {/* Right: User */}
       <div className="flex items-center gap-2" suppressHydrationWarning>
-        <ThemePicker />
         {mounted && <UserMenu />}
       </div>
     </header>
