@@ -145,7 +145,18 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
             area = currentMessage.trim();
           }
 
-          const leadType = fullMessage.includes("buyer") ? "buyer" : "seller";
+          // Check current message first, then fall back to conversation context
+          // Default to "seller" since that's the most common for real estate
+          let leadType = "seller";
+          if (currentMessage.includes("buyer") && !currentMessage.includes("seller")) {
+            leadType = "buyer";
+          } else if (currentMessage.includes("both")) {
+            leadType = "buyer and seller";
+          } else if (fullMessage.includes("seller lead")) {
+            leadType = "seller";
+          } else if (fullMessage.includes("buyer lead")) {
+            leadType = "buyer";
+          }
 
           plan.actions = [{
             action_id: randomUUID(),
