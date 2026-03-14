@@ -286,6 +286,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         isExecuted: data.execution_result?.status === "completed",
         canUndo: data.response.can_undo,
         runId: data.run_id,
+        actionCards: data.plan?.action_cards || [],
       });
 
       // Handle UI sentinel: open the import panel when Tara triggers contacts.import

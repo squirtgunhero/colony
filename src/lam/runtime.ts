@@ -1511,6 +1511,29 @@ const executors: Record<string, ActionExecutor> = {
         };
       });
 
+    // Build performance card data from available campaigns
+    const perfCampaigns = [
+      ...((metaData?.campaigns || []) as Record<string, unknown>[]).map((c) => ({
+        name: String(c.name || "Unknown"),
+        spend: Number(c.spend || 0),
+        leads: Number(c.conversions || 0),
+        cpl: Number(c.conversions || 0) > 0 ? Number(c.spend || 0) / Number(c.conversions || 0) : null,
+        status: String(c.status || "UNKNOWN"),
+        flags: [] as string[],
+      })),
+      ...nativeAndLocalCampaigns.map((c) => ({
+        name: c.name,
+        spend: 0,
+        leads: c.conversions,
+        cpl: null,
+        status: c.status,
+        flags: [] as string[],
+      })),
+    ];
+
+    const checkTotalSpend = perfCampaigns.reduce((s, c) => s + c.spend, 0);
+    const checkTotalLeads = perfCampaigns.reduce((s, c) => s + c.leads, 0);
+
     return {
       action_id: action.action_id,
       action_type: action.type,
@@ -1524,6 +1547,17 @@ const executors: Record<string, ActionExecutor> = {
           clicks: l.clicks,
           service_area: l.serviceArea,
         })),
+        __action_card: {
+          type: "performance_report",
+          data: {
+            campaigns: perfCampaigns,
+            total_spend: Math.round(checkTotalSpend * 100) / 100,
+            total_leads: checkTotalLeads,
+            avg_cpl: checkTotalLeads > 0 ? Math.round((checkTotalSpend / checkTotalLeads) * 100) / 100 : null,
+            waste_total: 0,
+            date_range: "7d",
+          },
+        },
       },
     };
   },
@@ -1561,6 +1595,12 @@ const executors: Record<string, ActionExecutor> = {
             action_type: action.type,
             status: "failed" as const,
             error: "To run Facebook/Instagram ads, you'll need to connect your Meta account first. Go to Settings > Integrations > Connect Facebook. Once connected, I can create and manage your campaigns right from here.",
+            data: {
+              __action_card: {
+                type: "connect_required",
+                data: { provider: "meta" },
+              },
+            },
           };
         }
 
@@ -1830,6 +1870,19 @@ const executors: Record<string, ActionExecutor> = {
               has_image: !!imageHash,
               ads_manager_url: adsManagerUrl,
               note: `Your campaign is ready! Budget: $${dailyBudget}/day targeting the ${userCity} area. Headline: "${adCopy.headline}". It's paused until you approve. Want me to take it live?`,
+              __action_card: {
+                type: "campaign_created",
+                data: {
+                  name: campaignName,
+                  budget: dailyBudget,
+                  area: userCity || payload.service_area || "your area",
+                  objective: userObjective || "LEADS",
+                  status: "PAUSED",
+                  headline: adCopy?.headline || null,
+                  description: adCopy?.description || null,
+                  ads_manager_url: adsManagerUrl || null,
+                },
+              },
             },
           };
         } catch (error) {
@@ -2572,6 +2625,24 @@ const executors: Record<string, ActionExecutor> = {
           top_performer: topPerformer ? { name: topPerformer.name, cpl: Math.round(topPerformer.cpl * 100) / 100, platform: topPerformer.platform } : null,
           platform_breakdown: platformTotals,
           campaigns: analyses,
+          __action_card: {
+            type: "performance_report",
+            data: {
+              campaigns: analyses.map((a) => ({
+                name: a.campaign_name,
+                spend: a.spend,
+                leads: a.leads,
+                cpl: a.cost_per_lead,
+                status: a.status,
+                flags: a.flags,
+              })),
+              total_spend: Math.round(totalSpend * 100) / 100,
+              total_leads: totalLeads,
+              avg_cpl: averageCPL > 0 ? Math.round(averageCPL * 100) / 100 : null,
+              waste_total: Math.round(wasteTotal * 100) / 100,
+              date_range: dateRange,
+            },
+          },
         },
       };
     } catch (error) {

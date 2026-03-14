@@ -4,19 +4,15 @@ import { useState, useEffect } from "react";
 import {
   CheckCircle2,
   XCircle,
-  Clock,
   Undo2,
-  ChevronDown,
-  ChevronUp,
-  Shield,
-  Zap,
 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
-import type { AssistantMessage, PendingAction, LamAction, WelcomeChip } from "@/lib/assistant/types";
-import { getActionTypeLabel, getRiskTierColor } from "@/lib/assistant/types";
+import type { AssistantMessage, PendingAction, WelcomeChip } from "@/lib/assistant/types";
 import { ActionPreviewCard } from "@/components/assistant/ActionPreviewCard";
 import { isMutationAction } from "@/lib/assistant/actions";
 import { useAssistantStore } from "@/lib/assistant/store";
+import { ActionCard } from "./ActionCard";
+import { withAlpha } from "@/lib/themes";
 
 interface ChatMessageBubbleProps {
   message: AssistantMessage;
@@ -36,7 +32,7 @@ export function ChatMessageBubble({
   const { setInput, sendToLam, undoLastRun, approveRun, canUndo, lastRunId } =
     useAssistantStore();
   const [formattedTime, setFormattedTime] = useState<string>("");
-  const [showDetails, setShowDetails] = useState(false);
+  const [showUndo, setShowUndo] = useState(true);
 
   const lamResponse = message.lamResponse;
   const hasExecution = lamResponse?.execution_result;
@@ -47,6 +43,9 @@ export function ChatMessageBubble({
   const messageCanUndo =
     message.canUndo && message.runId === lastRunId && canUndo;
 
+  const actionCards = message.actionCards || [];
+  const hasActionCards = actionCards.length > 0;
+
   useEffect(() => {
     setFormattedTime(
       message.timestamp.toLocaleTimeString([], {
@@ -55,6 +54,15 @@ export function ChatMessageBubble({
       })
     );
   }, [message.timestamp]);
+
+  // Fade out undo after 30 seconds
+  useEffect(() => {
+    if (messageCanUndo) {
+      setShowUndo(true);
+      const timer = setTimeout(() => setShowUndo(false), 30000);
+      return () => clearTimeout(timer);
+    }
+  }, [messageCanUndo]);
 
   const handleFollowupClick = (followup: string) => {
     setInput(followup);
@@ -117,6 +125,13 @@ export function ChatMessageBubble({
             <span key={i}>{part}</span>
           )
         )}
+        {/* Inline success indicator when no action cards and execution succeeded */}
+        {lamResponse && hasExecution && !hasActionCards && isExecuted && !hasFailed && !needsApproval && (
+          <CheckCircle2
+            className="inline-block h-4 w-4 ml-1.5 -mt-0.5"
+            style={{ color: withAlpha(theme.accent, 0.6) }}
+          />
+        )}
       </div>
 
       {/* Welcome Chips */}
@@ -144,117 +159,44 @@ export function ChatMessageBubble({
         </div>
       )}
 
-      {/* LAM Execution Status */}
-      {lamResponse && hasExecution && (
+      {/* Action Cards */}
+      {hasActionCards && (
         <div>
-          <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-            style={{
-              backgroundColor: isExecuted && !hasFailed
-                ? "rgba(74, 222, 128, 0.1)"
-                : hasFailed
-                  ? "rgba(239, 68, 68, 0.1)"
-                  : "rgba(251, 146, 60, 0.1)",
-              color: isExecuted && !hasFailed
-                ? "#4ade80"
-                : hasFailed
-                  ? "#ef4444"
-                  : "#fb923c",
-            }}
-          >
-            {isExecuted && !hasFailed && (
-              <>
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Executed</span>
-              </>
-            )}
-            {hasFailed && (
-              <>
-                <XCircle className="h-3.5 w-3.5" />
-                <span>Partially Failed</span>
-              </>
-            )}
-            {needsApproval && (
-              <>
-                <Clock className="h-3.5 w-3.5" />
-                <span>Awaiting Approval</span>
-              </>
-            )}
-          </div>
-
-          {lamResponse.plan?.actions && lamResponse.plan.actions.length > 0 && (
-            <div className="mt-2">
-              <button
-                onClick={() => setShowDetails(!showDetails)}
-                className="flex items-center gap-1 text-xs transition-colors"
-                style={{ color: theme.textMuted }}
-              >
-                {showDetails ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                )}
-                <span>{lamResponse.plan.actions.length} action(s)</span>
-              </button>
-
-              {showDetails && (
-                <div className="mt-2 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {lamResponse.plan.actions.map(
-                    (action: LamAction, index: number) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
-                        style={{ backgroundColor: theme.surface }}
-                      >
-                        <Zap
-                          className="h-3.5 w-3.5"
-                          style={{ color: getRiskTierColor(action.risk_tier) }}
-                        />
-                        <span className="font-medium" style={{ color: theme.textSoft }}>
-                          {getActionTypeLabel(action.type)}
-                        </span>
-                        {action.requires_approval && (
-                          <span className="flex items-center gap-1 text-orange-500">
-                            <Shield className="h-3 w-3" />
-                            Approval
-                          </span>
-                        )}
-                      </div>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {needsApproval && message.runId && (
-            <button
-              onClick={handleApprove}
-              className="mt-2 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                backgroundColor: theme.accent,
-                color: theme.bg,
-              }}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Approve & Execute
-            </button>
-          )}
-
-          {messageCanUndo && (
-            <button
-              onClick={undoLastRun}
-              className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                backgroundColor: theme.accentGlow,
-                color: theme.accent,
-              }}
-            >
-              <Undo2 className="h-3.5 w-3.5" />
-              Undo
-            </button>
-          )}
+          {actionCards.map((card, index) => (
+            <ActionCard key={index} card={card} />
+          ))}
         </div>
+      )}
+
+      {/* Error message — when no action cards and execution failed */}
+      {lamResponse && hasExecution && !hasActionCards && hasFailed && (
+        <div
+          className="text-[13px]"
+          style={{
+            padding: "10px 14px",
+            borderRadius: 12,
+            backgroundColor: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.15)",
+            color: "#EF4444",
+          }}
+        >
+          {hasExecution.user_summary || "Something went wrong. Please try again."}
+        </div>
+      )}
+
+      {/* Approval button */}
+      {needsApproval && message.runId && (
+        <button
+          onClick={handleApprove}
+          className="mt-1 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: theme.accent,
+            color: theme.bg,
+          }}
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Approve & Execute
+        </button>
       )}
 
       {/* Legacy Action Preview Cards */}
@@ -280,6 +222,40 @@ export function ChatMessageBubble({
         </div>
       )}
 
+      {/* Smart Chips for follow-up questions about ads */}
+      {lamResponse?.response?.follow_up_question && (() => {
+        const fq = lamResponse.response.follow_up_question.toLowerCase();
+        const isBudget = fq.includes("budget") || fq.includes("daily budget") || fq.includes("spend");
+        const isLeadType = fq.includes("seller") || fq.includes("buyer") || fq.includes("type of lead");
+        const chips = isBudget
+          ? ["$10/day", "$15/day", "$25/day", "Custom"]
+          : isLeadType
+            ? ["Seller leads", "Buyer leads", "Both"]
+            : null;
+        if (!chips) return null;
+        return (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {chips.map((chip) => (
+              <button
+                key={chip}
+                onClick={() => { setInput(chip); sendToLam(chip); }}
+                className="text-[13px] font-medium transition-all duration-150 hover:brightness-110 active:scale-[0.97]"
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 24,
+                  backgroundColor: theme.accentGlow,
+                  border: `1px solid ${theme.accentSoft}`,
+                  color: theme.accent,
+                  fontFamily: "var(--font-dm-sans), sans-serif",
+                }}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Follow-up Suggestions */}
       {message.followups && message.followups.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-1">
@@ -287,7 +263,7 @@ export function ChatMessageBubble({
             <button
               key={index}
               onClick={() => handleFollowupClick(followup)}
-              className="text-xs px-2.5 py-1 rounded-full transition-colors duration-150"
+              className="text-[13px] px-3.5 py-2 rounded-[20px] transition-all duration-150 active:scale-[0.97]"
               style={{
                 color: theme.textMuted,
                 backgroundColor: theme.surface,
@@ -300,13 +276,30 @@ export function ChatMessageBubble({
         </div>
       )}
 
-      {/* Timestamp */}
-      <span
-        className="text-[10px]"
-        style={{ color: theme.textMuted, opacity: 0.6 }}
-      >
-        {formattedTime}
-      </span>
+      {/* Timestamp + Undo */}
+      <div className="flex items-center justify-between">
+        <span
+          className="text-[10px]"
+          style={{ color: theme.textMuted, opacity: 0.6 }}
+        >
+          {formattedTime}
+        </span>
+
+        {messageCanUndo && showUndo && (
+          <button
+            onClick={undoLastRun}
+            className="flex items-center gap-1 text-xs transition-opacity duration-500"
+            style={{
+              color: theme.textMuted,
+              fontSize: 12,
+              opacity: showUndo ? 1 : 0,
+            }}
+          >
+            <Undo2 className="h-3 w-3" />
+            Undo
+          </button>
+        )}
+      </div>
     </div>
   );
 }

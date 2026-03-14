@@ -51,6 +51,7 @@ export interface LamPlan {
   actions: LamAction[];
   user_summary: string;
   follow_up_question: string | null;
+  action_cards?: Array<{ type: string; data: Record<string, unknown> }>;
 }
 
 export interface LamResponse {
@@ -92,6 +93,8 @@ export interface AssistantMessage {
   runId?: string;
   // Welcome message chips
   chips?: WelcomeChip[];
+  actionCards?: Array<{ type: string; data: Record<string, unknown> }>;
+
 }
 
 export interface PendingAction {
@@ -190,6 +193,21 @@ export function getActionTypeLabel(type: string): string {
     "crm.search": "Search",
     "email.send": "Send Email",
     "sms.send": "Send SMS",
+    "ads.create_campaign": "Create Ad Campaign",
+    "ads.check_performance": "Check Ad Performance",
+    "ads.analyze_performance": "Analyze Ads",
+    "ads.suggest_optimizations": "Optimize Ads",
+    "ads.apply_optimization": "Apply Optimization",
+    "ads.pause_campaign": "Pause Campaign",
+    "ads.resume_campaign": "Resume Campaign",
+    "ads.launch_campaign": "Launch Campaign",
+    "ads.research_competitors": "Competitor Research",
+    "ads.watch_competitor": "Watch Competitor",
+    "google.analyze_keywords": "Analyze Keywords",
+    "google.pause_campaign": "Pause Google Campaign",
+    "google.resume_campaign": "Resume Google Campaign",
+    "google.add_negatives": "Add Negative Keywords",
+    "google.adjust_bid": "Adjust Budget",
   };
   return labels[type] || type;
 }

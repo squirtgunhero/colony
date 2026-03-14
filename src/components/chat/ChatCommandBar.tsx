@@ -16,6 +16,7 @@ export function ChatCommandBar() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { getContext } = useCRMContext();
   const [showUndoHint, setShowUndoHint] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const { theme } = useColonyTheme();
 
   const {
@@ -187,19 +188,19 @@ export function ChatCommandBar() {
           </div>
         )}
 
-        {/* Undo hint */}
+        {/* Undo hint — compact single line */}
         {showUndoHint && canUndo && (
-          <div className="flex items-center justify-center mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div
+            className="flex items-center justify-end mb-2 px-3 py-1.5 rounded-xl animate-in fade-in slide-in-from-bottom-2 duration-300"
+            style={{ backgroundColor: theme.surface }}
+          >
             <button
               onClick={undoLastRun}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150"
-              style={{
-                backgroundColor: theme.accentGlow,
-                color: theme.accent,
-              }}
+              className="flex items-center gap-1.5 text-xs font-medium transition-colors duration-150"
+              style={{ color: theme.accent }}
             >
-              <Undo2 className="h-3.5 w-3.5" />
-              <span>Undo last action</span>
+              <Undo2 className="h-3 w-3" />
+              <span>Undo last</span>
             </button>
           </div>
         )}
@@ -263,14 +264,16 @@ export function ChatCommandBar() {
 
           {/* Input bar — neumorphic recessed */}
           <div
-            className="relative flex items-end gap-2 p-2 pl-4 transition-all duration-300"
+            className="relative flex items-end gap-2 p-2 pl-4 transition-all duration-150"
             style={{
               borderRadius: "28px",
               backgroundColor: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              boxShadow: isListening
-                ? `inset 2px 2px 4px rgba(0,0,0,0.2), inset -2px -2px 4px rgba(255,255,255,0.01), 0 0 20px ${withAlpha(theme.accent, 0.2)}`
-                : `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`,
+              border: `1px solid ${isFocused ? withAlpha(theme.accent, 0.2) : "rgba(255,255,255,0.06)"}`,
+              boxShadow: isFocused
+                ? `inset 2px 2px 4px rgba(0,0,0,0.2), inset -2px -2px 4px rgba(255,255,255,0.01), 0 0 0 3px ${withAlpha(theme.accent, 0.06)}`
+                : isListening
+                  ? `inset 2px 2px 4px rgba(0,0,0,0.2), inset -2px -2px 4px rgba(255,255,255,0.01), 0 0 20px ${withAlpha(theme.accent, 0.2)}`
+                  : `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`,
             }}
           >
             {/* Input */}
@@ -279,16 +282,18 @@ export function ChatCommandBar() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               placeholder={
                 isTranscribing
                   ? "Transcribing..."
                   : isListening
                     ? "Listening..."
-                    : "Talk to Tara..."
+                    : "Ask anything..."
               }
               disabled={isLoading}
               rows={1}
-              className="flex-1 resize-none bg-transparent py-2.5 text-[15px] placeholder:opacity-35 focus:outline-none disabled:opacity-50 min-h-[40px] max-h-[144px]"
+              className="flex-1 resize-none bg-transparent py-2.5 text-[15px] focus:outline-none disabled:opacity-50 min-h-[40px] max-h-[144px]"
               style={{
                 fontFamily: "var(--font-dm-sans), sans-serif",
                 color: theme.text,
@@ -297,8 +302,8 @@ export function ChatCommandBar() {
               aria-label="Chat command input"
             />
 
-            {/* Mic Button — neumorphic circle */}
-            {voiceSupported && (
+            {/* Mic Button — neumorphic circle, prominent when no text */}
+            {voiceSupported && !showSend && (
               <button
                 type="button"
                 onClick={handleVoiceToggle}
@@ -324,23 +329,22 @@ export function ChatCommandBar() {
               </button>
             )}
 
-            {/* Send Button — neumorphic, only visible with text */}
+            {/* Send Button — filled accent circle when text present */}
             {showSend && (
               <button
                 onClick={handleSubmit}
                 disabled={isLoading}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 animate-in fade-in zoom-in-75 duration-150"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-150 animate-in fade-in zoom-in-75 duration-150"
                 style={{
-                  backgroundColor: theme.bgGlow,
-                  color: theme.accent,
-                  boxShadow: `3px 3px 6px rgba(0,0,0,0.4), -3px -3px 6px rgba(255,255,255,0.04)`,
+                  backgroundColor: theme.accent,
+                  color: theme.bg,
                 }}
                 aria-label="Send message"
               >
                 {isLoading ? (
                   <div
                     className="h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
-                    style={{ borderColor: theme.accent, borderTopColor: "transparent" }}
+                    style={{ borderColor: theme.bg, borderTopColor: "transparent" }}
                   />
                 ) : (
                   <Send className="h-4 w-4" />
@@ -349,22 +353,6 @@ export function ChatCommandBar() {
             )}
           </div>
         </div>
-
-        {/* Hints */}
-        {!hasMessages && !isListening && (
-          <div
-            className="flex items-center justify-center gap-4 mt-3 text-[11px]"
-            style={{
-              color: theme.text,
-              opacity: 0.45,
-              fontFamily: "var(--font-dm-sans), sans-serif",
-            }}
-          >
-            <span>press enter to send</span>
-            <span>·</span>
-            <span>click mic for voice</span>
-          </div>
-        )}
       </div>
     </div>
   );

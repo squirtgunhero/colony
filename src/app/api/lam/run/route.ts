@@ -141,10 +141,14 @@ export async function POST(request: NextRequest) {
     // Distill any UI-relevant sentinel signals from raw action results so
     // client components can react without re-parsing every result object.
     const actionSignals: { open_import_panel?: boolean } = {};
+    const actionCards: Array<{ type: string; data: Record<string, unknown> }> = [];
     if (result.execution_result) {
       for (const r of result.execution_result.results) {
         const d = r.data as Record<string, unknown> | null | undefined;
         if (d?.__open_import_panel) actionSignals.open_import_panel = true;
+        if (d?.__action_card) {
+          actionCards.push(d.__action_card as { type: string; data: Record<string, unknown> });
+        }
       }
     }
 
@@ -162,6 +166,7 @@ export async function POST(request: NextRequest) {
         })),
         user_summary: result.plan.user_summary,
         follow_up_question: result.plan.follow_up_question,
+        action_cards: actionCards.length > 0 ? actionCards : undefined,
       },
       execution_result: result.execution_result
         ? {
