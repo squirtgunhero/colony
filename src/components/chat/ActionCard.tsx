@@ -43,6 +43,9 @@ function CampaignCard({ data }: { data: Record<string, unknown> }) {
   const description = data.description as string | null;
   const targetingSummary = data.targeting_summary as string | null;
   const platform = String(data.platform || "Facebook & Instagram");
+  const businessName = String(data.business_name || "Your Business");
+  const businessInitial = String(data.business_initial || businessName.charAt(0).toUpperCase() || "C");
+  const imageUrl = data.image_url as string | null;
   const isPaused = status.toUpperCase() === "PAUSED";
 
   return (
@@ -87,25 +90,80 @@ function CampaignCard({ data }: { data: Record<string, unknown> }) {
         ))}
       </div>
 
-      {/* Ad Preview */}
-      {headline && (
-        <div
-          className="rounded-xl p-3 mb-3"
-          style={{ backgroundColor: theme.bgGlow }}
-        >
-          <div className="text-[10px] uppercase tracking-wider mb-1.5" style={{ color: theme.textMuted }}>
-            Ad Preview
+      {/* Facebook Ad Preview Mockup */}
+      <div style={{
+        borderRadius: 12,
+        overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.08)",
+        background: theme.bgGlow,
+        marginBottom: 12,
+      }}>
+        {/* Header: Page name + Sponsored */}
+        <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%",
+            background: "linear-gradient(135deg, #1877F2, #0D65D9)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#fff", fontSize: 14, fontWeight: 700,
+          }}>
+            {businessInitial}
           </div>
-          <div className="text-sm font-medium mb-0.5" style={{ color: theme.text }}>
-            {headline}
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: theme.text }}>
+              {businessName}
+            </div>
+            <div style={{ fontSize: 11, color: theme.textMuted }}>
+              Sponsored · {platform}
+            </div>
           </div>
-          {description && (
-            <div className="text-xs" style={{ color: theme.textSoft }}>
-              {description}
+        </div>
+        {/* Ad body text */}
+        <div style={{ padding: "0 14px 10px", fontSize: 14, color: theme.textSoft, lineHeight: 1.5 }}>
+          {description || "Your ad description appears here."}
+        </div>
+        {/* Image area */}
+        <div style={{
+          width: "100%", aspectRatio: "1.91/1",
+          background: "linear-gradient(135deg, rgba(200,168,100,0.15), rgba(200,168,100,0.05))",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          position: "relative" as const,
+          overflow: "hidden",
+        }}>
+          {imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="Ad creative" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ textAlign: "center" as const, padding: 20 }}>
+              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>🏠</div>
+              <div style={{ fontSize: 12, color: theme.textMuted }}>
+                Ad image will be generated from your photos or Meta&apos;s AI
+              </div>
             </div>
           )}
         </div>
-      )}
+        {/* Bottom: Headline + CTA */}
+        <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: theme.textMuted, textTransform: "uppercase" as const, letterSpacing: "0.03em" }}>
+              {area}
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: theme.text, marginTop: 2 }}>
+              {headline || "Your Headline Here"}
+            </div>
+          </div>
+          <div style={{
+            padding: "8px 16px", borderRadius: 6,
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            fontSize: 13, fontWeight: 600, color: theme.textSoft,
+            whiteSpace: "nowrap" as const,
+          }}>
+            Learn More
+          </div>
+        </div>
+      </div>
 
       {/* Buttons */}
       <div className="flex items-center gap-2">
