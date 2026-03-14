@@ -178,7 +178,7 @@ export function ChatCommandBar() {
       : "idle";
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[60] md:pl-52" suppressHydrationWarning>
+    <div className="fixed bottom-0 left-0 right-0 z-[60]" suppressHydrationWarning>
       <div className="mx-auto max-w-2xl px-4 pb-6" suppressHydrationWarning>
         {/* Waveform — anchored above input when conversation is active */}
         {hasMessages && (

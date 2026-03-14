@@ -70,10 +70,12 @@ export function ModeSidebar() {
       }}
       suppressHydrationWarning
     >
-      {/* Logo */}
-      <div
-        className="flex h-14 items-center gap-3 px-3"
+      {/* Logo — click to return to Chat View */}
+      <Link
+        href="/chat"
+        className="flex h-14 items-center gap-3 px-3 transition-opacity hover:opacity-80"
         style={{ borderBottom: `1px solid ${borderColor}` }}
+        title="Return to Tara"
       >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center">
           <Image
@@ -90,7 +92,7 @@ export function ModeSidebar() {
         >
           Colony
         </span>
-      </div>
+      </Link>
 
       {/* Team Switcher */}
       {mounted && (

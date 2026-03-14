@@ -2,5 +2,5 @@
 // COLONY - Mode System Exports
 // ============================================
 
-export { useModeStore, useIsChatMode } from "./store";
-export type { AppMode, DrawerPanelType, DrawerState, SuggestionChip } from "./store";
+export { useModeStore, useIsChatMode, useViewMode } from "./store";
+export type { AppMode, ViewMode, DrawerPanelType, DrawerState, SuggestionChip } from "./store";

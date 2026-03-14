@@ -1,9 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { ModeSidebar } from "@/components/layout/ModeSidebar";
 import { TopNav } from "@/components/layout/top-nav";
+import { ViewToggle } from "@/components/view-mode/ViewToggle";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { useColonyTheme } from "@/lib/chat-theme-context";
+import { useModeStore } from "@/lib/mode";
 import { Toaster } from "sonner";
 import { FloatingActionButton } from "@/components/quick-capture/FloatingActionButton";
 
@@ -13,6 +17,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { theme } = useColonyTheme();
+  const pathname = usePathname();
+  const { setViewMode, setLastClassicRoute } = useModeStore();
+
+  // Auto-set classic view mode when entering dashboard routes
+  useEffect(() => {
+    setViewMode("classic");
+    setLastClassicRoute(pathname);
+  }, [pathname, setViewMode, setLastClassicRoute]);
 
   return (
     <CRMContextProvider>
@@ -22,6 +34,7 @@ export default function DashboardLayout({
         suppressHydrationWarning
       >
         <ModeSidebar />
+        <ViewToggle />
         <div className="md:pl-52 min-h-screen flex flex-col" suppressHydrationWarning>
           <TopNav />
           <main className="flex-1" suppressHydrationWarning>
@@ -30,7 +43,7 @@ export default function DashboardLayout({
         </div>
 
         <FloatingActionButton />
-        <Toaster 
+        <Toaster
           position="bottom-right"
           toastOptions={{
             classNames: {

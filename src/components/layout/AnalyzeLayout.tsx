@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { ModeSidebar } from "./ModeSidebar";
 import { TopNav } from "./top-nav";
+import { ViewToggle } from "@/components/view-mode/ViewToggle";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
@@ -15,12 +16,13 @@ interface AnalyzeLayoutProps {
 }
 
 export function AnalyzeLayout({ children }: AnalyzeLayoutProps) {
-  const { setMode } = useModeStore();
+  const { setMode, setViewMode } = useModeStore();
   const { theme } = useColonyTheme();
 
   useEffect(() => {
     setMode("analyze");
-  }, [setMode]);
+    setViewMode("classic");
+  }, [setMode, setViewMode]);
 
   return (
     <CRMContextProvider>
@@ -30,6 +32,7 @@ export function AnalyzeLayout({ children }: AnalyzeLayoutProps) {
         suppressHydrationWarning
       >
         <ModeSidebar />
+        <ViewToggle />
         <div className="md:pl-52 min-h-screen flex flex-col" suppressHydrationWarning>
           <TopNav />
           <main className="flex-1" suppressHydrationWarning>

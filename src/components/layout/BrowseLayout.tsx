@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { ModeSidebar } from "./ModeSidebar";
 import { BrowseTopNav } from "./BrowseTopNav";
+import { ViewToggle } from "@/components/view-mode/ViewToggle";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
@@ -14,12 +15,13 @@ interface BrowseLayoutProps {
 }
 
 export function BrowseLayout({ children }: BrowseLayoutProps) {
-  const { setMode } = useModeStore();
+  const { setMode, setViewMode } = useModeStore();
   const { theme } = useColonyTheme();
 
   useEffect(() => {
     setMode("browse");
-  }, [setMode]);
+    setViewMode("classic");
+  }, [setMode, setViewMode]);
 
   return (
     <CRMContextProvider>
@@ -29,6 +31,7 @@ export function BrowseLayout({ children }: BrowseLayoutProps) {
         suppressHydrationWarning
       >
         <ModeSidebar />
+        <ViewToggle />
         <div className="md:pl-52 min-h-screen flex flex-col" suppressHydrationWarning>
           <BrowseTopNav />
           <main className="flex-1 pb-24" suppressHydrationWarning>

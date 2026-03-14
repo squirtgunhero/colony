@@ -2,10 +2,9 @@
 
 import { useEffect } from "react";
 import { Toaster } from "sonner";
-import { ModeSidebar } from "./ModeSidebar";
-import { ChatTopNav } from "./ChatTopNav";
 import { ContextDrawer } from "@/components/chat/ContextDrawer";
 import { ChatCommandBar } from "@/components/chat/ChatCommandBar";
+import { ViewToggle } from "@/components/view-mode/ViewToggle";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
@@ -15,12 +14,13 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ children }: ChatLayoutProps) {
-  const { setMode } = useModeStore();
+  const { setMode, setViewMode } = useModeStore();
   const { theme } = useColonyTheme();
 
   useEffect(() => {
     setMode("chat");
-  }, [setMode]);
+    setViewMode("chat");
+  }, [setMode, setViewMode]);
 
   return (
     <CRMContextProvider>
@@ -29,18 +29,15 @@ export function ChatLayout({ children }: ChatLayoutProps) {
         style={{ backgroundColor: theme.bg }}
         suppressHydrationWarning
       >
-        <ModeSidebar />
+        {/* Zero chrome — no sidebar, no top nav */}
+        <ViewToggle />
 
-        <div className="md:pl-52 min-h-screen flex flex-col" suppressHydrationWarning>
-          <ChatTopNav />
-
-          <main
-            className="flex-1 flex flex-col relative"
-            suppressHydrationWarning
-          >
-            {children}
-          </main>
-        </div>
+        <main
+          className="min-h-screen flex flex-col relative"
+          suppressHydrationWarning
+        >
+          {children}
+        </main>
 
         <ContextDrawer />
         <ChatCommandBar />

@@ -212,8 +212,10 @@ export function ChatCanvas() {
                 {summary.leadsCount} active lead
                 {summary.leadsCount !== 1 ? "s" : ""}.{" "}
                 {summary.pendingTasks} pending task
-                {summary.pendingTasks !== 1 ? "s" : ""}.{" "}
-                Pipeline at {formatPipeline(summary.pipelineValue)}.
+                {summary.pendingTasks !== 1 ? "s" : ""}.
+                {summary.pipelineValue > 0 && (
+                  <>{" "}Pipeline at {formatPipeline(summary.pipelineValue)}.</>
+                )}
               </p>
             )}
 
