@@ -1638,10 +1638,20 @@ const executors: Record<string, ActionExecutor> = {
         const isHousing = profile?.businessType?.toLowerCase().includes("real estate") ||
           profile?.businessType?.toLowerCase().includes("property") ||
           profile?.businessType?.toLowerCase().includes("mortgage");
-        const specialAdCategories = isHousing ? ["HOUSING"] : [];
+        const specialAdCategories = ["HOUSING"];
 
         try {
           // ---- Step 1: Create Campaign ----
+          console.log("Creating Meta campaign with params:", {
+            adAccountId: adAccount.adAccountId,
+            name: campaignName,
+            objective,
+            status: "PAUSED",
+            special_ad_categories: specialAdCategories,
+            isHousing,
+            businessType: profile?.businessType,
+          });
+
           const campaignResult = await client.createCampaign(adAccount.adAccountId, {
             name: campaignName,
             objective,
@@ -1891,13 +1901,14 @@ const executors: Record<string, ActionExecutor> = {
             },
           };
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Unknown error";
-          console.error("Meta campaign creation failed:", message, error);
+          const rawMessage = error instanceof Error ? error.message : String(error);
+          console.error("Meta campaign creation failed:", rawMessage, error);
+
           return {
             action_id: action.action_id,
             action_type: action.type,
             status: "failed" as const,
-            error: `Failed to create campaign on Facebook: ${message}`,
+            error: `Campaign creation failed: ${rawMessage}. This is usually caused by: (1) missing special_ad_categories for housing ads, (2) invalid ad account format, or (3) insufficient permissions. Check Settings > Integrations to verify your connection.`,
           };
         }
       }
