@@ -41,6 +41,8 @@ function CampaignCard({ data }: { data: Record<string, unknown> }) {
   const status = String(data.status || "PAUSED");
   const headline = data.headline as string | null;
   const description = data.description as string | null;
+  const targetingSummary = data.targeting_summary as string | null;
+  const platform = String(data.platform || "Facebook & Instagram");
   const isPaused = status.toUpperCase() === "PAUSED";
 
   return (
@@ -71,8 +73,8 @@ function CampaignCard({ data }: { data: Record<string, unknown> }) {
       <div className="grid grid-cols-3 gap-3 mb-3">
         {[
           { label: "Budget", value: budget ? `$${budget}/day` : "—" },
-          { label: "Targeting", value: area },
-          { label: "Objective", value: objective },
+          { label: "Targeting", value: targetingSummary || area },
+          { label: "Platform", value: platform },
         ].map((item) => (
           <div key={item.label}>
             <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: theme.textMuted }}>

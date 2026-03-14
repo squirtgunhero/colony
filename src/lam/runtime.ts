@@ -1878,8 +1878,10 @@ const executors: Record<string, ActionExecutor> = {
                   area: userCity || payload.service_area || "your area",
                   objective: userObjective || "LEADS",
                   status: "PAUSED",
-                  headline: adCopy?.headline || null,
-                  description: adCopy?.description || null,
+                  headline: adCopy?.headline || "Your ad headline will appear here",
+                  description: adCopy?.description || "Your ad description will appear here",
+                  targeting_summary: `Homeowners in ${userCity || payload.service_area || "your area"} likely to sell`,
+                  platform: "Facebook & Instagram",
                   ads_manager_url: adsManagerUrl || null,
                 },
               },
@@ -1911,6 +1913,12 @@ const executors: Record<string, ActionExecutor> = {
             action_type: action.type,
             status: "failed" as const,
             error: "To run Facebook/Instagram ads, you'll need to connect your Meta account first. Go to Settings > Integrations > Connect Facebook. Once connected, I can create and manage your campaigns right from here.",
+            data: {
+              __action_card: {
+                type: "connect_required",
+                data: { provider: "meta" },
+              },
+            },
           };
         }
 

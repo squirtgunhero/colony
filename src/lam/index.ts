@@ -248,6 +248,15 @@ async function summarizeResults(
     return plan.user_summary;
   }
 
+  // If results include action cards, return a short intro — the card provides the details
+  const hasActionCards = executionResult.results.some((r) => {
+    const d = r.data as Record<string, unknown> | null;
+    return d?.__action_card;
+  });
+  if (hasActionCards) {
+    return "Here's your campaign preview:";
+  }
+
   try {
     const llm = getDefaultProvider();
 
