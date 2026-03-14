@@ -156,8 +156,12 @@ class MetaApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      const error = data as MetaErrorResponse;
-      throw new Error(error.error?.message || `Meta API error: ${response.status}`);
+      const err = data as MetaErrorResponse;
+      const detail = err.error
+        ? `${err.error.message} (code: ${err.error.code}, type: ${err.error.type}, fbtrace: ${err.error.fbtrace_id || "none"})`
+        : `HTTP ${response.status}: ${JSON.stringify(data)}`;
+      console.error("[META API] Error:", detail);
+      throw new Error(detail);
     }
 
     return data as T;
@@ -212,7 +216,18 @@ class MetaApiClient {
     body.set("name", params.name);
     body.set("objective", params.objective);
     body.set("status", params.status || "PAUSED");
+    body.set("buying_type", "AUCTION");
     body.set("special_ad_categories", JSON.stringify(params.special_ad_categories || []));
+
+    // For HOUSING category, Meta requires the country field
+    if (params.special_ad_categories?.includes("HOUSING")) {
+      body.set("special_ad_category_country", JSON.stringify(["US"]));
+    }
+
+    console.log("[META API] createCampaign:", {
+      endpoint: `/${adAccountId}/campaigns`,
+      params: Object.fromEntries(body.entries()),
+    });
 
     return this.request<{ id: string }>(`/${adAccountId}/campaigns`, {
       method: "POST",
