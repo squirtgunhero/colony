@@ -134,10 +134,10 @@ export function ChatCanvas() {
 
   // Suggestion chips for empty state — max 4 with prefixed symbols
   const EMPTY_STATE_CHIPS = [
-    { label: "\u2726 Generate leads", prompt: "I need leads" },
-    { label: "\u25FC View pipeline", prompt: "Show my pipeline" },
+    { label: "Generate leads", prompt: "I need leads" },
+    { label: "View pipeline", prompt: "Show my pipeline" },
     { label: "+ Add contact", prompt: "Create a new contact" },
-    { label: "\u25C6 Summary", prompt: "Give me a summary of today" },
+    { label: "Summary", prompt: "Give me a summary of today" },
   ];
 
   return (

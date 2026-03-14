@@ -335,7 +335,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       addMessage({
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: `✓ Approved! ${data.execution_result?.actions_executed || 0} action(s) executed.`,
+        content: `Approved. ${data.execution_result?.actions_executed || 0} action(s) executed.`,
         timestamp: new Date(),
       });
 
@@ -390,7 +390,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         addMessage({
           id: `assistant-${Date.now()}`,
           role: "assistant",
-          content: `↩️ Undone! Reverted ${data.changes_reverted} change${data.changes_reverted > 1 ? "s" : ""}.`,
+          content: `Undone. Reverted ${data.changes_reverted} change${data.changes_reverted > 1 ? "s" : ""}.`,
           timestamp: new Date(),
         });
         set({ lastRunId: null, canUndo: false });

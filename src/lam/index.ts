@@ -294,13 +294,13 @@ function buildFallbackSummary(
   const parts: string[] = [plan.user_summary];
 
   if (execution.actions_executed > 0) {
-    parts.push(`✓ ${execution.actions_executed} action(s) completed`);
+    parts.push(`${execution.actions_executed} action(s) completed.`);
   }
   if (execution.actions_failed > 0) {
-    parts.push(`✗ ${execution.actions_failed} action(s) failed`);
+    parts.push(`${execution.actions_failed} action(s) failed.`);
   }
   if (execution.actions_pending_approval > 0) {
-    parts.push(`⏳ ${execution.actions_pending_approval} action(s) awaiting approval`);
+    parts.push(`${execution.actions_pending_approval} action(s) awaiting approval.`);
   }
 
   return parts.join("\n\n");

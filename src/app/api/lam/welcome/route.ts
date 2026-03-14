@@ -11,10 +11,10 @@ import { prisma } from "@/lib/prisma";
 function buildGreeting(firstName: string | null): string {
   const hour = new Date().getHours();
   const name = firstName ?? "there";
-  if (hour >= 5 && hour < 12) return `Good morning, ${name}!`;
-  if (hour >= 12 && hour < 17) return `Good afternoon, ${name}!`;
-  if (hour >= 17 && hour < 21) return `Good evening, ${name}!`;
-  return `Hey, ${name}!`;
+  if (hour >= 5 && hour < 12) return `Good morning, ${name}.`;
+  if (hour >= 12 && hour < 17) return `Good afternoon, ${name}.`;
+  if (hour >= 17 && hour < 21) return `Good evening, ${name}.`;
+  return `Good evening, ${name}.`;
 }
 
 export async function GET() {
@@ -115,21 +115,21 @@ export async function GET() {
     // ── Chips (contextual, max 5) ─────────────────────────────────────────────
     const defaultChips = [
       { id: "add-contact",    label: "+ Add a contact",        prompt: "Add a new contact" },
-      { id: "view-pipeline",  label: "📋 View my pipeline",    prompt: "Show my pipeline" },
-      { id: "generate-leads", label: "📣 Generate leads",      prompt: "Help me generate leads" },
-      { id: "create-task",    label: "📝 Create a task",        prompt: "Create a task" },
-      { id: "show-summary",   label: "📊 Show me a summary",   prompt: "Give me a summary of my CRM" },
+      { id: "view-pipeline",  label: "View my pipeline",       prompt: "Show my pipeline" },
+      { id: "generate-leads", label: "Generate leads",         prompt: "Help me generate leads" },
+      { id: "create-task",    label: "Create a task",           prompt: "Create a task" },
+      { id: "show-summary",   label: "Show me a summary",      prompt: "Give me a summary of my CRM" },
     ];
 
     // Build chips starting from defaults, then prepend contextual one if needed
     const promoted: typeof defaultChips = [];
 
     if (tasksDueCount >= 1) {
-      promoted.push({ id: "review-tasks",    label: "✅ Review my tasks",           prompt: "Show my tasks due today" });
+      promoted.push({ id: "review-tasks",    label: "Review my tasks",            prompt: "Show my tasks due today" });
     } else if (staleDealsCount >= 1) {
-      promoted.push({ id: "follow-up-deals", label: "🔄 Follow up on deals",        prompt: "Show my stale deals" });
+      promoted.push({ id: "follow-up-deals", label: "Follow up on deals",         prompt: "Show my stale deals" });
     } else if (activeCampaign) {
-      promoted.push({ id: "check-campaign",  label: "📈 Check campaign performance", prompt: "Show my campaign performance" });
+      promoted.push({ id: "check-campaign",  label: "Check campaign performance",  prompt: "Show my campaign performance" });
     }
 
     // Merge: promoted first, then defaults (deduped by id), capped at 5
@@ -154,10 +154,10 @@ export async function GET() {
       greeting: fallbackGreeting,
       status_lines: [],
       chips: [
-        { id: "add-contact",    label: "+ Add a contact",      prompt: "Add a new contact" },
-        { id: "view-pipeline",  label: "📋 View my pipeline",  prompt: "Show my pipeline" },
-        { id: "generate-leads", label: "📣 Generate leads",    prompt: "Help me generate leads" },
-        { id: "create-task",    label: "📝 Create a task",      prompt: "Create a task" },
+        { id: "add-contact",    label: "+ Add a contact",   prompt: "Add a new contact" },
+        { id: "view-pipeline",  label: "View my pipeline",  prompt: "Show my pipeline" },
+        { id: "generate-leads", label: "Generate leads",    prompt: "Help me generate leads" },
+        { id: "create-task",    label: "Create a task",      prompt: "Create a task" },
       ],
     });
   }

@@ -136,7 +136,7 @@ function CampaignCard({ data }: { data: Record<string, unknown> }) {
             <img src={imageUrl} alt="Ad creative" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ textAlign: "center" as const, padding: 20 }}>
-              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>🏠</div>
+              <div style={{ fontSize: 24, marginBottom: 8, opacity: 0.3, color: theme.textMuted, fontWeight: 300 }}>Ad</div>
               <div style={{ fontSize: 12, color: theme.textMuted }}>
                 Ad image will be generated from your photos or Meta&apos;s AI
               </div>
