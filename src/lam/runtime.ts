@@ -1892,6 +1892,7 @@ const executors: Record<string, ActionExecutor> = {
           };
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unknown error";
+          console.error("Meta campaign creation failed:", message, error);
           return {
             action_id: action.action_id,
             action_type: action.type,

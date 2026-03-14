@@ -151,8 +151,8 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
             action_id: randomUUID(),
             idempotency_key: `${input.user_id}:ads.create_campaign:${Date.now()}`,
             type: "ads.create_campaign" as any,
-            risk_tier: 2 as const,
-            requires_approval: true,
+            risk_tier: 1 as const,
+            requires_approval: false,
             payload: {
               channel: "meta",
               objective: "LEADS",
@@ -167,8 +167,8 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
             },
           } as any];
           plan.follow_up_question = null;
-          plan.requires_approval = true;
-          plan.highest_risk_tier = 2;
+          plan.requires_approval = false;
+          plan.highest_risk_tier = 1;
           plan.user_summary = `Creating your ${leadType} lead campaign targeting ${area} at $${budget}/day on Facebook & Instagram.`;
         } else if (!plan.follow_up_question) {
           // Still missing info
