@@ -158,9 +158,13 @@ class MetaApiClient {
     if (!response.ok) {
       const err = data as MetaErrorResponse;
       const detail = err.error
-        ? `${err.error.message} (code: ${err.error.code}, type: ${err.error.type}, fbtrace: ${err.error.fbtrace_id || "none"})`
+        ? `${err.error.message} (code: ${err.error.code}, type: ${err.error.type}, subcode: ${err.error.error_subcode || "none"}, fbtrace: ${err.error.fbtrace_id || "none"})`
         : `HTTP ${response.status}: ${JSON.stringify(data)}`;
-      console.error("[META API] Error:", detail);
+      if (err.error?.error_user_msg) {
+        console.error("[META API] Error:", detail, "| User message:", err.error.error_user_msg);
+      } else {
+        console.error("[META API] Error:", detail);
+      }
       throw new Error(detail);
     }
 
@@ -223,9 +227,6 @@ class MetaApiClient {
     if (params.special_ad_categories?.includes("HOUSING")) {
       body.set("special_ad_category_country", JSON.stringify(["US"]));
     }
-
-    // Required by Meta API — must specify budget sharing when not using campaign budget
-    body.set("is_adset_budget_sharing_enabled", "false");
 
     console.log("[META API] createCampaign:", {
       endpoint: `/${adAccountId}/campaigns`,

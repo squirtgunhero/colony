@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
   body.set("buying_type", "AUCTION");
   body.set("special_ad_categories", JSON.stringify(["HOUSING"]));
   body.set("special_ad_category_country", JSON.stringify(["US"]));
-  body.set("is_adset_budget_sharing_enabled", "false");
 
   console.log("[TEST] Creating campaign:", {
     adAccountId: metaAccount.adAccountId,
