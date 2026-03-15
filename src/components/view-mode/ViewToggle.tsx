@@ -52,7 +52,12 @@ export function ViewToggle() {
   const toggle = useCallback(() => {
     if (viewMode === "chat") {
       setViewMode("classic");
-      router.push(lastClassicRoute || "/contacts");
+      // Only restore last route if it was a browse route (not settings/notifications)
+      const safeFallbacks = ["/browse", "/contacts", "/deals", "/properties", "/dashboard"];
+      const restoreTo = lastClassicRoute && safeFallbacks.some((r) => lastClassicRoute.startsWith(r))
+        ? lastClassicRoute
+        : "/browse/contacts";
+      router.push(restoreTo);
     } else {
       setViewMode("chat");
       router.push("/chat");
@@ -72,7 +77,7 @@ export function ViewToggle() {
   }, [toggle]);
 
   const isChatView = viewMode === "chat";
-  const label = isChatView ? "Switch to Classic View" : "Switch to Tara";
+  const label = isChatView ? "Switch to Classic View" : "Switch to Chat";
   const Icon = isChatView ? LayoutGrid : MessageCircle;
 
   return (
