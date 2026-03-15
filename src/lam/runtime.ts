@@ -1908,7 +1908,7 @@ const executors: Record<string, ActionExecutor> = {
             action_id: action.action_id,
             action_type: action.type,
             status: "failed" as const,
-            error: `Campaign creation failed: ${rawMessage}. This is usually caused by: (1) missing special_ad_categories for housing ads, (2) invalid ad account format, or (3) insufficient permissions. Check Settings > Integrations to verify your connection.`,
+            error: `Campaign creation failed: ${rawMessage}`,
           };
         }
       }

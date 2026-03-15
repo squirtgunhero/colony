@@ -156,15 +156,25 @@ class MetaApiClient {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error("[META API] Full error response:", JSON.stringify(data, null, 2));
       const err = data as MetaErrorResponse;
-      const detail = err.error
-        ? `${err.error.message} (code: ${err.error.code}, type: ${err.error.type}, subcode: ${err.error.error_subcode || "none"}, fbtrace: ${err.error.fbtrace_id || "none"})`
-        : `HTTP ${response.status}: ${JSON.stringify(data)}`;
-      if (err.error?.error_user_msg) {
-        console.error("[META API] Error:", detail, "| User message:", err.error.error_user_msg);
+      let detail: string;
+      if (err.error) {
+        const parts = [
+          err.error.message,
+          `(code: ${err.error.code}, type: ${err.error.type}, subcode: ${err.error.error_subcode || "none"}, fbtrace: ${err.error.fbtrace_id || "none"})`,
+        ];
+        if (err.error.error_user_msg) {
+          parts.push(`Detail: ${err.error.error_user_msg}`);
+        }
+        if (err.error.error_user_title) {
+          parts.push(`Title: ${err.error.error_user_title}`);
+        }
+        detail = parts.join(" ");
       } else {
-        console.error("[META API] Error:", detail);
+        detail = `HTTP ${response.status}: ${JSON.stringify(data)}`;
       }
+      console.error("[META API] Error:", detail);
       throw new Error(detail);
     }
 
