@@ -1735,11 +1735,16 @@ const executors: Record<string, ActionExecutor> = {
           const targeting: Record<string, unknown> = {
             targeting_automation: { advantage_audience: 1 },
           };
-          if (userProperty?.city) {
-            // Meta requires city keys; use the city name for geo_locations with radius
-            targeting.geo_locations = {
-              cities: [{ key: userProperty.city, radius: 25, distance_unit: "mile" }],
-            };
+
+          // Look up city targeting key from Meta's geo search API
+          const targetCity = userProperty?.city || payload.service_area;
+          if (targetCity) {
+            const cityResult = await client.searchCity(targetCity);
+            if (cityResult) {
+              targeting.geo_locations = {
+                cities: [{ key: cityResult.key, radius: 25, distance_unit: "mile" }],
+              };
+            }
           }
 
           const adSetResult = await client.createAdSet(adAccount.adAccountId, {

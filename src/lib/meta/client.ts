@@ -251,6 +251,30 @@ class MetaApiClient {
   }
 
   /**
+   * Search for a city's targeting key (required for geo_locations)
+   */
+  async searchCity(cityName: string): Promise<{ key: string; name: string; region: string; country_code: string } | null> {
+    const url = new URL(`${META_GRAPH_API_BASE}/search`);
+    url.searchParams.set("access_token", this.accessToken);
+    url.searchParams.set("type", "adgeolocation");
+    url.searchParams.set("location_types", JSON.stringify(["city"]));
+    url.searchParams.set("q", cityName);
+
+    const response = await fetch(url.toString());
+    const data = await response.json();
+
+    if (!response.ok || !data.data?.length) {
+      console.error("[META API] City search failed for:", cityName, data);
+      return null;
+    }
+
+    // Prefer US results
+    const usCity = data.data.find((c: { country_code: string }) => c.country_code === "US") || data.data[0];
+    console.log("[META API] Found city:", usCity);
+    return usCity;
+  }
+
+  /**
    * Update campaign status
    */
   async updateCampaignStatus(campaignId: string, status: string): Promise<{ success: boolean }> {
