@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         status: "PAUSED",
         special_ad_categories: ["HOUSING"],
         special_ad_category_country: ["US"],
-        is_adset_budget_sharing_enabled: true,
+        is_adset_budget_sharing_enabled: false,
       }),
       headers: { "Content-Type": "application/json" },
     });

@@ -231,7 +231,7 @@ class MetaApiClient {
       objective: params.objective,
       status: params.status || "PAUSED",
       special_ad_categories: params.special_ad_categories || [],
-      is_adset_budget_sharing_enabled: true,
+      is_adset_budget_sharing_enabled: false,
     };
 
     // For HOUSING category, Meta requires the country field
