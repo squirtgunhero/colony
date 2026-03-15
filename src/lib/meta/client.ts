@@ -226,26 +226,26 @@ class MetaApiClient {
       special_ad_categories?: string[];
     }
   ): Promise<{ id: string }> {
-    const body = new URLSearchParams();
-    body.set("name", params.name);
-    body.set("objective", params.objective);
-    body.set("status", params.status || "PAUSED");
-    body.set("special_ad_categories", JSON.stringify(params.special_ad_categories || []));
+    const payload: Record<string, unknown> = {
+      name: params.name,
+      objective: params.objective,
+      status: params.status || "PAUSED",
+      special_ad_categories: params.special_ad_categories || [],
+    };
 
     // For HOUSING category, Meta requires the country field
     if (params.special_ad_categories?.includes("HOUSING")) {
-      body.set("special_ad_category_country", JSON.stringify(["US"]));
+      payload.special_ad_category_country = ["US"];
     }
 
     console.log("[META API] createCampaign:", {
       endpoint: `/${adAccountId}/campaigns`,
-      params: Object.fromEntries(body.entries()),
+      payload,
     });
 
     return this.request<{ id: string }>(`/${adAccountId}/campaigns`, {
       method: "POST",
-      body,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: JSON.stringify(payload),
     });
   }
 
