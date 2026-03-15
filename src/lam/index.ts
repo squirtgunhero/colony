@@ -13,6 +13,7 @@ export * from "./audit";
 export * from "./undo";
 export * from "./rateLimit";
 
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { planFromMessage, type PlannerInput } from "./planner";
 import { executePlan, type ExecutionContext } from "./runtime";
@@ -106,12 +107,53 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
       if (!metaAccount) {
         plan.follow_up_question = "To run ads and generate leads, I need access to your Facebook Ads account first. Head to Settings and tap Connect Facebook under Integrations — it takes about 30 seconds. Once connected, come back and I'll build your campaign.";
         plan.user_summary = plan.follow_up_question;
-      } else {
-        // Has Meta account but planner didn't create an ads action —
-        // this means the planner is confused. Don't create anything,
-        // just ask for what we need.
-        if (!plan.follow_up_question) {
-          plan.follow_up_question = "I can set up a Facebook/Instagram campaign for you. What's your daily budget and what area should I target?";
+      } else if (!plan.follow_up_question) {
+        // Has Meta account but planner didn't create an ads action.
+        // Check if the user already provided budget/area in conversation —
+        // if so, create the campaign action directly instead of re-asking.
+        const msgLower = originalMessage;
+        const hasBudget = /\$\d+|\d+\s*(?:dollars|bucks|per day|\/day|a day)/i.test(msgLower);
+        const hasArea = /\b(?:in |near |around |target )?\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*(?:\s[A-Z]{2})?\b/i.test(input.message);
+
+        // Also load the user's saved service area
+        const profile = await prisma.profile.findUnique({
+          where: { id: input.user_id },
+          select: { serviceAreaCity: true, serviceAreaRadius: true },
+        });
+        const hasServiceArea = !!profile?.serviceAreaCity;
+
+        if (hasBudget || hasArea || hasServiceArea) {
+          // We have enough context — create the ads.create_campaign action
+          // and let the runtime handle targeting from the profile
+          const budgetMatch = msgLower.match(/\$(\d+)/);
+          const budget = budgetMatch ? parseInt(budgetMatch[1], 10) : 10;
+
+          const { getRiskTier, requiresApproval } = await import("./actionSchema");
+          const actionType = "ads.create_campaign" as const;
+          plan.actions = [{
+            action_id: randomUUID(),
+            idempotency_key: `${input.user_id}:ads.create_campaign:${Date.now()}`,
+            type: actionType,
+            risk_tier: getRiskTier(actionType),
+            requires_approval: requiresApproval(actionType),
+            payload: {
+              channel: "native" as const,
+              objective: "LEADS" as const,
+              daily_budget: budget,
+            },
+            expected_outcome: { entity_type: "campaign", created: true },
+          } as ActionPlan["actions"][0]];
+          plan.follow_up_question = null;
+          plan.requires_approval = true;
+          plan.highest_risk_tier = 2;
+        } else {
+          // Genuinely missing info — but be specific about what we need
+          const questions: string[] = [];
+          questions.push("What's your daily budget? ($10, $15, $25, or custom?)");
+          if (!hasServiceArea) {
+            questions.push("What area should I target? (I'll save this as your service area for next time.)");
+          }
+          plan.follow_up_question = `I can set up a Facebook/Instagram lead campaign for you. ${questions.join("\n")}`;
           plan.user_summary = plan.follow_up_question;
         }
       }

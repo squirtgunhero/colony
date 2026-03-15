@@ -1544,6 +1544,9 @@ const executors: Record<string, ActionExecutor> = {
       website?: string;
       keywords?: string[];
       special_ad_category?: string;
+      target_city?: string;
+      target_radius?: number;
+      lead_type?: string;
     };
 
     const channel = payload.channel || "native";
@@ -1695,16 +1698,24 @@ const executors: Record<string, ActionExecutor> = {
 
           const optimizationGoal = userObjective === "LEADS" ? "LEAD_GENERATION" : "LINK_CLICKS";
 
-          // Build targeting — use service area city > property city, otherwise broad
+          // Build targeting — use payload city > service area city > property city
           const targeting: Record<string, unknown> = {
             targeting_automation: { advantage_audience: 1 },
           };
-          const targetCity = profile?.serviceAreaCity || userProperty?.city;
-          const targetRadius = profile?.serviceAreaRadius || 25;
+          const targetCity = payload.target_city || profile?.serviceAreaCity || userProperty?.city;
+          const targetRadius = payload.target_radius || profile?.serviceAreaRadius || 25;
           if (targetCity) {
             targeting.geo_locations = {
               cities: [{ key: targetCity, radius: targetRadius, distance_unit: "mile" }],
             };
+
+            // Save as the user's service area if they don't have one yet
+            if (!profile?.serviceAreaCity) {
+              await prisma.profile.update({
+                where: { id: ctx.user_id },
+                data: { serviceAreaCity: targetCity, serviceAreaRadius: targetRadius },
+              }).catch(() => {}); // non-critical
+            }
           }
 
           const adSetResult = await client.createAdSet(adAccount.adAccountId, {

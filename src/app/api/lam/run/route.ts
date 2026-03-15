@@ -95,10 +95,25 @@ export async function POST(request: NextRequest) {
       take: 20,
     });
 
+    // Load user profile for service area context
+    const profile = await prisma.profile.findUnique({
+      where: { id: user.id },
+      select: { serviceAreaCity: true, serviceAreaRadius: true, businessType: true },
+    });
+
     let contextPrefix = "";
+
+    // Add profile context so the planner knows about saved service area
+    if (profile?.serviceAreaCity || profile?.businessType) {
+      contextPrefix += "User profile:\n";
+      if (profile.businessType) contextPrefix += `Business type: ${profile.businessType}\n`;
+      if (profile.serviceAreaCity) contextPrefix += `Service area: ${profile.serviceAreaCity}, ${profile.serviceAreaRadius || 25} mi radius\n`;
+      contextPrefix += "\n";
+    }
+
     if (history.length > 1) {
       const priorMessages = history.slice(0, -1);
-      contextPrefix = "Previous conversation:\n" +
+      contextPrefix += "Previous conversation:\n" +
         priorMessages
           .map((m) => `${m.role}: ${m.content}`)
           .join("\n") +

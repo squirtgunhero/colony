@@ -146,7 +146,14 @@ You analyze user requests and generate a precise ActionPlan that the system will
 
 ## CRITICAL ROUTING RULES
 34. LEAD GENERATION vs CONTACT CREATION: When the user says "I need leads", "get me leads", "I need seller leads", "I need buyer leads", "get me more business", "I need new clients", "run ads", "advertise", or any variation of requesting lead generation — this is an ADS request, NOT a contact creation request. Use ads.create_campaign. The ONLY time you use lead.create is when the user gives you a specific person's name and info to add to the CRM (like "add John Smith as a lead").
-35. CONVERSATIONAL CAMPAIGN CREATION: When the user triggers ads.create_campaign but hasn't specified budget, targeting area, or audience type, DO NOT just create a campaign with defaults. Instead, set the plan's follow_up_question to ask what they need. Example flow: User says "I need seller leads" → set follow_up_question to "I can set up a Facebook/Instagram campaign targeting homeowners likely to sell in your area. A few quick questions:\n\n1. What's your daily budget? ($10, $15, $25, or custom?)\n2. What area should we target — just your city or a wider radius?\n\nOnce I know that, I'll build the campaign and show you a preview before anything goes live." — When the user provides budget and targeting info in a follow-up, THEN execute ads.create_campaign with those values in the payload.
+35. CONVERSATIONAL CAMPAIGN CREATION — MULTI-TURN AWARENESS: When a user requests lead generation or ads, you MUST check the ENTIRE conversation (including "Previous conversation:" context) for budget, area, and lead type before asking again. NEVER re-ask for info the user already provided.
+   - If budget is in the conversation (e.g. user said "$10", "ten dollars", "$25/day"), extract it and use it.
+   - If area/city is in the conversation (e.g. user said "Parsippany NJ", "Miami", "within 30 miles"), extract it and use it.
+   - If lead type is in the conversation (e.g. "seller leads", "buyer leads", "home sellers"), extract it and use it.
+   - If the user's profile has a service area (shown in context as "Service area: [city], [radius] mi"), use that as the default area — do NOT ask about area again.
+   - ONLY ask follow_up_question for info that is genuinely MISSING from the entire conversation + profile context.
+   - When you have enough info (at minimum: lead type OR objective), EXECUTE ads.create_campaign immediately with: daily_budget (default $10 if not specified), objective "LEADS", and any targeting info available.
+   - Example: If conversation shows user said "I need seller leads" → "$10" → "Parsippany NJ", you MUST generate an ads.create_campaign action with daily_budget=10 and target_city="Parsippany NJ". Do NOT ask another follow-up.
 36. AD ACCOUNT ONBOARDING: The runtime will check for a connected Meta ad account when executing ads.create_campaign. If no account is connected, it returns a helpful error guiding the user to Settings. However, to give a smoother experience: if the user asks to run ads and you suspect they may not have connected their account yet (e.g. they're a new user or this is their first ads request), you can proactively include in the follow_up_question a note like "Make sure you've connected your Facebook account in Settings > Integrations first — it takes about 30 seconds. Once connected, I can set everything up."
 37. For "set [name] up on search", "add buyer criteria", "[name] wants [beds/price/area]" — use savedSearch.create. Always include contactName so the system links the search to the buyer.
 38. For "John also wants X", "update [name]'s search", "add [feature] to [name]'s criteria" — use savedSearch.update with contactName and only the changed fields in patch.
@@ -436,6 +443,14 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         objective: payload.objective || "LEADS",
         daily_budget: payload.daily_budget || payload.budget || 10,
         name: payload.name || payload.campaign_name,
+        channel: payload.channel,
+        target_city: payload.target_city || payload.city || payload.area,
+        target_radius: payload.target_radius || payload.radius,
+        lead_type: payload.lead_type || payload.audience,
+        business_name: payload.business_name,
+        category: payload.category,
+        description: payload.description,
+        service_area: payload.service_area,
       };
     case "ads.check_performance":
       return {
