@@ -6,7 +6,7 @@
 
 import type { AdLibraryAd, AdLibraryResponse } from "./types";
 
-const META_GRAPH_API_VERSION = "v21.0";
+const META_GRAPH_API_VERSION = "v22.0";
 const META_GRAPH_API_BASE = `https://graph.facebook.com/${META_GRAPH_API_VERSION}`;
 
 // ============================================

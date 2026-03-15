@@ -24,7 +24,7 @@ import type {
   UploadImageResponse,
 } from "./types";
 
-const META_GRAPH_API_VERSION = "v21.0";
+const META_GRAPH_API_VERSION = "v22.0";
 const META_GRAPH_API_BASE = `https://graph.facebook.com/${META_GRAPH_API_VERSION}`;
 
 // ============================================
@@ -220,7 +220,6 @@ class MetaApiClient {
     body.set("name", params.name);
     body.set("objective", params.objective);
     body.set("status", params.status || "PAUSED");
-    body.set("buying_type", "AUCTION");
     body.set("special_ad_categories", JSON.stringify(params.special_ad_categories || []));
 
     // For HOUSING category, Meta requires the country field

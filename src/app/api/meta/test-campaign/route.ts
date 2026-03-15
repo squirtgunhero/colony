@@ -17,14 +17,13 @@ export async function GET(request: NextRequest) {
   }
 
   // Try creating a test campaign directly
-  const url = `https://graph.facebook.com/v21.0/${metaAccount.adAccountId}/campaigns`;
+  const url = `https://graph.facebook.com/v22.0/${metaAccount.adAccountId}/campaigns`;
 
   const body = new URLSearchParams();
   body.set("access_token", metaAccount.accessToken);
   body.set("name", "Colony Test Campaign - DELETE ME");
   body.set("objective", "OUTCOME_LEADS");
   body.set("status", "PAUSED");
-  body.set("buying_type", "AUCTION");
   body.set("special_ad_categories", JSON.stringify(["HOUSING"]));
   body.set("special_ad_category_country", JSON.stringify(["US"]));
 
