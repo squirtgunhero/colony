@@ -73,124 +73,59 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
 
   const plan = planResult.plan;
 
-  // ── HONEYCOMB GUARDRAIL: Detect ad conversation and enforce correct routing ──
-  const fullMessage = input.message.toLowerCase();
-  const currentMessage = input.message.split("New message: ").pop()?.toLowerCase() || fullMessage;
-
-  // Check if THIS conversation is about ads — check full history
-  const isAdConversation =
-    fullMessage.includes("generate leads") ||
-    fullMessage.includes("i need leads") ||
-    fullMessage.includes("i need seller") ||
-    fullMessage.includes("i need buyer") ||
-    fullMessage.includes("run ads") ||
-    fullMessage.includes("advertise") ||
-    fullMessage.includes("get me leads") ||
-    fullMessage.includes("lead generation") ||
-    fullMessage.includes("facebook/instagram campaign") ||
-    fullMessage.includes("daily budget") ||
-    fullMessage.includes("seller leads") ||
-    fullMessage.includes("buyer leads") ||
-    fullMessage.includes("ad campaign");
-
-  if (isAdConversation) {
-    // Strip ALL lead.create actions — in an ad conversation,
-    // lead.create is ALWAYS a misroute
+  // ── HARD OVERRIDE: Prevent lead.create from hijacking ad requests ──
+  // If the user's original message mentions generating leads, running ads,
+  // or getting business, and the planner routed to lead.create, that's WRONG.
+  // Strip the lead.create action entirely.
+  const originalMessage = input.message.toLowerCase();
+  const isAdRequest =
+    originalMessage.includes("generate") ||
+    originalMessage.includes("i need leads") ||
+    originalMessage.includes("i need seller") ||
+    originalMessage.includes("i need buyer") ||
+    originalMessage.includes("run ads") ||
+    originalMessage.includes("run some ads") ||
+    originalMessage.includes("advertise") ||
+    originalMessage.includes("get me leads") ||
+    originalMessage.includes("lead generation") ||
+    originalMessage.includes("get me more") ||
+    originalMessage.includes("need new clients") ||
+    originalMessage.includes("need more business");
+  if (isAdRequest) {
+    // Remove any lead.create actions — these are misrouted ad requests
     plan.actions = plan.actions.filter(a => a.type !== "lead.create");
 
-    // Check if we have a connected Meta account
-    const metaAccount = await prisma.metaAdAccount.findFirst({
-      where: { userId: input.user_id, status: "active" },
-    });
+    // If we stripped all actions and there's no ads action left, check Meta account
+    const hasAdsAction = plan.actions.some(a => a.type.startsWith("ads."));
 
-    if (!metaAccount) {
-      plan.actions = plan.actions.filter(a => !a.type.startsWith("ads."));
-      plan.follow_up_question = "To run ads, I need access to your Facebook Ads account. Head to Settings and tap Connect Facebook under Integrations. Once connected, just say 'I need leads' again.";
-      plan.user_summary = plan.follow_up_question;
-    } else {
-      // Meta IS connected.
-      const hasAdsAction = plan.actions.some(a => a.type.startsWith("ads."));
-
-      if (!hasAdsAction && plan.actions.length === 0) {
-        // Planner failed to create an ads action. Check if user has provided enough info.
-        const hasBudgetInConvo = fullMessage.includes("$10") || fullMessage.includes("$15") || fullMessage.includes("$25") || fullMessage.includes("/day") || fullMessage.includes("budget");
-        const hasAreaInConvo = /\b\d{5}\b/.test(fullMessage) || fullMessage.includes("montville") || fullMessage.includes("parsippany") || fullMessage.includes("morris") || fullMessage.includes(", nj") || fullMessage.includes(",nj");
-
-        if (hasBudgetInConvo && hasAreaInConvo) {
-          // User has given enough info. Manufacture the ads action.
-          const { randomUUID } = await import("crypto");
-
-          const budgetMatch = fullMessage.match(/\$(\d+)/);
-          const budget = budgetMatch ? parseInt(budgetMatch[1]) : 10;
-
-          // Extract area from the most recent area-related message
-          let area = "your area";
-          const zipMatch = fullMessage.match(/\b(\d{5})\b/);
-          if (zipMatch) {
-            area = zipMatch[1];
-          }
-
-          // Check for city names in recent messages
-          const areaPatterns = [
-            /montville,?\s*n\.?j\.?/i, /parsippany,?\s*n\.?j\.?/i,
-            /morris county/i, /north jersey/i,
-          ];
-          for (const pattern of areaPatterns) {
-            const match = fullMessage.match(pattern);
-            if (match) { area = match[0]; break; }
-          }
-
-          // Fallback: use the current message if it looks like a location
-          if (area === "your area" && currentMessage.length > 2 && currentMessage.length < 60) {
-            area = currentMessage.trim();
-          }
-
-          // Check current message first, then fall back to conversation context
-          // Default to "seller" since that's the most common for real estate
-          let leadType = "seller";
-          if (currentMessage.includes("buyer") && !currentMessage.includes("seller")) {
-            leadType = "buyer";
-          } else if (currentMessage.includes("both")) {
-            leadType = "buyer and seller";
-          } else if (fullMessage.includes("seller lead")) {
-            leadType = "seller";
-          } else if (fullMessage.includes("buyer lead")) {
-            leadType = "buyer";
-          }
-
-          plan.actions = [{
-            action_id: randomUUID(),
-            idempotency_key: `${input.user_id}:ads.create_campaign:${Date.now()}`,
-            type: "ads.create_campaign" as any,
-            risk_tier: 1 as const,
-            requires_approval: false,
-            payload: {
-              channel: "meta",
-              objective: "LEADS",
-              daily_budget: budget,
-              service_area: area,
-              name: `${leadType.charAt(0).toUpperCase() + leadType.slice(1)} Leads - ${area}`,
-              keywords: [`${leadType} leads`, "real estate", area],
-            },
-            expected_outcome: {
-              entity_type: "campaign" as const,
-              created: true as const,
-            },
-          } as any];
-          plan.follow_up_question = null;
-          plan.requires_approval = false;
-          plan.highest_risk_tier = 1;
-          plan.user_summary = `Creating your ${leadType} lead campaign targeting ${area} at $${budget}/day on Facebook & Instagram.`;
-        } else if (!plan.follow_up_question) {
-          // Still missing info
-          if (!hasBudgetInConvo) {
-            plan.follow_up_question = "What's your daily budget for this campaign? ($10, $15, $25, or custom?)";
-          } else {
-            plan.follow_up_question = "What area should I target — your city, zip code, or a wider radius?";
-          }
+    if (!hasAdsAction && plan.actions.length === 0) {
+      // Check for Meta account
+      const metaAccount = await prisma.metaAdAccount.findFirst({
+        where: { userId: input.user_id, status: "active" },
+      });
+      if (!metaAccount) {
+        plan.follow_up_question = "To run ads and generate leads, I need access to your Facebook Ads account first. Head to Settings and tap Connect Facebook under Integrations — it takes about 30 seconds. Once connected, come back and I'll build your campaign.";
+        plan.user_summary = plan.follow_up_question;
+      } else {
+        // Has Meta account but planner didn't create an ads action —
+        // this means the planner is confused. Don't create anything,
+        // just ask for what we need.
+        if (!plan.follow_up_question) {
+          plan.follow_up_question = "I can set up a Facebook/Instagram campaign for you. What's your daily budget and what area should I target?";
           plan.user_summary = plan.follow_up_question;
         }
       }
+    }
+  }
+  // ── Honeycomb guardrail: check Meta account for any ads actions ──
+  if (plan.actions.some(a => a.type.startsWith("ads."))) {
+    const metaAccount = await prisma.metaAdAccount.findFirst({
+      where: { userId: input.user_id, status: "active" },
+    });
+    if (!metaAccount) {
+      plan.actions = plan.actions.filter(a => !a.type.startsWith("ads."));
+      plan.follow_up_question = "To run ads, I need access to your Facebook Ads account. Head to Settings and tap Connect Facebook under Integrations. Once connected, come back and I'll build your campaign.";
+      plan.user_summary = plan.follow_up_question;
     }
   }
 
@@ -203,14 +138,16 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
 
   // If there's a follow-up question, don't execute
   if (plan.follow_up_question) {
+    // Use the follow-up question as the message; set follow_up_question to null
+    // to avoid the client appending it again (which causes duplicate text).
     return {
       run_id: runId,
       plan,
       execution_result: null,
       verification_result: null,
       response: {
-        message: plan.user_summary,
-        follow_up_question: plan.follow_up_question,
+        message: plan.user_summary || plan.follow_up_question,
+        follow_up_question: null,
         requires_approval: false,
         can_undo: false,
       },
@@ -319,6 +256,7 @@ async function summarizeResults(
       .map((r) => r.error)
       .filter(Boolean);
     if (errors.length === 1) {
+      // Single error — return it directly (it's already user-friendly)
       return errors[0]!;
     }
     return errors.join("\n\n") || "Something went wrong. Want to try again?";
@@ -327,15 +265,6 @@ async function summarizeResults(
   // If only approval-required actions, no data to summarize
   if (executionResult.actions_executed === 0 && executionResult.actions_pending_approval > 0) {
     return plan.user_summary;
-  }
-
-  // If results include action cards, return a short intro
-  const hasActionCards = executionResult.results.some((r) => {
-    const d = r.data as Record<string, unknown> | null;
-    return d?.__action_card;
-  });
-  if (hasActionCards) {
-    return "Here's your campaign preview:";
   }
 
   try {
@@ -375,13 +304,13 @@ function buildFallbackSummary(
   const parts: string[] = [plan.user_summary];
 
   if (execution.actions_executed > 0) {
-    parts.push(`${execution.actions_executed} action(s) completed`);
+    parts.push(`✓ ${execution.actions_executed} action(s) completed`);
   }
   if (execution.actions_failed > 0) {
-    parts.push(`${execution.actions_failed} action(s) failed`);
+    parts.push(`✗ ${execution.actions_failed} action(s) failed`);
   }
   if (execution.actions_pending_approval > 0) {
-    parts.push(`${execution.actions_pending_approval} action(s) awaiting approval`);
+    parts.push(`⏳ ${execution.actions_pending_approval} action(s) awaiting approval`);
   }
 
   return parts.join("\n\n");
@@ -404,6 +333,7 @@ export async function continueLamRun(
     throw new Error("Permission denied");
   }
 
+  // Create a new run with combined context
   const combinedMessage = `${existingRun.message}\n\nUser response: ${additionalMessage}`;
 
   return runLam({
@@ -411,3 +341,4 @@ export async function continueLamRun(
     user_id: userId,
   });
 }
+

@@ -19,6 +19,12 @@ export async function POST(request: NextRequest) {
   if (body.businessType !== undefined) {
     updateData.businessType = body.businessType;
   }
+  if (body.serviceAreaCity !== undefined) {
+    updateData.serviceAreaCity = body.serviceAreaCity;
+  }
+  if (body.serviceAreaRadius !== undefined) {
+    updateData.serviceAreaRadius = Number(body.serviceAreaRadius) || 25;
+  }
   if (body.onboardingCompleted !== undefined) {
     updateData.onboardingCompleted = body.onboardingCompleted;
   }

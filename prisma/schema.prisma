@@ -19,6 +19,8 @@ model Profile {
   avatarUrl            String?  @map("avatar_url")
   theme                String   @default("ember")
   businessType         String?  @map("business_type")
+  serviceAreaCity      String?  @map("service_area_city")
+  serviceAreaRadius    Int?     @map("service_area_radius") // miles
   onboardingCompleted  Boolean  @default(false) @map("onboarding_completed")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @default(now()) @map("updated_at")

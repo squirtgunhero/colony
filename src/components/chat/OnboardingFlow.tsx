@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, ArrowRight, SkipForward } from "lucide-react";
 
-type Step = "greeting" | "business_type" | "phone_setup" | "phone_verify" | "first_contact" | "complete";
+type Step = "greeting" | "business_type" | "service_area" | "phone_setup" | "phone_verify" | "first_contact" | "complete";
 
 interface OnboardingFlowProps {
   firstName: string | null;
@@ -27,32 +27,35 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [businessType, setBusinessType] = useState("");
+  const [serviceCity, setServiceCity] = useState("");
+  const [serviceRadius, setServiceRadius] = useState(25);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [phoneError, setPhoneError] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const greetedRef = useRef(false);
+
+  const msgCounter = useRef(0);
 
   const addColonyMessage = (text: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { id: `colony-${Date.now()}`, role: "colony", text },
-    ]);
+    const id = `colony-${Date.now()}-${++msgCounter.current}`;
+    setMessages((prev) => [...prev, { id, role: "colony", text }]);
   };
 
   const addUserMessage = (text: string) => {
-    setMessages((prev) => [
-      ...prev,
-      { id: `user-${Date.now()}`, role: "user", text },
-    ]);
+    const id = `user-${Date.now()}-${++msgCounter.current}`;
+    setMessages((prev) => [...prev, { id, role: "user", text }]);
   };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Initial greeting
+  // Initial greeting (guarded against Strict Mode double-mount)
   useEffect(() => {
+    if (greetedRef.current) return;
+    greetedRef.current = true;
     const name = firstName || "there";
     addColonyMessage(
       `Hey ${name}. I'm Tara — I'll be running your business behind the scenes while you do the actual work. Let's get set up real quick.\n\nWhat kind of business do you run?`
@@ -76,10 +79,39 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
 
     setTimeout(() => {
       addColonyMessage(
-        `Got it — ${biz}. I'll customize things for you.\n\nFirst, let's add your phone number so I can text you updates. What's your number?`
+        `Got it — ${biz}. I'll customize things for you.\n\nWhat city or area do you serve? This helps me target your ads to the right people.`
+      );
+      setStep("service_area");
+    }, 600);
+  };
+
+  const handleServiceArea = async () => {
+    if (!serviceCity.trim()) return;
+    const city = serviceCity.trim();
+    addUserMessage(`${city}, ${serviceRadius} mile radius`);
+    setServiceCity("");
+
+    try {
+      await fetch("/api/onboarding/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceAreaCity: city, serviceAreaRadius: serviceRadius }),
+      });
+    } catch { /* non-critical */ }
+
+    setTimeout(() => {
+      addColonyMessage(
+        `Perfect — I'll target ${city} within ${serviceRadius} miles.\n\nNow, let's add your phone number so I can text you updates. What's your number?`
       );
       setStep("phone_setup");
     }, 600);
+  };
+
+  const handleSkipServiceArea = () => {
+    addColonyMessage(
+      "No problem — you can set your service area in Settings anytime.\n\nLet's add your phone number so I can text you updates. What's your number?"
+    );
+    setStep("phone_setup");
   };
 
   const handleSendCode = async () => {
@@ -197,6 +229,7 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (step === "greeting") handleBusinessType();
+      else if (step === "service_area") handleServiceArea();
       else if (step === "first_contact") handleAddContact();
     }
   };
@@ -258,6 +291,60 @@ export function OnboardingFlow({ firstName, onComplete }: OnboardingFlowProps) {
             >
               <ArrowRight className="h-4 w-4" />
             </Button>
+          </div>
+        )}
+
+        {step === "service_area" && (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="City name — e.g. Miami, Austin, Denver..."
+                value={serviceCity}
+                onChange={(e) => setServiceCity(e.target.value)}
+                onKeyDown={handleKeyDown}
+                autoFocus
+                className="flex-1"
+              />
+              <Button
+                onClick={handleServiceArea}
+                disabled={!serviceCity.trim()}
+                size="icon"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              <span
+                className="text-xs whitespace-nowrap"
+                style={{ color: theme.textMuted }}
+              >
+                Radius
+              </span>
+              <input
+                type="range"
+                min={5}
+                max={50}
+                step={5}
+                value={serviceRadius}
+                onChange={(e) => setServiceRadius(Number(e.target.value))}
+                className="flex-1 accent-current"
+                style={{ accentColor: theme.accent }}
+              />
+              <span
+                className="text-xs font-medium w-14 text-right"
+                style={{ color: theme.text }}
+              >
+                {serviceRadius} mi
+              </span>
+            </div>
+            <button
+              onClick={handleSkipServiceArea}
+              className="text-xs flex items-center gap-1 transition-colors"
+              style={{ color: theme.textMuted }}
+            >
+              <SkipForward className="h-3 w-3" />
+              I'll set this up later
+            </button>
           </div>
         )}
 

@@ -1511,29 +1511,6 @@ const executors: Record<string, ActionExecutor> = {
         };
       });
 
-    // Build performance card data from available campaigns
-    const perfCampaigns = [
-      ...((metaData?.campaigns || []) as Record<string, unknown>[]).map((c) => ({
-        name: String(c.name || "Unknown"),
-        spend: Number(c.spend || 0),
-        leads: Number(c.conversions || 0),
-        cpl: Number(c.conversions || 0) > 0 ? Number(c.spend || 0) / Number(c.conversions || 0) : null,
-        status: String(c.status || "UNKNOWN"),
-        flags: [] as string[],
-      })),
-      ...nativeAndLocalCampaigns.map((c) => ({
-        name: c.name,
-        spend: 0,
-        leads: c.conversions,
-        cpl: null,
-        status: c.status,
-        flags: [] as string[],
-      })),
-    ];
-
-    const checkTotalSpend = perfCampaigns.reduce((s, c) => s + c.spend, 0);
-    const checkTotalLeads = perfCampaigns.reduce((s, c) => s + c.leads, 0);
-
     return {
       action_id: action.action_id,
       action_type: action.type,
@@ -1547,17 +1524,6 @@ const executors: Record<string, ActionExecutor> = {
           clicks: l.clicks,
           service_area: l.serviceArea,
         })),
-        __action_card: {
-          type: "performance_report",
-          data: {
-            campaigns: perfCampaigns,
-            total_spend: Math.round(checkTotalSpend * 100) / 100,
-            total_leads: checkTotalLeads,
-            avg_cpl: checkTotalLeads > 0 ? Math.round((checkTotalSpend / checkTotalLeads) * 100) / 100 : null,
-            waste_total: 0,
-            date_range: "7d",
-          },
-        },
       },
     };
   },
@@ -1577,6 +1543,7 @@ const executors: Record<string, ActionExecutor> = {
       phone?: string;
       website?: string;
       keywords?: string[];
+      special_ad_category?: string;
     };
 
     const channel = payload.channel || "native";
@@ -1595,12 +1562,6 @@ const executors: Record<string, ActionExecutor> = {
             action_type: action.type,
             status: "failed" as const,
             error: "To run Facebook/Instagram ads, you'll need to connect your Meta account first. Go to Settings > Integrations > Connect Facebook. Once connected, I can create and manage your campaigns right from here.",
-            data: {
-              __action_card: {
-                type: "connect_required",
-                data: { provider: "meta" },
-              },
-            },
           };
         }
 
@@ -1632,26 +1593,27 @@ const executors: Record<string, ActionExecutor> = {
             businessType: true,
             fullName: true,
             avatarUrl: true,
+            serviceAreaCity: true,
+            serviceAreaRadius: true,
           },
         });
 
-        const isHousing = profile?.businessType?.toLowerCase().includes("real estate") ||
-          profile?.businessType?.toLowerCase().includes("property") ||
-          profile?.businessType?.toLowerCase().includes("mortgage");
-        const specialAdCategories = ["HOUSING"];
+        // Use explicit special_ad_category from chat if provided, otherwise auto-detect from profile
+        const explicitCategory = payload.special_ad_category?.toUpperCase();
+        const isHousing = explicitCategory === "HOUSING" ||
+          (!explicitCategory && (
+            profile?.businessType?.toLowerCase().includes("real estate") ||
+            profile?.businessType?.toLowerCase().includes("property") ||
+            profile?.businessType?.toLowerCase().includes("mortgage")
+          ));
+        const isCredit = explicitCategory === "CREDIT";
+        const isEmployment = explicitCategory === "EMPLOYMENT";
+        const specialAdCategories = isHousing ? ["HOUSING"] :
+          isCredit ? ["CREDIT"] :
+          isEmployment ? ["EMPLOYMENT"] : [];
 
         try {
           // ---- Step 1: Create Campaign ----
-          console.log("Creating Meta campaign with params:", {
-            adAccountId: adAccount.adAccountId,
-            name: campaignName,
-            objective,
-            status: "PAUSED",
-            special_ad_categories: specialAdCategories,
-            isHousing,
-            businessType: profile?.businessType,
-          });
-
           const campaignResult = await client.createCampaign(adAccount.adAccountId, {
             name: campaignName,
             objective,
@@ -1676,7 +1638,9 @@ const executors: Record<string, ActionExecutor> = {
             orderBy: { updatedAt: "desc" },
           });
 
-          if (userProperty?.city) {
+          if (profile?.serviceAreaCity) {
+            userCity = profile.serviceAreaCity;
+          } else if (userProperty?.city) {
             userCity = userProperty.city;
             userState = userProperty.state || "";
           }
@@ -1731,20 +1695,16 @@ const executors: Record<string, ActionExecutor> = {
 
           const optimizationGoal = userObjective === "LEADS" ? "LEAD_GENERATION" : "LINK_CLICKS";
 
-          // Build targeting — use city if available, otherwise broad targeting
+          // Build targeting — use service area city > property city, otherwise broad
           const targeting: Record<string, unknown> = {
             targeting_automation: { advantage_audience: 1 },
           };
-
-          // Look up city targeting key from Meta's geo search API
-          const targetCity = userProperty?.city || payload.service_area;
+          const targetCity = profile?.serviceAreaCity || userProperty?.city;
+          const targetRadius = profile?.serviceAreaRadius || 25;
           if (targetCity) {
-            const cityResult = await client.searchCity(targetCity);
-            if (cityResult) {
-              targeting.geo_locations = {
-                cities: [{ key: cityResult.key, radius: 25, distance_unit: "mile" }],
-              };
-            }
+            targeting.geo_locations = {
+              cities: [{ key: targetCity, radius: targetRadius, distance_unit: "mile" }],
+            };
           }
 
           const adSetResult = await client.createAdSet(adAccount.adAccountId, {
@@ -1885,35 +1845,15 @@ const executors: Record<string, ActionExecutor> = {
               has_image: !!imageHash,
               ads_manager_url: adsManagerUrl,
               note: `Your campaign is ready! Budget: $${dailyBudget}/day targeting the ${userCity} area. Headline: "${adCopy.headline}". It's paused until you approve. Want me to take it live?`,
-              __action_card: {
-                type: "campaign_created",
-                data: {
-                  name: campaignName,
-                  budget: dailyBudget,
-                  area: userCity || payload.service_area || "your area",
-                  objective: userObjective || "LEADS",
-                  status: "PAUSED",
-                  headline: adCopy?.headline || "Your ad headline will appear here",
-                  description: adCopy?.description || "Your ad description will appear here",
-                  targeting_summary: `Homeowners in ${userCity || payload.service_area || "your area"} likely to sell`,
-                  platform: "Facebook & Instagram",
-                  ads_manager_url: adsManagerUrl || null,
-                  business_name: profile?.fullName || "Your Business",
-                  business_initial: (profile?.fullName || "C").charAt(0).toUpperCase(),
-                  image_url: userProperty?.imageUrl || profile?.avatarUrl || null,
-                },
-              },
             },
           };
         } catch (error) {
-          const rawMessage = error instanceof Error ? error.message : String(error);
-          console.error("Meta campaign creation failed:", rawMessage, error);
-
+          const message = error instanceof Error ? error.message : "Unknown error";
           return {
             action_id: action.action_id,
             action_type: action.type,
             status: "failed" as const,
-            error: `Campaign creation failed: ${rawMessage}`,
+            error: `Failed to create campaign on Facebook: ${message}`,
           };
         }
       }
@@ -1933,12 +1873,6 @@ const executors: Record<string, ActionExecutor> = {
             action_type: action.type,
             status: "failed" as const,
             error: "To run Facebook/Instagram ads, you'll need to connect your Meta account first. Go to Settings > Integrations > Connect Facebook. Once connected, I can create and manage your campaigns right from here.",
-            data: {
-              __action_card: {
-                type: "connect_required",
-                data: { provider: "meta" },
-              },
-            },
           };
         }
 
@@ -2653,24 +2587,6 @@ const executors: Record<string, ActionExecutor> = {
           top_performer: topPerformer ? { name: topPerformer.name, cpl: Math.round(topPerformer.cpl * 100) / 100, platform: topPerformer.platform } : null,
           platform_breakdown: platformTotals,
           campaigns: analyses,
-          __action_card: {
-            type: "performance_report",
-            data: {
-              campaigns: analyses.map((a) => ({
-                name: a.campaign_name,
-                spend: a.spend,
-                leads: a.leads,
-                cpl: a.cost_per_lead,
-                status: a.status,
-                flags: a.flags,
-              })),
-              total_spend: Math.round(totalSpend * 100) / 100,
-              total_leads: totalLeads,
-              avg_cpl: averageCPL > 0 ? Math.round(averageCPL * 100) / 100 : null,
-              waste_total: Math.round(wasteTotal * 100) / 100,
-              date_range: dateRange,
-            },
-          },
         },
       };
     } catch (error) {
