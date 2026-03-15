@@ -1088,3 +1088,114 @@ model ConversationMessage {
   @@index([convId, createdAt(sort: Asc)])
   @@map("conversation_messages")
 }
+
+// ============================================================================
+// MARKETING CENTER
+// ============================================================================
+
+model MarketingTemplate {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id") @db.Uuid
+  name        String
+  category    String   // social_post | ad_copy | email | landing_page
+  subcategory String?  // new_listing | open_house | just_sold | market_update | price_reduction | testimonial
+  platform    String?  // facebook | instagram | linkedin | google | email | generic
+  headline    String?
+  body        String
+  ctaText     String?  @map("cta_text")
+  imageUrl    String?  @map("image_url")
+  isSystem    Boolean  @default(false) @map("is_system")
+  metadata    Json?    @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, category])
+  @@index([category, subcategory])
+  @@map("marketing_templates")
+}
+
+model EmailCampaign {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id") @db.Uuid
+  name           String
+  type           String    @default("one_time") // one_time | drip | newsletter | listing_alert
+  status         String    @default("draft") // draft | scheduled | active | paused | completed
+  subject        String?
+  bodyHtml       String?   @map("body_html")
+  bodyText       String?   @map("body_text")
+  fromName       String?   @map("from_name")
+  scheduledAt    DateTime? @map("scheduled_at")
+  sentAt         DateTime? @map("sent_at")
+  recipientCount Int       @default(0) @map("recipient_count")
+  openCount      Int       @default(0) @map("open_count")
+  clickCount     Int       @default(0) @map("click_count")
+  bounceCount    Int       @default(0) @map("bounce_count")
+  metadata       Json?     @default("{}")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  steps EmailCampaignStep[]
+
+  @@index([userId, status])
+  @@index([userId, type])
+  @@map("email_campaigns")
+}
+
+model EmailCampaignStep {
+  id         String        @id @default(cuid())
+  campaignId String        @map("campaign_id")
+  campaign   EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  stepOrder  Int           @map("step_order")
+  delayDays  Int           @default(0) @map("delay_days")
+  subject    String
+  bodyHtml   String?       @map("body_html")
+  bodyText   String?       @map("body_text")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  @@index([campaignId, stepOrder])
+  @@map("email_campaign_steps")
+}
+
+model CalendarEvent {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id") @db.Uuid
+  title       String
+  description String?
+  type        String    // ad_campaign | social_post | email | open_house | follow_up | custom
+  channel     String?   // facebook | instagram | linkedin | email | sms
+  status      String    @default("scheduled") // draft | scheduled | published | failed
+  scheduledAt DateTime  @map("scheduled_at")
+  publishedAt DateTime? @map("published_at")
+  entityType  String?   @map("entity_type")
+  entityId    String?   @map("entity_id")
+  metadata    Json?     @default("{}")
+  color       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, scheduledAt])
+  @@index([userId, type, status])
+  @@map("calendar_events")
+}
+
+model LandingPage {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id") @db.Uuid
+  propertyId  String?   @map("property_id")
+  name        String
+  slug        String    @unique
+  status      String    @default("draft") // draft | published | archived
+  templateId  String?   @map("template_id")
+  contentJson Json      @map("content_json")
+  views       Int       @default(0)
+  leads       Int       @default(0)
+  publishedAt DateTime? @map("published_at")
+  metadata    Json?     @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@index([slug])
+  @@map("landing_pages")
+}
