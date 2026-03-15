@@ -52,11 +52,11 @@ export function ViewToggle() {
   const toggle = useCallback(() => {
     if (viewMode === "chat") {
       setViewMode("classic");
-      // Only restore last route if it was a browse route (not settings/notifications)
+      // Only restore last route if it was a browse/CRM route
       const safeFallbacks = ["/browse", "/contacts", "/deals", "/properties", "/dashboard"];
       const restoreTo = lastClassicRoute && safeFallbacks.some((r) => lastClassicRoute.startsWith(r))
         ? lastClassicRoute
-        : "/browse/contacts";
+        : "/dashboard";
       router.push(restoreTo);
     } else {
       setViewMode("chat");
@@ -80,10 +80,13 @@ export function ViewToggle() {
   const label = isChatView ? "Switch to Classic View" : "Switch to Chat";
   const Icon = isChatView ? LayoutGrid : MessageCircle;
 
+  // In classic view, hide on desktop (sidebar has Home link) but show on mobile
+  const classicHideClass = !isChatView ? "md:hidden" : "";
+
   return (
     <button
       onClick={toggle}
-      className="fixed top-4 right-4 z-[70] flex items-center justify-center h-9 w-9 rounded-xl transition-all duration-200 group"
+      className={`fixed top-4 right-4 z-[70] flex items-center justify-center h-9 w-9 rounded-xl transition-all duration-200 group ${classicHideClass}`}
       style={{
         backgroundColor: withAlpha(theme.accent, 0.08),
         border: `1px solid ${withAlpha(theme.accent, 0.15)}`,

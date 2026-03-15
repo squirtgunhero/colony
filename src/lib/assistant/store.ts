@@ -127,6 +127,9 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   // ============================================
   loadHistory: async () => {
     try {
+      // Skip if messages already loaded (e.g. navigating back to /chat)
+      if (get().messages.length > 0) return;
+
       const res = await fetch("/api/chat/history");
       if (!res.ok) return;
 
@@ -134,6 +137,8 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
       // No history → show a personalised welcome message with quick-action chips
       if (!data.messages || data.messages.length === 0) {
+        // Double-check again after async fetch
+        if (get().messages.length > 0) return;
         try {
           const welcomeRes = await fetch("/api/lam/welcome");
           if (welcomeRes.ok) {
