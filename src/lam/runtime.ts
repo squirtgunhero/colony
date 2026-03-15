@@ -1702,18 +1702,22 @@ const executors: Record<string, ActionExecutor> = {
           const targeting: Record<string, unknown> = {
             targeting_automation: { advantage_audience: 1 },
           };
-          const targetCity = payload.target_city || profile?.serviceAreaCity || userProperty?.city;
+          const targetCityName = payload.target_city || profile?.serviceAreaCity || userProperty?.city;
           const targetRadius = payload.target_radius || profile?.serviceAreaRadius || 25;
-          if (targetCity) {
-            targeting.geo_locations = {
-              cities: [{ key: targetCity, radius: targetRadius, distance_unit: "mile" }],
-            };
+          if (targetCityName) {
+            // Look up the Meta geo targeting key for the city (integer, not string)
+            const cityResult = await client.searchCity(targetCityName);
+            if (cityResult) {
+              targeting.geo_locations = {
+                cities: [{ key: cityResult.key, radius: targetRadius, distance_unit: "mile" }],
+              };
+            }
 
             // Save as the user's service area if they don't have one yet
             if (!profile?.serviceAreaCity) {
               await prisma.profile.update({
                 where: { id: ctx.user_id },
-                data: { serviceAreaCity: targetCity, serviceAreaRadius: targetRadius },
+                data: { serviceAreaCity: targetCityName, serviceAreaRadius: targetRadius },
               }).catch(() => {}); // non-critical
             }
           }
