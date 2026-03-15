@@ -15,12 +15,16 @@ import {
   Settings,
   Store,
   Upload,
+  CheckSquare,
+  BarChart3,
 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 
 const topNavItems = [
-  { icon: Home, href: "/chat", label: "Home", description: "AI-first interface" },
+  { icon: Home, href: "/chat", label: "Home", description: "AI assistant" },
+  { icon: BarChart3, href: "/dashboard", label: "Dashboard", description: "Pipeline & analytics" },
   { icon: Layers, href: "/browse", label: "Browse", description: "Contacts, properties, deals" },
+  { icon: CheckSquare, href: "/browse/tasks", label: "Tasks", description: "To-dos & follow-ups" },
   { icon: Upload, href: "/import", label: "Import", description: "Bulk contact import" },
   { icon: Share2, href: "/referrals", label: "Referrals", description: "Lead sharing" },
   { icon: Store, href: "/marketplace", label: "Marketplace", description: "Public referrals" },
@@ -54,7 +58,9 @@ export function ModeSidebar() {
 
   const isActive = (href: string) => {
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
-    if (href === "/browse") return pathname.startsWith("/browse");
+    if (href === "/browse") return pathname.startsWith("/browse") && !pathname.startsWith("/browse/tasks");
+    if (href === "/browse/tasks") return pathname.startsWith("/browse/tasks");
+    if (href === "/dashboard") return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 

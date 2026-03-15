@@ -12,7 +12,7 @@ import { usePathname } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
 import { cn } from "@/lib/utils";
 import { useColonyTheme } from "@/lib/chat-theme-context";
-import { Menu, Users, Home, Handshake, Plus } from "lucide-react";
+import { Menu, Users, Home, Handshake, CheckSquare, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
@@ -20,6 +20,7 @@ const browseTabs = [
   { label: "Contacts", href: "/browse/contacts", icon: Users },
   { label: "Properties", href: "/browse/properties", icon: Home },
   { label: "Deals", href: "/browse/deals", icon: Handshake },
+  { label: "Tasks", href: "/browse/tasks", icon: CheckSquare },
 ];
 
 const mobileNavItems = [

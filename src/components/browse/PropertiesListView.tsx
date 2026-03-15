@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, Home, MapPin, DollarSign } from "lucide-react";
+import { Search, Home, MapPin, DollarSign, Bed, Bath, Maximize } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import { formatCurrency, formatDate } from "@/lib/date-utils";
@@ -15,6 +15,9 @@ interface Property {
   zipCode?: string | null;
   price: number;
   status: string;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  sqft?: number | null;
   updatedAt: Date;
   owner?: { id: string; name: string } | null;
   _count: {
@@ -179,12 +182,46 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
 
               {/* Price */}
               <div
-                className="flex items-center gap-1 text-lg font-semibold mb-3"
+                className="flex items-center gap-1 text-lg font-semibold mb-2"
                 style={{ color: theme.accent }}
               >
                 <DollarSign className="h-4 w-4" />
                 {formatCurrency(property.price).replace("$", "")}
               </div>
+
+              {/* Property details */}
+              {(property.bedrooms || property.bathrooms || property.sqft) && (
+                <div
+                  className="flex items-center gap-3 text-xs mb-3"
+                  style={{ color: theme.textMuted }}
+                >
+                  {property.bedrooms != null && (
+                    <span className="flex items-center gap-1">
+                      <Bed className="h-3 w-3" /> {property.bedrooms} bd
+                    </span>
+                  )}
+                  {property.bathrooms != null && (
+                    <span className="flex items-center gap-1">
+                      <Bath className="h-3 w-3" /> {property.bathrooms} ba
+                    </span>
+                  )}
+                  {property.sqft != null && (
+                    <span className="flex items-center gap-1">
+                      <Maximize className="h-3 w-3" /> {property.sqft.toLocaleString()} sqft
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Owner */}
+              {property.owner && (
+                <div
+                  className="text-xs mb-3"
+                  style={{ color: theme.textMuted }}
+                >
+                  Owner: <span style={{ color: theme.text }}>{property.owner.name}</span>
+                </div>
+              )}
 
               {/* Footer */}
               <div

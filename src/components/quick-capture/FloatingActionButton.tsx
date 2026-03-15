@@ -19,7 +19,7 @@ export function FloatingActionButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
+        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
         style={{
           backgroundColor: theme.accent,
           color: "#fff",

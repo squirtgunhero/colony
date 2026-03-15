@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Search, User, Mail, Phone, MoreHorizontal, Trash2 } from "lucide-react";
+import { Search, User, Mail, Phone, MapPin, MoreHorizontal, Trash2 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import { formatDate } from "@/lib/date-utils";
@@ -17,7 +17,7 @@ interface Contact {
   source?: string | null;
   updatedAt: Date;
   deals: Array<{ id: string }>;
-  properties: Array<{ id: string }>;
+  properties: Array<{ id: string; city?: string | null; state?: string | null }>;
   _count: {
     activities: number;
     tasks: number;
@@ -210,6 +210,19 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                       <Phone className="h-3 w-3" />
                       {contact.phone}
                     </span>
+                  )}
+                  {(() => {
+                    const prop = contact.properties?.[0];
+                    const loc = prop ? [prop.city, prop.state].filter(Boolean).join(", ") : null;
+                    return loc ? (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {loc}
+                      </span>
+                    ) : null;
+                  })()}
+                  {!contact.email && !contact.phone && (
+                    <span className="italic opacity-50 text-xs">No contact info</span>
                   )}
                 </div>
               </div>

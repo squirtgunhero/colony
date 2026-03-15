@@ -22,11 +22,20 @@ interface Property {
   createdAt?: Date;
 }
 
-interface DealsTrendChartProps {
-  properties: Property[];
+interface Deal {
+  id: string;
+  title: string;
+  stage: string;
+  value: number | null;
+  createdAt?: Date;
 }
 
-export function DealsTrendChart({ properties }: DealsTrendChartProps) {
+interface DealsTrendChartProps {
+  properties: Property[];
+  deals?: Deal[];
+}
+
+export function DealsTrendChart({ properties, deals = [] }: DealsTrendChartProps) {
   const { theme } = useColonyTheme();
   const today = new Date();
   const currentMonthIndex = 5;
@@ -43,17 +52,29 @@ export function DealsTrendChart({ properties }: DealsTrendChartProps) {
   });
 
   const data = months.map(({ month, start, end, isCurrentMonth }) => {
+    // Property-based data
     const monthProperties = properties.filter((property) =>
       property.createdAt ? isWithinInterval(new Date(property.createdAt), { start, end }) : false
     );
     const soldProperties = monthProperties.filter((p) => p.status === "sold");
-    const totalValue = monthProperties.reduce((sum, p) => sum + (p.price || 0), 0);
-    const soldValue = soldProperties.reduce((sum, p) => sum + (p.price || 0), 0);
+    const propPipeline = monthProperties.reduce((sum, p) => sum + (p.price || 0), 0);
+    const propSold = soldProperties.reduce((sum, p) => sum + (p.price || 0), 0);
+
+    // Deal-based data
+    const monthDeals = deals.filter((deal) =>
+      deal.createdAt ? isWithinInterval(new Date(deal.createdAt), { start, end }) : false
+    );
+    const closedDeals = monthDeals.filter((d) => d.stage === "closed");
+    const dealPipeline = monthDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+    const dealClosed = closedDeals.reduce((sum, d) => sum + (d.value || 0), 0);
+
+    // Combine: use deal values if deals exist, otherwise property values
+    const hasDealData = deals.length > 0;
 
     return {
       name: month,
-      pipeline: totalValue,
-      closed: soldValue,
+      pipeline: hasDealData ? dealPipeline + propPipeline : propPipeline,
+      closed: hasDealData ? dealClosed + propSold : propSold,
       properties: monthProperties.length,
       isCurrentMonth,
     };

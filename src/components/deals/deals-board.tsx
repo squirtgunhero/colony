@@ -229,27 +229,27 @@ export function DealsBoard({ deals, contacts, properties }: DealsBoardProps) {
                               )}
                             </div>
 
-                            {/* Quick move buttons */}
-                            <div className="flex justify-between mt-3 pt-2 border-t border-border">
+                            {/* Quick stage move */}
+                            <div className="flex justify-end gap-1 mt-3 pt-2 border-t border-border">
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-xs"
+                                size="icon"
+                                className="h-6 w-6"
                                 disabled={stage.id === "new_lead"}
                                 onClick={() => moveToStage(deal.id, "prev")}
+                                title="Move to previous stage"
                               >
-                                <ChevronLeft className="h-3 w-3 mr-1" />
-                                Back
+                                <ChevronLeft className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 variant="ghost"
-                                size="sm"
-                                className="h-6 px-2 text-xs"
+                                size="icon"
+                                className="h-6 w-6"
                                 disabled={stage.id === "closed"}
                                 onClick={() => moveToStage(deal.id, "next")}
+                                title="Move to next stage"
                               >
-                                Next
-                                <ChevronRight className="h-3 w-3 ml-1" />
+                                <ChevronRight className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </CardContent>

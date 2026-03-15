@@ -19,8 +19,11 @@ export function LeadSourcesChart({ sources }: LeadSourcesChartProps) {
 
   const opacities = [1, 0.75, 0.55, 0.4, 0.25];
 
+  const formatSourceName = (name: string) =>
+    name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
   const data = sources.slice(0, 5).map((source, index) => ({
-    name: source.name,
+    name: formatSourceName(source.name),
     value: source.count,
     opacity: opacities[index] ?? 0.25,
   }));

@@ -13,7 +13,7 @@ async function getContacts(userId: string) {
     orderBy: { updatedAt: "desc" },
     include: {
       deals: { take: 1 },
-      properties: { take: 1 },
+      properties: { take: 1, select: { id: true, city: true, state: true } },
       _count: {
         select: {
           activities: true,

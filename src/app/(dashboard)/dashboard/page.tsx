@@ -48,27 +48,47 @@ async function getStats(userId: string) {
   const now = new Date();
   const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [totalValue, previousMonthValue, leadsCount, pendingTasks] = await Promise.all([
-    // Current total pipeline value from properties (excluding sold)
-    prisma.property.aggregate({ 
-      where: { userId, status: { not: "sold" } }, 
-      _sum: { price: true } 
+  const [dealTotal, dealPrevious, propertyTotal, propertyPrevious, leadsCount, pendingTasks] = await Promise.all([
+    // Current total deal pipeline value (excluding closed)
+    prisma.deal.aggregate({
+      where: { userId, stage: { not: "closed" } },
+      _sum: { value: true }
     }),
-    // Pipeline value from properties that existed at start of current month
-    prisma.property.aggregate({ 
-      where: { 
+    // Deal pipeline at start of month
+    prisma.deal.aggregate({
+      where: {
+        userId,
+        stage: { not: "closed" },
+        createdAt: { lt: startOfCurrentMonth }
+      },
+      _sum: { value: true }
+    }),
+    // Property pipeline (excluding sold)
+    prisma.property.aggregate({
+      where: { userId, status: { not: "sold" } },
+      _sum: { price: true }
+    }),
+    // Property pipeline at start of month
+    prisma.property.aggregate({
+      where: {
         userId,
         status: { not: "sold" },
         createdAt: { lt: startOfCurrentMonth }
-      }, 
-      _sum: { price: true } 
+      },
+      _sum: { price: true }
     }),
     prisma.contact.count({ where: { userId, type: "lead" } }),
     prisma.task.count({ where: { userId, completed: false } }),
   ]);
 
-  const currentValue = totalValue._sum.price || 0;
-  const previousValue = previousMonthValue._sum.price || 0;
+  // Use deal values if any exist, otherwise fall back to property values
+  const hasDealPipeline = (dealTotal._sum.value || 0) > 0;
+  const currentValue = hasDealPipeline
+    ? (dealTotal._sum.value || 0)
+    : (propertyTotal._sum.price || 0);
+  const previousValue = hasDealPipeline
+    ? (dealPrevious._sum.value || 0)
+    : (propertyPrevious._sum.price || 0);
 
   return {
     pipelineValue: currentValue,
@@ -76,6 +96,19 @@ async function getStats(userId: string) {
     leadsCount,
     pendingTasks,
   };
+}
+
+async function getDeals(userId: string) {
+  return prisma.deal.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      title: true,
+      stage: true,
+      value: true,
+      createdAt: true,
+    },
+  });
 }
 
 async function getRecentActivities(userId: string) {
@@ -108,9 +141,10 @@ async function getLeadSources(userId: string) {
 export default async function DashboardPage() {
   const userId = await requireUserId();
   
-  const [leads, properties, tasks, stats, activities, leadSources] = await Promise.all([
+  const [leads, properties, deals, tasks, stats, activities, leadSources] = await Promise.all([
     getLeads(userId),
     getProperties(userId),
+    getDeals(userId),
     getTasks(userId),
     getStats(userId),
     getRecentActivities(userId),
@@ -148,7 +182,7 @@ export default async function DashboardPage() {
           <div className="dashboard-grid">
             <div className="space-y-8">
               <div className="dash-fade-in dash-fade-in-5">
-                <DealsTrendChart properties={properties} />
+                <DealsTrendChart properties={properties} deals={deals} />
               </div>
             </div>
 
