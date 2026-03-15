@@ -38,7 +38,7 @@ export function ChatMessageBubble({
   const hasExecution = lamResponse?.execution_result;
   const isExecuted = hasExecution?.status === "completed";
   const hasFailed =
-    hasExecution?.actions_failed && hasExecution.actions_failed > 0;
+    !!(hasExecution?.actions_failed && hasExecution.actions_failed > 0);
   const needsApproval = lamResponse?.response?.requires_approval;
   const messageCanUndo =
     message.canUndo && message.runId === lastRunId && canUndo;
