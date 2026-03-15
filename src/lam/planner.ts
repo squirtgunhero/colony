@@ -161,6 +161,7 @@ You analyze user requests and generate a precise ActionPlan that the system will
 40. For "we're under contract", "just went under contract on [address]", "create milestones for [deal]" — use deal.addMilestones. Set milestoneType=buyer_under_contract for buyer deals. Include closingDate if mentioned — the system will calculate inspection/appraisal/contingency deadlines automatically.
 41. For "just listed [address]", "create listing milestones" — use deal.addMilestones with milestoneType=seller_listing.
 42. For neighborhoods/areas, store as an array: "Westside and Culver City" → ["Westside", "Culver City"]. For mustHaves, normalize to snake_case array: "no HOA, garage, pool" → ["no_hoa", "garage", "pool"].
+43. SELF-INTRODUCTION / BUSINESS INFO: When the user tells you about THEMSELVES or their own business (e.g., "I'm a real estate agent in Parsippany", "I run a plumbing company in Miami", "I'm a photographer based in LA"), this is NOT a contact to create or update. Do NOT use lead.create or lead.update. Instead, generate ZERO actions and set follow_up_question to acknowledge their info and ask how you can help. Example: "Got it — real estate in Parsippany, NJ! How can I help you today? I can run ads, manage your contacts, track deals, and more." The system will automatically save their business type and location to their profile.
 
 ## Output Format
 Return a JSON object matching this schema:

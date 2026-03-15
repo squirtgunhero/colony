@@ -66,6 +66,78 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
     permissions: input.permissions,
   };
 
+  // ── PRE-CHECK: Self-introduction / business info ──
+  // When the user tells us about themselves ("I'm a real estate agent in X"),
+  // save to profile and respond conversationally — no planner needed.
+  const selfIntroMatch = input.message.match(
+    /(?:i(?:'m| am) (?:a |an )?)(.+?)(?:\s+(?:in|based in|located in|from|near)\s+)(.+?)(?:\.|$)/i
+  );
+  if (selfIntroMatch && !input.message.toLowerCase().includes("add ") && !input.message.toLowerCase().includes("create ")) {
+    const businessType = selfIntroMatch[1]?.trim();
+    const location = selfIntroMatch[2]?.trim();
+
+    // Save to profile
+    try {
+      const updateData: Record<string, unknown> = {};
+      if (businessType) updateData.businessType = businessType;
+      if (location) {
+        updateData.serviceAreaCity = location;
+        if (!await prisma.profile.findUnique({ where: { id: input.user_id }, select: { serviceAreaRadius: true } }).then(p => p?.serviceAreaRadius)) {
+          updateData.serviceAreaRadius = 25; // default radius
+        }
+      }
+      await prisma.profile.update({
+        where: { id: input.user_id },
+        data: updateData,
+      });
+    } catch (e) {
+      console.error("Failed to save profile from self-intro:", e);
+    }
+
+    const runId = await recordRun({
+      user_id: input.user_id,
+      message: input.message,
+      plan: {
+        plan_id: randomUUID(),
+        intent: "User shared business information",
+        confidence: 0.95,
+        plan_steps: [],
+        actions: [],
+        verification_steps: [],
+        user_summary: `Saved business info: ${businessType || ""}${location ? ` in ${location}` : ""}`,
+        follow_up_question: null,
+        requires_approval: false,
+        highest_risk_tier: 0,
+      },
+    });
+
+    const friendlyBiz = businessType || "your business";
+    const friendlyLoc = location ? ` in ${location}` : "";
+    return {
+      run_id: runId,
+      plan: {
+        plan_id: randomUUID(),
+        intent: "User shared business information",
+        confidence: 0.95,
+        plan_steps: [],
+        actions: [],
+        verification_steps: [],
+        user_summary: `Saved: ${friendlyBiz}${friendlyLoc}`,
+        follow_up_question: null,
+        requires_approval: false,
+        highest_risk_tier: 0,
+      },
+      execution_result: null,
+      verification_result: null,
+      response: {
+        message: `Got it — ${friendlyBiz}${friendlyLoc}! I've saved that to your profile. How can I help you today? I can run ads to generate leads, manage your contacts and deals, track tasks, and more.`,
+        follow_up_question: null,
+        requires_approval: false,
+        can_undo: false,
+      },
+    };
+  }
+
   const planResult = await planFromMessage(plannerInput);
 
   if (!planResult.success) {
@@ -73,6 +145,25 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
   }
 
   const plan = planResult.plan;
+
+  // ── SAFETY NET: Catch misrouted lead.update targeting "user_profile" ──
+  // If the planner still generates a lead.update with name containing "profile"
+  // or "user", strip it — it's a self-intro that slipped through.
+  plan.actions = plan.actions.filter(a => {
+    if (a.type === "lead.update") {
+      const payload = a.payload as Record<string, unknown>;
+      const name = String(payload.name || payload.contactName || "").toLowerCase();
+      if (name.includes("user_profile") || name.includes("user profile") || name === "profile") {
+        return false; // Remove this misrouted action
+      }
+    }
+    return true;
+  });
+
+  // If all actions were stripped and there's no follow-up, add a conversational response
+  if (plan.actions.length === 0 && !plan.follow_up_question) {
+    plan.follow_up_question = plan.user_summary || "How can I help you today?";
+  }
 
   // ── HARD OVERRIDE: Prevent lead.create from hijacking ad requests ──
   // If the user's original message mentions generating leads, running ads,
