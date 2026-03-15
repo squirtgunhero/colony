@@ -136,17 +136,19 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
     plan,
   });
 
-  // If there's a follow-up question, don't execute
+  // If there's a follow-up question, don't execute — respond with the question.
   if (plan.follow_up_question) {
-    // Use the follow-up question as the message; set follow_up_question to null
-    // to avoid the client appending it again (which causes duplicate text).
+    // Use the follow_up_question as the sole message. It already contains
+    // the context + questions. Adding user_summary would create redundancy.
+    const message = plan.follow_up_question;
+
     return {
       run_id: runId,
       plan,
       execution_result: null,
       verification_result: null,
       response: {
-        message: plan.user_summary || plan.follow_up_question,
+        message,
         follow_up_question: null,
         requires_approval: false,
         can_undo: false,
