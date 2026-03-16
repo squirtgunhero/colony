@@ -15,6 +15,8 @@ import {
   FileText,
   ChevronDown,
   Loader2,
+  ImageIcon,
+  Download,
 } from "lucide-react";
 
 interface Template {
@@ -95,6 +97,10 @@ export function ContentHub({ templates, properties }: ContentHubProps) {
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Image generation
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+
   // Template filter
   const [templateFilter, setTemplateFilter] = useState<string>("all");
 
@@ -132,6 +138,30 @@ export function ContentHub({ templates, properties }: ContentHubProps) {
       console.error("Generation error:", error);
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleGenerateImage() {
+    setIsGeneratingImage(true);
+    try {
+      const res = await fetch("/api/marketing/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: contentType,
+          propertyId: propertyId || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Image generation failed");
+      }
+      const data = await res.json();
+      setGeneratedImage(data.image_url);
+    } catch (error) {
+      console.error("Image generation error:", error);
+    } finally {
+      setIsGeneratingImage(false);
     }
   }
 
@@ -294,25 +324,42 @@ export function ContentHub({ templates, properties }: ContentHubProps) {
               />
             </div>
 
-            {/* Generate button */}
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: theme.accent, color: "#fff" }}
-            >
-              {isGenerating ? (
-                <>
+            {/* Generate buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50"
+                style={{ backgroundColor: theme.accent, color: "#fff" }}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Generate Copy
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleGenerateImage}
+                disabled={isGeneratingImage}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-50"
+                style={{
+                  backgroundColor: withAlpha(theme.accent, 0.15),
+                  color: theme.accent,
+                }}
+              >
+                {isGeneratingImage ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate Content
-                </>
-              )}
-            </button>
+                ) : (
+                  <ImageIcon className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Generated Output */}
@@ -380,6 +427,45 @@ export function ContentHub({ templates, properties }: ContentHubProps) {
                   {generated.hashtags.join(" ")}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Generated Image */}
+          {generatedImage && (
+            <div
+              className="rounded-xl overflow-hidden mt-4"
+              style={{
+                border: `1px solid ${withAlpha(theme.accent, 0.15)}`,
+              }}
+            >
+              <div
+                className="flex items-center justify-between px-4 py-2"
+                style={{ backgroundColor: withAlpha(theme.accent, 0.04) }}
+              >
+                <h3 className="text-sm font-medium" style={{ color: theme.text }}>
+                  Generated Image
+                </h3>
+                <a
+                  href={generatedImage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    backgroundColor: withAlpha(theme.text, 0.05),
+                    color: theme.textMuted,
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Download
+                </a>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={generatedImage}
+                alt="AI-generated marketing image"
+                className="w-full"
+              />
             </div>
           )}
         </div>

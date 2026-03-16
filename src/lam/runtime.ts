@@ -1678,10 +1678,29 @@ const executors: Record<string, ActionExecutor> = {
 
           // ---- Step 3: Find image and upload ----
           let imageHash: string | null = null;
-          const logoUrl = profile?.avatarUrl;
           const propertyImageUrl = userProperty?.imageUrl;
 
-          const imageSource = logoUrl || propertyImageUrl;
+          // Priority: property photo > AI-generated image
+          let imageSource = propertyImageUrl || null;
+
+          // If no property image, generate one with DALL-E
+          if (!imageSource && process.env.OPENAI_API_KEY) {
+            try {
+              const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
+              const prompt = buildAdImagePrompt({
+                type: payload.lead_type || "lead_generation",
+                city: userCity,
+                state: userState,
+                businessType,
+              });
+              const generated = await generateImage({ prompt, size: "1024x1024" });
+              imageSource = generated.url;
+            } catch (imgGenErr) {
+              console.error("[META ADS] DALL-E image generation failed:", imgGenErr);
+              // Continue without image
+            }
+          }
+
           if (imageSource) {
             try {
               const uploadResult = await client.uploadImage(adAccount.adAccountId, imageSource);
