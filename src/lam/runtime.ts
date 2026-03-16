@@ -1739,20 +1739,59 @@ const executors: Record<string, ActionExecutor> = {
 
           // ---- Step 5: Create Ad Creative ----
           // Determine landing page URL
-          const landingUrl = payload.website || `${process.env.NEXT_PUBLIC_APP_URL || "https://colony.app"}/profile/${ctx.user_id}`;
+          const landingUrl = payload.website || `${process.env.NEXT_PUBLIC_APP_URL || "https://mycolonyhq.com"}`;
+
+          // Get user's Facebook page ID from ad account metadata
+          const pageId = (adAccount.metadata as Record<string, unknown>)?.pageId as string || "";
+
+          // For housing/special ad category ads, a Facebook Page is required
+          if (!pageId && specialAdCategories.length > 0) {
+            // Try to get pages from Meta API
+            let resolvedPageId = "";
+            try {
+              const pagesRes = await client.getPages();
+              if (pagesRes.length > 0) {
+                resolvedPageId = pagesRes[0].id;
+                // Save for future use
+                await prisma.metaAdAccount.update({
+                  where: { id: adAccount.id },
+                  data: {
+                    metadata: {
+                      ...(adAccount.metadata as Record<string, unknown> || {}),
+                      pageId: resolvedPageId,
+                    },
+                  },
+                }).catch(() => {});
+              }
+            } catch {
+              // Can't get pages
+            }
+
+            if (!resolvedPageId) {
+              return {
+                action_id: action.action_id,
+                action_type: action.type,
+                status: "failed" as const,
+                error: "Housing ads require a linked Facebook Page. Go to Settings > Integrations to connect your Facebook Page, then try again.",
+              };
+            }
+
+            // Use the resolved page ID
+            (adAccount.metadata as Record<string, unknown>).pageId = resolvedPageId;
+          }
+
+          const effectivePageId = pageId || (adAccount.metadata as Record<string, unknown>)?.pageId as string || "";
 
           let creativeResult: { id: string };
-          if (imageHash) {
-            // Get user's Facebook page ID from ad account metadata
-            const pageId = (adAccount.metadata as Record<string, unknown>)?.pageId as string || "";
-
-            if (pageId) {
+          try {
+            if (effectivePageId) {
+              // Page-based creative (required for housing, preferred for all)
               creativeResult = await client.createAdCreative(adAccount.adAccountId, {
                 name: `${campaignName} - Creative`,
                 object_story_spec: {
-                  page_id: pageId,
+                  page_id: effectivePageId,
                   link_data: {
-                    image_hash: imageHash,
+                    ...(imageHash ? { image_hash: imageHash } : {}),
                     message: adCopy.primary_text,
                     link: landingUrl,
                     name: adCopy.headline,
@@ -1762,7 +1801,7 @@ const executors: Record<string, ActionExecutor> = {
                 },
               });
             } else {
-              // Advantage+ creative without page_id
+              // No page — use asset_feed_spec (non-housing only)
               creativeResult = await client.createAdCreative(adAccount.adAccountId, {
                 name: `${campaignName} - Creative`,
                 asset_feed_spec: {
@@ -1780,33 +1819,34 @@ const executors: Record<string, ActionExecutor> = {
                 },
               });
             }
-          } else {
-            // No image — use Advantage+ creative with text only
-            creativeResult = await client.createAdCreative(adAccount.adAccountId, {
-              name: `${campaignName} - Creative`,
-              asset_feed_spec: {
-                bodies: [{ text: adCopy.primary_text }],
-                titles: [{ text: adCopy.headline }],
-                descriptions: [{ text: adCopy.description }],
-                ad_formats: ["SINGLE_IMAGE"],
-                call_to_action_types: ["LEARN_MORE"],
-                link_urls: [{ website_url: landingUrl }],
-              },
-              degrees_of_freedom_spec: {
-                creative_features_spec: {
-                  standard_enhancements: { enroll_status: "OPT_IN" },
-                },
-              },
-            });
+          } catch (creativeError) {
+            const msg = creativeError instanceof Error ? creativeError.message : "Unknown creative error";
+            return {
+              action_id: action.action_id,
+              action_type: action.type,
+              status: "failed" as const,
+              error: `Campaign and ad set created, but ad creative failed: ${msg}`,
+            };
           }
 
           // ---- Step 6: Create Ad ----
-          const adResult = await client.createAd(adAccount.adAccountId, {
-            name: `${campaignName} - Ad`,
-            adset_id: adSetResult.id,
-            creative: { creative_id: creativeResult.id },
-            status: "PAUSED",
-          });
+          let adResult: { id: string };
+          try {
+            adResult = await client.createAd(adAccount.adAccountId, {
+              name: `${campaignName} - Ad`,
+              adset_id: adSetResult.id,
+              creative: { creative_id: creativeResult.id },
+              status: "PAUSED",
+            });
+          } catch (adError) {
+            const msg = adError instanceof Error ? adError.message : "Unknown ad error";
+            return {
+              action_id: action.action_id,
+              action_type: action.type,
+              status: "failed" as const,
+              error: `Campaign, ad set, and creative created, but ad creation failed: ${msg}`,
+            };
+          }
 
           // ---- Step 7: Update local records ----
           // Also create a HoneycombCampaign record for unified tracking

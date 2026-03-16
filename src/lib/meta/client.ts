@@ -275,6 +275,16 @@ class MetaApiClient {
   }
 
   /**
+   * Get Facebook Pages the user manages (needed for ad creatives)
+   */
+  async getPages(): Promise<Array<{ id: string; name: string }>> {
+    const data = await this.request<{ data: Array<{ id: string; name: string }> }>("/me/accounts", {
+      method: "GET",
+    });
+    return data.data || [];
+  }
+
+  /**
    * Update campaign status
    */
   async updateCampaignStatus(campaignId: string, status: string): Promise<{ success: boolean }> {
