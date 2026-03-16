@@ -1699,9 +1699,11 @@ const executors: Record<string, ActionExecutor> = {
           const optimizationGoal = userObjective === "LEADS" ? "LEAD_GENERATION" : "LINK_CLICKS";
 
           // Build targeting — use payload city > service area city > property city
-          const targeting: Record<string, unknown> = {
-            targeting_automation: { advantage_audience: 1 },
-          };
+          // Note: Advantage+ audience is NOT allowed for housing/credit/employment special ad categories
+          const targeting: Record<string, unknown> = {};
+          if (specialAdCategories.length === 0) {
+            targeting.targeting_automation = { advantage_audience: 1 };
+          }
           const targetCityName = payload.target_city || profile?.serviceAreaCity || userProperty?.city;
           const targetRadius = payload.target_radius || profile?.serviceAreaRadius || 25;
           if (targetCityName) {
