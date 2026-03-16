@@ -4361,6 +4361,28 @@ export async function executeApprovedActions(
     };
   }
 
+  // If no pending tier-2 actions found, check if there are any actions at all
+  if (run.actions.length === 0) {
+    const allActions = await prisma.lamAction.findMany({
+      where: { runId },
+      select: { id: true, actionType: true, status: true, riskTier: true },
+    });
+    console.error(
+      `[LAM] executeApprovedActions: No pending tier-2 actions for run ${runId}. All actions:`,
+      JSON.stringify(allActions)
+    );
+    return {
+      run_id: runId,
+      status: "completed",
+      actions_executed: 0,
+      actions_skipped: 0,
+      actions_failed: 0,
+      actions_pending_approval: 0,
+      results: [],
+      user_summary: `No pending actions found. Actions in this run: ${allActions.map((a) => `${a.actionType}(${a.status})`).join(", ") || "none"}`,
+    };
+  }
+
   const ctx: ExecutionContext = {
     user_id: userId,
     run_id: runId,

@@ -337,10 +337,25 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
 
       const data = await res.json();
 
+      // Build a descriptive result message
+      const exec = data.execution_result;
+      let resultMsg: string;
+      if (exec?.actions_executed > 0 && exec?.actions_failed === 0) {
+        resultMsg = exec.user_summary || `Done! ${exec.actions_executed} action(s) completed.`;
+      } else if (exec?.actions_failed > 0) {
+        const failDetails = exec.results
+          ?.filter((r: { status: string; error?: string }) => r.status !== "success")
+          .map((r: { action_type: string; error?: string }) => r.error || r.action_type)
+          .join("; ");
+        resultMsg = `Approved, but ${exec.actions_failed} action(s) failed${failDetails ? `: ${failDetails}` : "."}`;
+      } else {
+        resultMsg = `Approved. ${exec?.actions_executed || 0} action(s) executed.`;
+      }
+
       addMessage({
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: `Approved. ${data.execution_result?.actions_executed || 0} action(s) executed.`,
+        content: resultMsg,
         timestamp: new Date(),
       });
 
