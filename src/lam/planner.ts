@@ -810,9 +810,106 @@ export async function planFromMessage(
 }
 
 /**
+ * Detect if the user's message is about ads/listings and force-reroute
+ * misclassified lead.create actions to ads.create_campaign.
+ * This is a deterministic guard because the LLM sometimes ignores routing rules.
+ */
+function forceAdRouting(plan: ActionPlan, input: PlannerInput): ActionPlan {
+  const msg = input.user_message.toLowerCase();
+
+  // Detect listing/ad intent keywords
+  const adKeywords = [
+    "listing", "listings", "advertise", "promote", "campaign",
+    "run an ad", "run ads", "create an ad", "make an ad",
+    "homes in", "houses in", "properties in", "homes under",
+    "under $", "under $",
+  ];
+  const hasAdIntent = adKeywords.some(kw => msg.includes(kw));
+
+  // Also detect "X in Y under Z" pattern (city + price)
+  const cityPricePattern = /(?:listings?|homes?|houses?|properties)\s+in\s+(\w[\w\s]*?)\s+under\s+\$?([\d,.]+)\s*(k|m|K|M)?/i;
+  const cityPriceMatch = msg.match(cityPricePattern);
+
+  if (!hasAdIntent && !cityPriceMatch) return plan;
+
+  // Check if the LLM incorrectly routed to lead.create
+  const hasLeadCreate = plan.actions.some(a => a.type === "lead.create");
+  const hasAdsCampaign = plan.actions.some(a => a.type === "ads.create_campaign");
+
+  if (!hasLeadCreate || hasAdsCampaign) return plan;
+
+  // Force re-route: replace lead.create with ads.create_campaign
+  // Extract city and price from the message
+  let targetCity: string | undefined;
+  let targetPriceMax: number | undefined;
+  let targetBedroomsMin: number | undefined;
+
+  if (cityPriceMatch) {
+    targetCity = cityPriceMatch[1].trim();
+    let price = parseFloat(cityPriceMatch[2].replace(/,/g, ""));
+    const multiplier = cityPriceMatch[3];
+    if (multiplier?.toLowerCase() === "k") price *= 1000;
+    if (multiplier?.toLowerCase() === "m") price *= 1000000;
+    targetPriceMax = price;
+  } else {
+    // Try to extract city from simpler patterns
+    const cityMatch = msg.match(/in\s+(\w[\w\s]*?)(?:\s+under|\s+below|\s+for|\s*$)/i);
+    if (cityMatch) targetCity = cityMatch[1].trim();
+
+    // Try to extract price
+    const priceMatch = msg.match(/under\s+\$?([\d,.]+)\s*(k|m|K|M)?/i);
+    if (priceMatch) {
+      let price = parseFloat(priceMatch[1].replace(/,/g, ""));
+      if (priceMatch[2]?.toLowerCase() === "k") price *= 1000;
+      if (priceMatch[2]?.toLowerCase() === "m") price *= 1000000;
+      targetPriceMax = price;
+    }
+  }
+
+  // Check for bedroom mentions
+  const bedMatch = msg.match(/(\d+)\+?\s*(?:bed|br|bedroom)/i);
+  if (bedMatch) targetBedroomsMin = parseInt(bedMatch[1]);
+
+  // Replace all lead.create actions with a single ads.create_campaign
+  const newActionId = generateUUID();
+  const adAction = {
+    action_id: newActionId,
+    idempotency_key: `${input.user_id}:ads.create_campaign:${Date.now()}`,
+    type: "ads.create_campaign" as ActionType,
+    risk_tier: getRiskTier("ads.create_campaign"),
+    requires_approval: requiresApproval("ads.create_campaign"),
+    payload: normalizePayload("ads.create_campaign", {
+      objective: "LEADS",
+      daily_budget: 10,
+      channel: "meta",
+      listing_focus: true,
+      target_city: targetCity,
+      target_price_max: targetPriceMax,
+      target_bedrooms_min: targetBedroomsMin,
+    }),
+    expected_outcome: normalizeExpectedOutcome("ads.create_campaign", {}),
+  } as ActionPlan["actions"][0];
+
+  plan.actions = [adAction];
+  plan.plan_steps = [{
+    step_number: 1,
+    description: "Create listing-focused ad campaign",
+    action_refs: [newActionId],
+  }];
+  plan.requires_approval = true;
+  plan.highest_risk_tier = 2;
+  plan.user_summary = `I'll create a Facebook ad campaign promoting your${targetCity ? ` ${targetCity}` : ""} listings${targetPriceMax ? ` under $${targetPriceMax.toLocaleString()}` : ""}. The ad will feature your matching properties with AI-generated copy. Budget: $10/day (you can change this). The campaign starts paused — you'll approve before any money is spent.`;
+
+  return plan;
+}
+
+/**
  * Post-process plan to ensure consistency and fill in derived fields
  */
 function postProcessPlan(plan: ActionPlan, input: PlannerInput): ActionPlan {
+  // FIRST: Force-reroute misclassified ad/listing requests
+  plan = forceAdRouting(plan, input);
+
   // Ensure plan_id exists
   if (!plan.plan_id) {
     plan.plan_id = generateUUID();
