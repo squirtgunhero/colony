@@ -58,6 +58,8 @@ export function getAuthorizationUrl(state?: string): string {
     "ads_read",
     "business_management",
     "pages_read_engagement",
+    "pages_manage_ads",
+    "pages_show_list",
   ].join(",");
 
   const params = new URLSearchParams({

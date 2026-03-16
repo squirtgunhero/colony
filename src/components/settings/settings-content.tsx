@@ -252,20 +252,17 @@ export function SettingsContent() {
                       Connected
                     </span>
                   )}
-                  {integrations.meta.status === "expired" ? (
-                    <Button variant="outline" size="sm" asChild>
-                      <a href="/api/meta/auth">Reconnect</a>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDisconnect("meta")}
-                      disabled={disconnecting === "meta"}
-                    >
-                      {disconnecting === "meta" ? "..." : "Disconnect"}
-                    </Button>
-                  )}
+                  <Button variant="outline" size="sm" asChild>
+                    <a href="/api/meta/auth">Reconnect</a>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDisconnect("meta")}
+                    disabled={disconnecting === "meta"}
+                  >
+                    {disconnecting === "meta" ? "..." : "Disconnect"}
+                  </Button>
                 </>
               ) : (
                 <Button variant="outline" size="sm" asChild>
