@@ -1547,6 +1547,10 @@ const executors: Record<string, ActionExecutor> = {
       target_city?: string;
       target_radius?: number;
       lead_type?: string;
+      listing_focus?: boolean;
+      target_price_max?: number;
+      target_price_min?: number;
+      target_bedrooms_min?: number;
     };
 
     const channel = payload.channel || "native";
@@ -1635,13 +1639,67 @@ const executors: Record<string, ActionExecutor> = {
           let userCity = "your city";
           let userState = "";
 
+          // Query matching listings if this is a listing-focused ad
+          interface MatchedListing {
+            address: string;
+            city: string;
+            state: string | null;
+            price: number;
+            bedrooms: number | null;
+            bathrooms: number | null;
+            sqft: number | null;
+            imageUrl: string | null;
+          }
+          let matchedListings: MatchedListing[] = [];
+
+          if (payload.listing_focus) {
+            // Build property filter based on city/price criteria
+            const propertyWhere: Record<string, unknown> = { userId: ctx.user_id };
+
+            const listingCity = payload.target_city || profile?.serviceAreaCity;
+            if (listingCity) {
+              propertyWhere.city = { contains: listingCity, mode: "insensitive" };
+            }
+
+            if (payload.target_price_max) {
+              propertyWhere.price = { ...(propertyWhere.price as object || {}), lte: payload.target_price_max };
+            }
+            if (payload.target_price_min) {
+              propertyWhere.price = { ...(propertyWhere.price as object || {}), gte: payload.target_price_min };
+            }
+            if (payload.target_bedrooms_min) {
+              propertyWhere.bedrooms = { gte: payload.target_bedrooms_min };
+            }
+
+            // Only show active listings (listed or pre_listing)
+            propertyWhere.status = { in: ["listed", "pre_listing"] };
+
+            matchedListings = await prisma.property.findMany({
+              where: propertyWhere,
+              select: {
+                address: true,
+                city: true,
+                state: true,
+                price: true,
+                bedrooms: true,
+                bathrooms: true,
+                sqft: true,
+                imageUrl: true,
+              },
+              orderBy: { price: "asc" },
+              take: 10,
+            }) as MatchedListing[];
+          }
+
           const userProperty = await prisma.property.findFirst({
             where: { userId: ctx.user_id },
             select: { city: true, state: true, imageUrl: true },
             orderBy: { updatedAt: "desc" },
           });
 
-          if (profile?.serviceAreaCity) {
+          if (payload.target_city) {
+            userCity = payload.target_city;
+          } else if (profile?.serviceAreaCity) {
             userCity = profile.serviceAreaCity;
           } else if (userProperty?.city) {
             userCity = userProperty.city;
@@ -1653,12 +1711,37 @@ const executors: Record<string, ActionExecutor> = {
           let adCopy = { headline: campaignName, primary_text: `Discover ${businessType} services in ${userCity}`, description: "Learn more today" };
           try {
             const llm = getDefaultProvider();
+
+            // Build a listing-aware prompt if we have matched listings
+            let copyPrompt: string;
+            if (payload.listing_focus && matchedListings.length > 0) {
+              const listingSummary = matchedListings.slice(0, 5).map(l => {
+                const parts = [`$${l.price.toLocaleString()}`];
+                if (l.bedrooms) parts.push(`${l.bedrooms}bd`);
+                if (l.bathrooms) parts.push(`${l.bathrooms}ba`);
+                if (l.sqft) parts.push(`${l.sqft.toLocaleString()} sqft`);
+                parts.push(l.address);
+                return parts.join(" · ");
+              }).join("\n");
+
+              const priceLabel = payload.target_price_max
+                ? `under $${payload.target_price_max.toLocaleString()}`
+                : "";
+
+              copyPrompt = `Write a Facebook ad promoting real estate listings in ${userCity}${userState ? `, ${userState}` : ""} ${priceLabel}. I have ${matchedListings.length} matching listings:\n${listingSummary}\n\nReturn JSON only with fields: headline (max 40 chars — mention the city and price range), primary_text (max 125 chars — highlight the # of listings available and the value), description (max 30 chars). Make it compelling for home buyers searching in this area and price range.`;
+            } else if (payload.listing_focus) {
+              // Listing focus but no matching properties found
+              const priceLabel = payload.target_price_max
+                ? ` under $${payload.target_price_max.toLocaleString()}`
+                : "";
+              copyPrompt = `Write a Facebook ad for a real estate agent promoting homes${priceLabel} in ${userCity}${userState ? `, ${userState}` : ""}. Return JSON only with fields: headline (max 40 chars — mention the city and price range), primary_text (max 125 chars — focus on helping buyers find homes in this price range), description (max 30 chars). Be specific and compelling.`;
+            } else {
+              copyPrompt = `Write a Facebook ad for a ${businessType} in ${userCity}${userState ? `, ${userState}` : ""}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.`;
+            }
+
             const copyResponse = await llm.complete([
               { role: "system", content: "You generate Facebook ad copy. Return JSON only, no markdown." },
-              {
-                role: "user",
-                content: `Write a Facebook ad for a ${businessType} in ${userCity}${userState ? `, ${userState}` : ""}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.`,
-              },
+              { role: "user", content: copyPrompt },
             ], { temperature: 0.7 });
 
             let jsonStr = copyResponse.content.trim();
@@ -1674,11 +1757,22 @@ const executors: Record<string, ActionExecutor> = {
             };
           } catch {
             // Fallback to defaults if LLM fails
+            if (payload.listing_focus) {
+              const priceLabel = payload.target_price_max ? ` Under $${(payload.target_price_max / 1000).toFixed(0)}K` : "";
+              adCopy = {
+                headline: `${userCity} Homes${priceLabel}`.slice(0, 40),
+                primary_text: `Browse ${matchedListings.length || ""} available listings in ${userCity}${priceLabel}. Find your dream home today!`.slice(0, 125),
+                description: "View listings now".slice(0, 30),
+              };
+            }
           }
 
           // ---- Step 3: Find image and upload ----
           let imageHash: string | null = null;
-          const propertyImageUrl = userProperty?.imageUrl;
+          // Use the first matched listing's image if available, otherwise fall back to any property
+          const propertyImageUrl = (matchedListings.length > 0
+            ? matchedListings.find(l => l.imageUrl)?.imageUrl
+            : userProperty?.imageUrl) || null;
 
           // Priority: property photo > AI-generated image
           let imageSource = propertyImageUrl || null;
@@ -1687,11 +1781,17 @@ const executors: Record<string, ActionExecutor> = {
           if (!imageSource && process.env.OPENAI_API_KEY) {
             try {
               const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
+              const imgType = payload.listing_focus ? "new_listing" : (payload.lead_type || "lead_generation");
               const prompt = buildAdImagePrompt({
-                type: payload.lead_type || "lead_generation",
+                type: imgType,
                 city: userCity,
                 state: userState,
                 businessType,
+                propertyDetails: matchedListings.length > 0 ? {
+                  bedrooms: matchedListings[0].bedrooms || undefined,
+                  sqft: matchedListings[0].sqft || undefined,
+                  price: matchedListings[0].price || undefined,
+                } : undefined,
               });
               const generated = await generateImage({ prompt, size: "1024x1024" });
               imageSource = generated.url;
@@ -1921,7 +2021,16 @@ const executors: Record<string, ActionExecutor> = {
               targeting_city: userCity,
               has_image: !!imageHash,
               ads_manager_url: adsManagerUrl,
-              note: `Your campaign is ready! Budget: $${dailyBudget}/day targeting the ${userCity} area. Headline: "${adCopy.headline}". It's paused until you approve. Want me to take it live?`,
+              listings_count: matchedListings.length,
+              listings_matched: matchedListings.slice(0, 5).map(l => ({
+                address: l.address,
+                city: l.city,
+                price: l.price,
+                bedrooms: l.bedrooms,
+              })),
+              note: payload.listing_focus && matchedListings.length > 0
+                ? `Your campaign is ready! Promoting ${matchedListings.length} listing${matchedListings.length !== 1 ? "s" : ""} in ${userCity}${payload.target_price_max ? ` under $${payload.target_price_max.toLocaleString()}` : ""}. Budget: $${dailyBudget}/day. Headline: "${adCopy.headline}". It's paused until you approve. Want me to take it live?`
+                : `Your campaign is ready! Budget: $${dailyBudget}/day targeting the ${userCity} area. Headline: "${adCopy.headline}". It's paused until you approve. Want me to take it live?`,
             },
           };
         } catch (error) {

@@ -387,6 +387,13 @@ export const AdsCreateCampaignPayloadSchema = z.object({
   phone: z.string().optional(),
   website: z.string().optional(),
   keywords: z.array(z.string()).optional(),
+  target_city: z.string().optional(),
+  target_radius: z.number().optional(),
+  lead_type: z.string().optional(),
+  listing_focus: z.boolean().optional(),
+  target_price_max: z.number().optional(),
+  target_price_min: z.number().optional(),
+  target_bedrooms_min: z.number().optional(),
 });
 
 export const AdsCreateCampaignExpectedOutcomeSchema = z.object({

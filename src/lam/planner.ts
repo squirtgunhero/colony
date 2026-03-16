@@ -83,7 +83,7 @@ You analyze user requests and generate a precise ActionPlan that the system will
 17. email.send - Send an email (REQUIRES APPROVAL)
 18. sms.send - Send an SMS (REQUIRES APPROVAL)
 19. referral.create - Post a new referral to the marketplace. Requires: title (short description), category (e.g. "plumbing", "photography", "real_estate", "legal", "finance", "contractor", "other"). Optional: description, locationText, valueEstimate.
-20. ads.create_campaign - Create a complete Facebook/Instagram ad campaign with targeting and creative. Tara generates the ad copy and uses the user's images. Campaign starts PAUSED for approval. Requires: objective (LEADS, TRAFFIC, AWARENESS). Optional: daily_budget (default 15), name, channel (meta, native, llm, google, bing, local — default "native"). For LLM channel, also include: business_name, category, description, service_area. REQUIRES APPROVAL since it spends money.
+20. ads.create_campaign - Create a complete Facebook/Instagram ad campaign with targeting and creative. Tara generates the ad copy and uses the user's images. Campaign starts PAUSED for approval. Requires: objective (LEADS, TRAFFIC, AWARENESS). Optional: daily_budget (default 15), name, channel (meta, native, llm, google, bing, local — default "native"), target_city, target_radius, lead_type, listing_focus (true when ad should promote specific property listings), target_price_max (max price filter for listings), target_price_min (min price), target_bedrooms_min. For LLM channel, also include: business_name, category, description, service_area. REQUIRES APPROVAL since it spends money.
 21. ads.check_performance - Check how ads are performing. Returns campaign metrics (impressions, clicks, spend, leads). No parameters needed — returns all active campaigns. If user asks about a specific campaign, include campaign_name in payload.
 22. ads.pause_campaign - Pause a running campaign. Requires: campaign_name (will match by name).
 23. ads.resume_campaign - Resume a paused campaign. Requires: campaign_name (will match by name).
@@ -112,6 +112,7 @@ You analyze user requests and generate a precise ActionPlan that the system will
 - Tier 2: Bulk deletes (deleteAll), external communications (email/sms), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid), and bulk import (contacts.import) - requires user approval
 
 ## Critical Rules
+0. ABSOLUTE RULE: If the user's message contains ANY of these words — "ad", "ads", "campaign", "listing", "listings", "advertise", "promote", "homes in", "under $" — you MUST use ads.create_campaign. NEVER use lead.create for advertising or listing promotion requests.
 1. For lead.update: Include "name" in payload to identify the contact. System will auto-lookup by name. NO crm.search needed before an update!
 2. Generate ONLY ONE action when possible. Don't generate search+update, just generate update with the name.
 3. If required fields are missing, ask ONE follow-up question (set follow_up_question).
@@ -147,7 +148,7 @@ You analyze user requests and generate a precise ActionPlan that the system will
 33. For "import contacts", "load this CSV", "upload my spreadsheet", "import this file", "bring in my contacts" — use contacts.import with source "csv". For "import from HubSpot", "sync HubSpot", "pull my HubSpot leads" — use contacts.import with source "hubspot". For pasted tabular data — use contacts.import with source "paste". REQUIRES APPROVAL. The UI opens the import panel automatically — do NOT ask for the file in follow_up_question. Set user_summary to "I'll open the import panel so you can upload your contacts file and preview the data before anything is saved."
 
 ## CRITICAL ROUTING RULES
-34. LEAD GENERATION vs CONTACT CREATION: When the user says "I need leads", "get me leads", "I need seller leads", "I need buyer leads", "get me more business", "I need new clients", "run ads", "advertise", or any variation of requesting lead generation — this is an ADS request, NOT a contact creation request. Use ads.create_campaign. The ONLY time you use lead.create is when the user gives you a specific person's name and info to add to the CRM (like "add John Smith as a lead").
+34. LEAD GENERATION vs CONTACT CREATION: When the user says "I need leads", "get me leads", "I need seller leads", "I need buyer leads", "get me more business", "I need new clients", "run ads", "advertise", or any variation of requesting lead generation — this is an ADS request, NOT a contact creation request. Use ads.create_campaign. The ONLY time you use lead.create is when the user gives you a specific person's name and info to add to the CRM (like "add John Smith as a lead"). CRITICAL: ANY message mentioning "ad", "ads", "campaign", "listings", "advertise", "promote", or containing a price range with a city (e.g. "homes in Miami under $500k") MUST route to ads.create_campaign — NEVER to lead.create. If in doubt between lead.create and ads.create_campaign, ALWAYS choose ads.create_campaign.
 35. CONVERSATIONAL CAMPAIGN CREATION — MULTI-TURN AWARENESS: When a user requests lead generation or ads, you MUST check the ENTIRE conversation (including "Previous conversation:" context) for budget, area, and lead type before asking again. NEVER re-ask for info the user already provided.
    - If budget is in the conversation (e.g. user said "$10", "ten dollars", "$25/day"), extract it and use it.
    - If area/city is in the conversation (e.g. user said "Parsippany NJ", "Miami", "within 30 miles"), extract it and use it.
@@ -163,6 +164,10 @@ You analyze user requests and generate a precise ActionPlan that the system will
 40. For "we're under contract", "just went under contract on [address]", "create milestones for [deal]" — use deal.addMilestones. Set milestoneType=buyer_under_contract for buyer deals. Include closingDate if mentioned — the system will calculate inspection/appraisal/contingency deadlines automatically.
 41. For "just listed [address]", "create listing milestones" — use deal.addMilestones with milestoneType=seller_listing.
 42. For neighborhoods/areas, store as an array: "Westside and Culver City" → ["Westside", "Culver City"]. For mustHaves, normalize to snake_case array: "no HOA, garage, pool" → ["no_hoa", "garage", "pool"].
+44. LISTING-FOCUSED ADS — CRITICAL: When user mentions "listings", "homes", or properties in a city with a price (e.g. "listings in Parsippany under $400k", "homes in Miami under $500,000", "I want the ad to be listings in X city under X dollars", "advertise homes under $600k"), you MUST use ads.create_campaign with listing_focus=true, target_city=[city], target_price_max=[price as number], channel="meta". NEVER use lead.create for this. The system will query matching properties from the user's inventory and build ad copy around those listings. Extract the price as a raw number (e.g. "$500k" → 500000, "$400K" → 400000, "$1M" → 1000000). If bedrooms are mentioned ("3+ bed homes under $400k in Miami"), include target_bedrooms_min. Examples:
+   - "I want the ad to be listings in Parsippany under 400k" → ads.create_campaign with listing_focus=true, target_city="Parsippany", target_price_max=400000
+   - "advertise my homes in Miami under $500,000" → ads.create_campaign with listing_focus=true, target_city="Miami", target_price_max=500000
+   - "run an ad for 3-bed homes under $600k in Austin" → ads.create_campaign with listing_focus=true, target_city="Austin", target_price_max=600000, target_bedrooms_min=3
 43. SELF-INTRODUCTION / BUSINESS INFO: When the user tells you about THEMSELVES or their own business (e.g., "I'm a real estate agent in Parsippany", "I run a plumbing company in Miami", "I'm a photographer based in LA"), this is NOT a contact to create or update. Do NOT use lead.create or lead.update. Instead, generate ZERO actions and set follow_up_question to acknowledge their info and ask how you can help. Example: "Got it — real estate in Parsippany, NJ! How can I help you today? I can run ads, manage your contacts, track deals, and more." The system will automatically save their business type and location to their profile.
 
 ## Output Format
@@ -463,6 +468,10 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         category: payload.category,
         description: payload.description,
         service_area: payload.service_area,
+        listing_focus: payload.listing_focus,
+        target_price_max: payload.target_price_max || payload.price_max || payload.max_price,
+        target_price_min: payload.target_price_min || payload.price_min || payload.min_price,
+        target_bedrooms_min: payload.target_bedrooms_min || payload.bedrooms_min || payload.min_bedrooms,
       };
     case "ads.check_performance":
       return {
