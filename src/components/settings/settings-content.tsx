@@ -35,6 +35,7 @@ export function SettingsContent() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
+  const [connectionMessage, setConnectionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   
   // Create supabase client lazily on client side only
   const supabase = useMemo(() => {
@@ -91,6 +92,38 @@ export function SettingsContent() {
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check URL params from OAuth callback (use window.location to avoid Suspense requirement)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const metaConnected = params.get("meta_connected");
+      const accounts = params.get("accounts");
+      const error = params.get("error");
+
+      if (metaConnected === "true") {
+        setConnectionMessage({
+          type: "success",
+          text: `Facebook Ads connected successfully${accounts ? ` (${accounts} ad account${accounts !== "1" ? "s" : ""})` : ""}!`,
+        });
+        // Clean up URL params
+        window.history.replaceState({}, "", "/settings");
+      } else if (error) {
+        const errorMessages: Record<string, string> = {
+          oauth_denied: "Facebook authorization was denied.",
+          missing_params: "OAuth callback missing required parameters.",
+          invalid_state: "OAuth state mismatch — please try again.",
+          no_ad_accounts: "No ad accounts found on your Facebook account. Please create an ad account in Meta Business Suite first.",
+          connection_failed: "Failed to connect Facebook Ads. Check server logs for details.",
+          auth_failed: "Authentication failed — please sign in and try again.",
+        };
+        setConnectionMessage({
+          type: "error",
+          text: errorMessages[error] || `Connection error: ${decodeURIComponent(error)}`,
+        });
+        // Clean up URL params
+        window.history.replaceState({}, "", "/settings");
+      }
+    }
+
     fetch("/api/settings/integrations")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data) setIntegrations(data); })
@@ -212,6 +245,26 @@ export function SettingsContent() {
       </Card>
 
       {/* Integrations */}
+      {connectionMessage && (
+        <div
+          className={cn(
+            "rounded-lg border px-4 py-3 text-sm",
+            connectionMessage.type === "success"
+              ? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400"
+              : "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <span>{connectionMessage.text}</span>
+            <button
+              onClick={() => setConnectionMessage(null)}
+              className="ml-2 text-current opacity-50 hover:opacity-100"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

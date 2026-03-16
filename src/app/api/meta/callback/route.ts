@@ -35,7 +35,10 @@ export async function GET(request: NextRequest) {
     const cookieStore = await cookies();
     const storedState = cookieStore.get("meta_oauth_state")?.value;
 
+    console.log("[META CALLBACK] State check:", { hasStoredState: !!storedState, statesMatch: storedState === state });
+
     if (!storedState || storedState !== state) {
+      console.error("[META CALLBACK] State mismatch — stored:", storedState?.slice(0, 20), "received:", state?.slice(0, 20));
       return NextResponse.redirect(`${redirectBase}?error=invalid_state`);
     }
 
@@ -44,14 +47,19 @@ export async function GET(request: NextRequest) {
     const userId = stateData.userId as string;
 
     if (!userId) {
+      console.error("[META CALLBACK] No userId in state data");
       return NextResponse.redirect(`${redirectBase}?error=invalid_state`);
     }
 
+    console.log("[META CALLBACK] Exchanging code for token, userId:", userId);
+
     // Exchange code for short-lived token
     const tokenResponse = await exchangeCodeForToken(code);
+    console.log("[META CALLBACK] Got short-lived token");
 
     // Exchange for long-lived token
     const longLivedToken = await getLongLivedToken(tokenResponse.access_token);
+    console.log("[META CALLBACK] Got long-lived token, expires_in:", longLivedToken.expires_in);
 
     // Calculate token expiration
     const expiresAt = new Date();
@@ -60,10 +68,19 @@ export async function GET(request: NextRequest) {
     // Get user info and ad accounts
     const client = createMetaClient(longLivedToken.access_token);
     const user = await client.getMe();
+    console.log("[META CALLBACK] Meta user:", user.id, user.name);
+
     const adAccountsResponse = await client.getAdAccounts();
+    console.log("[META CALLBACK] Found", adAccountsResponse.data?.length ?? 0, "ad accounts");
+
+    if (!adAccountsResponse.data || adAccountsResponse.data.length === 0) {
+      console.error("[META CALLBACK] No ad accounts found for this Meta user");
+      return NextResponse.redirect(`${redirectBase}?error=no_ad_accounts`);
+    }
 
     // Store ad accounts in database
     for (const account of adAccountsResponse.data) {
+      console.log("[META CALLBACK] Upserting ad account:", account.id, account.name);
       await prisma.metaAdAccount.upsert({
         where: {
           userId_adAccountId: {
@@ -99,9 +116,18 @@ export async function GET(request: NextRequest) {
 
     // Redirect back to settings with success flag
     const accountCount = adAccountsResponse.data.length;
+    console.log("[META CALLBACK] Success! Redirecting with", accountCount, "accounts");
     return NextResponse.redirect(`${redirectBase}?meta_connected=true&accounts=${accountCount}`);
-  } catch (error) {
-    console.error("Meta OAuth callback error:", error);
-    return NextResponse.redirect(`${redirectBase}?error=connection_failed`);
+  } catch (error: unknown) {
+    const msg = error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : JSON.stringify(error);
+    console.error("[META CALLBACK] Error:", msg);
+    console.error("[META CALLBACK] Stack:", error instanceof Error ? error.stack : "no stack");
+    // Pass a truncated error message through the URL so it's visible on the settings page
+    const safeMsg = encodeURIComponent(msg.slice(0, 200));
+    return NextResponse.redirect(`${redirectBase}?error=${safeMsg}`);
   }
 }
