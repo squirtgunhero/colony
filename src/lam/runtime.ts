@@ -1905,20 +1905,58 @@ const executors: Record<string, ActionExecutor> = {
           try {
             if (effectivePageId) {
               // Page-based creative (required for housing, preferred for all)
-              creativeResult = await client.createAdCreative(adAccount.adAccountId, {
-                name: `${campaignName} - Creative`,
-                object_story_spec: {
-                  page_id: effectivePageId,
-                  link_data: {
-                    ...(imageHash ? { image_hash: imageHash } : {}),
-                    message: adCopy.primary_text,
-                    link: landingUrl,
-                    name: adCopy.headline,
-                    description: adCopy.description,
-                    call_to_action: { type: "LEARN_MORE" },
+              try {
+                creativeResult = await client.createAdCreative(adAccount.adAccountId, {
+                  name: `${campaignName} - Creative`,
+                  object_story_spec: {
+                    page_id: effectivePageId,
+                    link_data: {
+                      ...(imageHash ? { image_hash: imageHash } : {}),
+                      message: adCopy.primary_text,
+                      link: landingUrl,
+                      name: adCopy.headline,
+                      description: adCopy.description,
+                      call_to_action: { type: "LEARN_MORE" },
+                    },
                   },
-                },
-              });
+                });
+              } catch (pageCreativeError) {
+                const errMsg = pageCreativeError instanceof Error ? pageCreativeError.message : "";
+                const isPermissionError = errMsg.includes("Permission") || errMsg.includes("1487194") || errMsg.includes("code: 200");
+                const isDevModeError = errMsg.includes("development mode") || errMsg.includes("1885183");
+
+                // For permission/dev-mode errors on non-housing ads, fall back to asset_feed_spec
+                if ((isPermissionError || isDevModeError) && specialAdCategories.length === 0) {
+                  console.warn("[META ADS] Page creative failed, falling back to asset_feed_spec:", errMsg);
+                  creativeResult = await client.createAdCreative(adAccount.adAccountId, {
+                    name: `${campaignName} - Creative`,
+                    asset_feed_spec: {
+                      bodies: [{ text: adCopy.primary_text }],
+                      titles: [{ text: adCopy.headline }],
+                      descriptions: [{ text: adCopy.description }],
+                      ad_formats: ["SINGLE_IMAGE"],
+                      call_to_action_types: ["LEARN_MORE"],
+                      link_urls: [{ website_url: landingUrl }],
+                    },
+                    degrees_of_freedom_spec: {
+                      creative_features_spec: {
+                        standard_enhancements: { enroll_status: "OPT_IN" },
+                      },
+                    },
+                  });
+                } else if (isPermissionError || isDevModeError) {
+                  // Housing ads REQUIRE a page — give clear instructions
+                  throw new Error(
+                    `Your Facebook Page permissions need to be updated. ` +
+                    `Go to developers.facebook.com → your app → App Review, and make sure: ` +
+                    `(1) The app is in Live mode (not Development), ` +
+                    `(2) You have pages_manage_ads and ads_management permissions approved. ` +
+                    `Then reconnect Facebook in Settings > Integrations.`
+                  );
+                } else {
+                  throw pageCreativeError;
+                }
+              }
             } else {
               // No page — use asset_feed_spec (non-housing only)
               creativeResult = await client.createAdCreative(adAccount.adAccountId, {
