@@ -4,7 +4,6 @@
 // ============================================
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { getAuthorizationUrl } from "@/lib/meta/client";
 import { requireUserId } from "@/lib/supabase/auth";
 
@@ -18,9 +17,12 @@ export async function GET() {
       JSON.stringify({ userId, timestamp: Date.now() })
     ).toString("base64url");
 
-    // Store state in cookie for verification
-    const cookieStore = await cookies();
-    cookieStore.set("meta_oauth_state", state, {
+    // Redirect to Facebook OAuth
+    const authUrl = getAuthorizationUrl(state);
+    const response = NextResponse.redirect(authUrl);
+
+    // Set cookie directly on the redirect response (cookies() + redirect can lose cookies)
+    response.cookies.set("meta_oauth_state", state, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -28,9 +30,7 @@ export async function GET() {
       path: "/",
     });
 
-    // Redirect to Facebook OAuth
-    const authUrl = getAuthorizationUrl(state);
-    return NextResponse.redirect(authUrl);
+    return response;
   } catch (error) {
     console.error("Meta OAuth init error:", error);
     return NextResponse.redirect(

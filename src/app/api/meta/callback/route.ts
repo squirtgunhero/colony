@@ -4,7 +4,6 @@
 // ============================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import {
   exchangeCodeForToken,
@@ -31,9 +30,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Verify state parameter
-    const cookieStore = await cookies();
-    const storedState = cookieStore.get("meta_oauth_state")?.value;
+    // Verify state parameter (read from request cookies — more reliable than cookies() in route handlers)
+    const storedState = request.cookies.get("meta_oauth_state")?.value;
 
     console.log("[META CALLBACK] State check:", { hasStoredState: !!storedState, statesMatch: storedState === state });
 
@@ -111,13 +109,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Clear the OAuth state cookie
-    cookieStore.delete("meta_oauth_state");
-
     // Redirect back to settings with success flag
     const accountCount = adAccountsResponse.data.length;
     console.log("[META CALLBACK] Success! Redirecting with", accountCount, "accounts");
-    return NextResponse.redirect(`${redirectBase}?meta_connected=true&accounts=${accountCount}`);
+    const response = NextResponse.redirect(`${redirectBase}?meta_connected=true&accounts=${accountCount}`);
+    // Clear the OAuth state cookie on the response
+    response.cookies.delete("meta_oauth_state");
+    return response;
   } catch (error: unknown) {
     const msg = error instanceof Error
       ? error.message
