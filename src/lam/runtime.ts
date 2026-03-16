@@ -1728,6 +1728,7 @@ const executors: Record<string, ActionExecutor> = {
             billing_event: "IMPRESSIONS",
             optimization_goal: optimizationGoal as "LEAD_GENERATION" | "LINK_CLICKS",
             daily_budget: dailyBudget * 100, // Convert dollars to cents
+            bid_strategy: "LOWEST_COST_WITHOUT_CAP",
             targeting: targeting as CreateAdSetParams["targeting"],
             start_time: tomorrow.toISOString(),
             status: "PAUSED",

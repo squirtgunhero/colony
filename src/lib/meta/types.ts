@@ -279,6 +279,8 @@ export interface CreateAdSetParams {
   start_time: string; // ISO string
   status: "PAUSED" | "ACTIVE";
   special_ad_categories?: string[];
+  bid_strategy?: "LOWEST_COST_WITHOUT_CAP" | "LOWEST_COST_WITH_BID_CAP" | "COST_CAP";
+  bid_amount?: number; // In cents, required for BID_CAP
 }
 
 export interface CreateAdSetResponse {

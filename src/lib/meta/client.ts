@@ -355,6 +355,12 @@ class MetaApiClient {
     if (params.special_ad_categories) {
       body.set("special_ad_categories", JSON.stringify(params.special_ad_categories));
     }
+    if (params.bid_strategy) {
+      body.set("bid_strategy", params.bid_strategy);
+    }
+    if (params.bid_amount) {
+      body.set("bid_amount", String(params.bid_amount));
+    }
 
     return this.request<CreateAdSetResponse>(`/${adAccountId}/adsets`, {
       method: "POST",
