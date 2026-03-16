@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
         actions_executed: executionResult.actions_executed,
         actions_failed: executionResult.actions_failed,
         user_summary: executionResult.user_summary,
+        results: executionResult.results,
       },
       verification_result: {
         status: verificationResult.status,
