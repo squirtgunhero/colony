@@ -13,24 +13,20 @@ import {
   Inbox,
   Bell,
   Settings,
-  Store,
-  Upload,
-  CheckSquare,
   BarChart3,
   Megaphone,
+  Upload,
 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 
 const topNavItems = [
-  { icon: Home, href: "/chat", label: "Home", description: "AI assistant" },
-  { icon: BarChart3, href: "/dashboard", label: "Dashboard", description: "Pipeline & analytics" },
-  { icon: Layers, href: "/browse", label: "Browse", description: "Contacts, properties, deals" },
-  { icon: CheckSquare, href: "/browse/tasks", label: "Tasks", description: "To-dos & follow-ups" },
-  { icon: Megaphone, href: "/marketing", label: "Marketing", description: "Campaigns & content" },
-  { icon: Upload, href: "/import", label: "Import", description: "Bulk contact import" },
-  { icon: Share2, href: "/referrals", label: "Referrals", description: "Lead sharing" },
-  { icon: Store, href: "/marketplace", label: "Marketplace", description: "Public referrals" },
-  { icon: Inbox, href: "/inbox", label: "Inbox", description: "Messages" },
+  { icon: Home, href: "/chat", label: "Home" },
+  { icon: BarChart3, href: "/dashboard", label: "Dashboard" },
+  { icon: Layers, href: "/browse", label: "CRM" },
+  { icon: Megaphone, href: "/marketing", label: "Marketing" },
+  { icon: Upload, href: "/import", label: "Import" },
+  { icon: Share2, href: "/referrals", label: "Referrals" },
+  { icon: Inbox, href: "/inbox", label: "Inbox" },
 ];
 
 const bottomNavItems = [
@@ -61,8 +57,7 @@ export function ModeSidebar() {
   const isActive = (href: string) => {
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
     if (href === "/marketing") return pathname.startsWith("/marketing");
-    if (href === "/browse") return pathname.startsWith("/browse") && !pathname.startsWith("/browse/tasks");
-    if (href === "/browse/tasks") return pathname.startsWith("/browse/tasks");
+    if (href === "/browse") return pathname.startsWith("/browse");
     if (href === "/dashboard") return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
     return pathname === href || pathname.startsWith(`${href}/`);
   };
@@ -126,22 +121,12 @@ export function ModeSidebar() {
                 className="h-[18px] w-[18px] shrink-0"
                 style={{ color: active ? theme.accent : theme.textMuted }}
               />
-              <div className="flex flex-col min-w-0 flex-1">
-                <span
-                  className="text-sm whitespace-nowrap"
-                  style={{ color: active ? theme.text : theme.text, opacity: active ? 1 : 0.5 }}
-                >
-                  {item.label}
-                </span>
-                {item.description && (
-                  <span
-                    className="text-[10px] whitespace-nowrap"
-                    style={{ color: theme.text, opacity: 0.35 }}
-                  >
-                    {item.description}
-                  </span>
-                )}
-              </div>
+              <span
+                className="text-sm whitespace-nowrap"
+                style={{ color: theme.text, opacity: active ? 1 : 0.5 }}
+              >
+                {item.label}
+              </span>
               {item.label === "Inbox" && inboxUnread > 0 && (
                 <span
                   className="flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[10px] font-bold"
