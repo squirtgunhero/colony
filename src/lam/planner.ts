@@ -103,9 +103,11 @@ You analyze user requests and generate a precise ActionPlan that the system will
 37. savedSearch.update - Update an existing buyer's search criteria. Use when agent says "John also wants X" or "update John's search". Fields: contactName (to find the search), patch (object with fields to change).
 38. savedSearch.list - View saved searches. Use for "show John's search", "what is John looking for", "show all active searches". Fields: contactName (optional filter), active (optional boolean).
 39. deal.addMilestones - Auto-create all milestone tasks when a deal goes under contract or a listing is created. Use when agent says "we're under contract", "just listed", "create milestones for". Fields: dealTitle (to find deal), milestoneType (buyer_under_contract | seller_listing | seller_under_contract), closingDate (ISO — used to calculate all other task dates if not specified), inspectionDate, appraisalDate, loanContingencyDate, walkThroughDate.
+40. marketing.generate_image - Generate a marketing image using AI (DALL-E). Use when user says "create an image for my ad", "generate a marketing image", "make me an ad image". Optional: type (new_listing, open_house, just_sold, market_update, lead_generation, general — default "general"), propertyId (for property-specific images), custom_prompt (user's own image description), size (1024x1024, 1792x1024, 1024x1792 — default "1024x1024"). Returns a URL to the generated image.
+41. marketing.generate_content - Generate marketing copy using AI. Use when user says "write me a social post", "create ad copy", "write a listing description". Optional: type (new_listing, open_house, just_sold, market_update, ad_copy, general), platform (facebook, instagram, linkedin, email, generic), propertyId, prompt.
 
 ## Risk Tiers
-- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, savedSearch.list) - auto-execute
+- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, savedSearch.list, marketing.generate_image, marketing.generate_content) - auto-execute
 - Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives, savedSearch.create, savedSearch.update, deal.addMilestones) - auto-execute with undo capability
 - Tier 2: Bulk deletes (deleteAll), external communications (email/sms), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid), and bulk import (contacts.import) - requires user approval
 
@@ -280,6 +282,7 @@ function normalizeActionType(type: string): ActionType {
     "google.analyze_keywords", "google.pause_campaign", "google.resume_campaign", "google.add_negatives", "google.adjust_bid",
     "contacts.import",
     "savedSearch.create", "savedSearch.update", "savedSearch.list",
+    "marketing.generate_image", "marketing.generate_content",
   ];
 
   const normalized = type.toLowerCase().replace(/_/g, ".");
@@ -341,6 +344,14 @@ function normalizeActionType(type: string): ActionType {
     "saved_search.list": "savedSearch.list",
     "deal.addmilestones": "deal.addMilestones",
     "deal.add_milestones": "deal.addMilestones",
+    "marketing.generateimage": "marketing.generate_image",
+    "marketing.generate.image": "marketing.generate_image",
+    "generate_image": "marketing.generate_image",
+    "generateimage": "marketing.generate_image",
+    "marketing.generatecontent": "marketing.generate_content",
+    "marketing.generate.content": "marketing.generate_content",
+    "generate_content": "marketing.generate_content",
+    "generatecontent": "marketing.generate_content",
   };
 
   return typeMap[type.toLowerCase()] || "lead.create";
@@ -579,6 +590,20 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         loanContingencyDate: payload.loanContingencyDate ?? payload.loan_contingency_date,
         walkThroughDate:     payload.walkThroughDate ?? payload.walk_through_date,
       };
+    case "marketing.generate_image":
+      return {
+        type: payload.type || payload.image_type || "general",
+        propertyId: payload.propertyId || payload.property_id,
+        custom_prompt: payload.custom_prompt || payload.prompt || payload.description,
+        size: payload.size || "1024x1024",
+      };
+    case "marketing.generate_content":
+      return {
+        type: payload.type || payload.content_type || "general",
+        platform: payload.platform || "generic",
+        propertyId: payload.propertyId || payload.property_id,
+        prompt: payload.prompt || payload.description,
+      };
     default:
       return payload;
   }
@@ -660,6 +685,10 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: "saved_search", results_returned: true };
     case "deal.addMilestones":
       return { entity_type: "deal", tasks_created: true };
+    case "marketing.generate_image":
+      return { entity_type: "image", generated: true };
+    case "marketing.generate_content":
+      return { entity_type: "content", generated: true };
     default:
       return { entity_type: actionType.split(".")[0], success: true };
   }

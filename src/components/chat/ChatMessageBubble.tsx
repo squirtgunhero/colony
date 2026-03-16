@@ -21,6 +21,54 @@ interface ChatMessageBubbleProps {
   onCancelAction: (id: string) => void;
 }
 
+/**
+ * Render message content with support for **bold**, ![alt](url) images
+ */
+function renderMessageContent(content: string) {
+  // First, extract markdown images ![alt](url)
+  const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  const parts: Array<{ type: "text"; value: string } | { type: "image"; alt: string; url: string }> = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = imageRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: "text", value: content.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: "image", alt: match[1], url: match[2] });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) {
+    parts.push({ type: "text", value: content.slice(lastIndex) });
+  }
+
+  return parts.map((part, idx) => {
+    if (part.type === "image") {
+      return (
+        <span key={idx} className="block my-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={part.url}
+            alt={part.alt}
+            className="rounded-xl max-w-full"
+            style={{ maxHeight: 400 }}
+          />
+        </span>
+      );
+    }
+    // Render text with **bold** support
+    return part.value.split("**").map((segment, i) =>
+      i % 2 === 1 ? (
+        <strong key={`${idx}-${i}`} style={{ fontWeight: 400 }}>
+          {segment}
+        </strong>
+      ) : (
+        <span key={`${idx}-${i}`}>{segment}</span>
+      )
+    );
+  });
+}
+
 export function ChatMessageBubble({
   message,
   pendingActions,
@@ -116,15 +164,7 @@ export function ChatMessageBubble({
           lineHeight: 1.65,
         }}
       >
-        {message.content.split("**").map((part, i) =>
-          i % 2 === 1 ? (
-            <strong key={i} style={{ fontWeight: 400 }}>
-              {part}
-            </strong>
-          ) : (
-            <span key={i}>{part}</span>
-          )
-        )}
+        {renderMessageContent(message.content)}
         {/* Inline success indicator when no action cards and execution succeeded */}
         {lamResponse && hasExecution && !hasActionCards && isExecuted && !hasFailed && !needsApproval && (
           <CheckCircle2

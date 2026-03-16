@@ -353,7 +353,9 @@ Rules:
 - Keep it concise — 2-4 sentences for simple results, more for data-heavy queries.
 - Do NOT use markdown headers or bullet points. Write flowing sentences.
 - Do NOT start with "Sure!" or "Here you go!" — just answer naturally.
-- Use dollar amounts, dates, and names when available.`;
+- Use dollar amounts, dates, and names when available.
+- For image generation results: include the image URL as a markdown image like ![Generated Image](url) so the UI can display it inline.
+- For content generation results: include the full generated content in your response.`;
 
 function buildResultsContext(executionResult: ExecutionResult): string {
   const parts: string[] = [];

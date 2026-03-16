@@ -816,6 +816,46 @@ export const DealAddMilestonesActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Marketing Actions
+// ============================================================================
+
+export const MarketingGenerateImagePayloadSchema = z.object({
+  type: z.string().optional(),
+  propertyId: z.string().optional(),
+  custom_prompt: z.string().optional(),
+  size: z.string().optional(),
+});
+
+export const MarketingGenerateImageExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("image"),
+  generated: z.literal(true),
+});
+
+export const MarketingGenerateImageActionSchema = BaseActionSchema.extend({
+  type: z.literal("marketing.generate_image"),
+  payload: MarketingGenerateImagePayloadSchema,
+  expected_outcome: MarketingGenerateImageExpectedOutcomeSchema,
+});
+
+export const MarketingGenerateContentPayloadSchema = z.object({
+  type: z.string().optional(),
+  platform: z.string().optional(),
+  propertyId: z.string().optional(),
+  prompt: z.string().optional(),
+});
+
+export const MarketingGenerateContentExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("content"),
+  generated: z.literal(true),
+});
+
+export const MarketingGenerateContentActionSchema = BaseActionSchema.extend({
+  type: z.literal("marketing.generate_content"),
+  payload: MarketingGenerateContentPayloadSchema,
+  expected_outcome: MarketingGenerateContentExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // Union Action Type
 // ============================================================================
 
@@ -859,6 +899,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   SavedSearchUpdateActionSchema,
   SavedSearchListActionSchema,
   DealAddMilestonesActionSchema,
+  MarketingGenerateImageActionSchema,
+  MarketingGenerateContentActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -913,6 +955,8 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "ads.research_competitors":
     case "google.analyze_keywords":
     case "savedSearch.list":
+    case "marketing.generate_image":
+    case "marketing.generate_content":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
