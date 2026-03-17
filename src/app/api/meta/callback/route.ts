@@ -76,37 +76,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${redirectBase}?error=no_ad_accounts`);
     }
 
-    // Store ad accounts in database
+    // Store ad accounts in database (use findFirst + create/update instead of upsert
+    // to avoid compound unique key issues with Prisma)
     for (const account of adAccountsResponse.data) {
-      console.log("[META CALLBACK] Upserting ad account:", account.id, account.name);
-      await prisma.metaAdAccount.upsert({
-        where: {
-          userId_adAccountId: {
-            userId,
-            adAccountId: account.id,
-          },
-        },
-        create: {
-          userId,
-          metaUserId: user.id,
-          adAccountId: account.id,
-          adAccountName: account.name,
-          accessToken: longLivedToken.access_token,
-          tokenExpiresAt: expiresAt,
-          currency: account.currency || "USD",
-          timezone: account.timezone_name || "America/New_York",
-          status: "active",
-        },
-        update: {
-          metaUserId: user.id,
-          adAccountName: account.name,
-          accessToken: longLivedToken.access_token,
-          tokenExpiresAt: expiresAt,
-          currency: account.currency || "USD",
-          timezone: account.timezone_name || "America/New_York",
-          status: "active",
-        },
+      const accountData = {
+        metaUserId: String(user.id),
+        adAccountName: account.name ? String(account.name) : null,
+        accessToken: String(longLivedToken.access_token),
+        tokenExpiresAt: expiresAt,
+        currency: account.currency ? String(account.currency) : "USD",
+        timezone: account.timezone_name ? String(account.timezone_name) : "America/New_York",
+        status: "active",
+      };
+
+      console.log("[META CALLBACK] Saving ad account:", account.id, account.name);
+
+      const existing = await prisma.metaAdAccount.findFirst({
+        where: { userId, adAccountId: String(account.id) },
       });
+
+      if (existing) {
+        await prisma.metaAdAccount.update({
+          where: { id: existing.id },
+          data: accountData,
+        });
+      } else {
+        await prisma.metaAdAccount.create({
+          data: {
+            userId,
+            adAccountId: String(account.id),
+            ...accountData,
+          },
+        });
+      }
     }
 
     // Redirect back to settings with success flag
