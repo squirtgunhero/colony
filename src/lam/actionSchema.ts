@@ -394,6 +394,11 @@ export const AdsCreateCampaignPayloadSchema = z.object({
   target_price_max: z.number().optional(),
   target_price_min: z.number().optional(),
   target_bedrooms_min: z.number().optional(),
+  // User-provided ad content (skips auto-generation when set)
+  ad_headline: z.string().optional(),
+  ad_body: z.string().optional(),
+  ad_description: z.string().optional(),
+  image_prompt: z.string().optional(),
 });
 
 export const AdsCreateCampaignExpectedOutcomeSchema = z.object({

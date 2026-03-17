@@ -1551,6 +1551,11 @@ const executors: Record<string, ActionExecutor> = {
       target_price_max?: number;
       target_price_min?: number;
       target_bedrooms_min?: number;
+      // User-provided ad content (skips auto-generation when set)
+      ad_headline?: string;
+      ad_body?: string;
+      ad_description?: string;
+      image_prompt?: string;
     };
 
     const channel = payload.channel || "native";
@@ -1709,7 +1714,19 @@ const executors: Record<string, ActionExecutor> = {
           const businessType = profile?.businessType || "business";
 
           let adCopy = { headline: campaignName, primary_text: `Discover ${businessType} services in ${userCity}`, description: "Learn more today" };
-          try {
+
+          // If user provided ALL ad copy fields, skip LLM generation entirely
+          const hasUserCopy = !!(payload.ad_headline || payload.ad_body || payload.ad_description);
+          if (hasUserCopy) {
+            adCopy = {
+              headline: (payload.ad_headline || adCopy.headline).slice(0, 40),
+              primary_text: (payload.ad_body || adCopy.primary_text).slice(0, 125),
+              description: (payload.ad_description || adCopy.description).slice(0, 30),
+            };
+            console.log("[ADS] Using user-provided ad copy:", adCopy.headline);
+          }
+
+          if (!hasUserCopy) try {
             const llm = getDefaultProvider();
 
             // Build a listing-aware prompt if we have matched listings
@@ -1783,18 +1800,28 @@ const executors: Record<string, ActionExecutor> = {
             try {
               console.log("[ADS] Generating image with DALL-E...");
               const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
-              const imgType = payload.listing_focus ? "new_listing" : (payload.lead_type || "lead_generation");
-              const prompt = buildAdImagePrompt({
-                type: imgType,
-                city: userCity,
-                state: userState,
-                businessType,
-                propertyDetails: matchedListings.length > 0 ? {
-                  bedrooms: matchedListings[0].bedrooms || undefined,
-                  sqft: matchedListings[0].sqft || undefined,
-                  price: matchedListings[0].price || undefined,
-                } : undefined,
-              });
+
+              // Use user-provided image prompt if available, otherwise auto-generate
+              let prompt: string;
+              if (payload.image_prompt) {
+                // User described what they want — use their prompt directly with some guardrails
+                prompt = `Professional Facebook ad image: ${payload.image_prompt}. Photorealistic, high quality, no text overlays.`;
+                console.log("[ADS] Using user-provided image prompt");
+              } else {
+                const imgType = payload.listing_focus ? "new_listing" : (payload.lead_type || "lead_generation");
+                prompt = buildAdImagePrompt({
+                  type: imgType,
+                  city: userCity,
+                  state: userState,
+                  businessType,
+                  propertyDetails: matchedListings.length > 0 ? {
+                    bedrooms: matchedListings[0].bedrooms || undefined,
+                    sqft: matchedListings[0].sqft || undefined,
+                    price: matchedListings[0].price || undefined,
+                  } : undefined,
+                });
+              }
+
               console.log("[ADS] DALL-E prompt:", prompt.slice(0, 100));
               const generated = await generateImage({ prompt, size: "1024x1024" });
               imageSource = generated.url;
@@ -2070,6 +2097,7 @@ const executors: Record<string, ActionExecutor> = {
               ad_copy: adCopy,
               targeting_city: userCity,
               has_image: !!imageHash,
+              image_url: imageSource || null,
               ads_manager_url: adsManagerUrl,
               listings_count: matchedListings.length,
               listings_matched: matchedListings.slice(0, 5).map(l => ({
@@ -2081,6 +2109,24 @@ const executors: Record<string, ActionExecutor> = {
               note: payload.listing_focus && matchedListings.length > 0
                 ? `Your campaign is ready! Promoting ${matchedListings.length} listing${matchedListings.length !== 1 ? "s" : ""} in ${userCity}${payload.target_price_max ? ` under $${payload.target_price_max.toLocaleString()}` : ""}. Budget: $${dailyBudget}/day. Headline: "${adCopy.headline}". It's paused until you approve. Want me to take it live?`
                 : `Your campaign is ready! Budget: $${dailyBudget}/day targeting the ${userCity} area. Headline: "${adCopy.headline}". It's paused until you approve. Want me to take it live?`,
+              // Action card for chat UI rendering
+              __action_card: {
+                type: "campaign_created",
+                data: {
+                  name: campaignName,
+                  budget: dailyBudget,
+                  area: userCity,
+                  objective: userObjective,
+                  status: "PAUSED",
+                  headline: adCopy.headline,
+                  description: adCopy.primary_text,
+                  targeting_summary: `${userCity}${payload.target_radius ? `, ${payload.target_radius} mi` : ""}`,
+                  platform: "Facebook & Instagram",
+                  business_name: profile?.fullName || payload.business_name || "Your Business",
+                  business_initial: (profile?.fullName || payload.business_name || "C").charAt(0).toUpperCase(),
+                  image_url: imageSource || null,
+                },
+              },
             },
           };
         } catch (error) {

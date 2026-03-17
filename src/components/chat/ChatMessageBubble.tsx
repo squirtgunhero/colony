@@ -267,11 +267,23 @@ export function ChatMessageBubble({
         const fq = lamResponse.response.follow_up_question.toLowerCase();
         const isBudget = fq.includes("budget") || fq.includes("daily budget") || fq.includes("spend");
         const isLeadType = fq.includes("seller") || fq.includes("buyer") || fq.includes("type of lead");
+        const isAdCopy = fq.includes("headline") || fq.includes("ad copy") || fq.includes("copy") || fq.includes("text should") || fq.includes("what should the ad say");
+        const isImage = fq.includes("image") || fq.includes("photo") || fq.includes("picture") || fq.includes("creative");
+        const isTargeting = fq.includes("target") || fq.includes("location") || fq.includes("city") || fq.includes("where") || fq.includes("audience") || fq.includes("radius");
+        const isSkippable = fq.includes("just do it") || fq.includes("auto");
         const chips = isBudget
           ? ["$10/day", "$15/day", "$25/day", "Custom"]
           : isLeadType
             ? ["Seller leads", "Buyer leads", "Both"]
-            : null;
+            : isTargeting
+              ? ["Use my service area", "I\u2019ll type a city"]
+              : isAdCopy
+                ? ["Write it for me", "I\u2019ll write my own"]
+                : isImage
+                  ? ["Use my listing photos", "Modern home with pool", "Luxury property at sunset", "Let AI decide"]
+                  : isSkippable
+                    ? ["Just do it", "Let me customize"]
+                    : null;
         if (!chips) return null;
         return (
           <div className="flex flex-wrap gap-2 mt-2">

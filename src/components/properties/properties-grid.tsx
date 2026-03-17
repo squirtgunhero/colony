@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { deleteProperty } from "@/app/(dashboard)/properties/actions";
 import { PropertyEditDialog } from "@/components/properties/property-edit-dialog";
+import { PromotePropertyDialog } from "@/components/properties/promote-property-dialog";
 import {
   MoreHorizontal,
   Trash2,
@@ -26,6 +27,7 @@ import {
   Square,
   Building2,
   Pencil,
+  Megaphone,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/date-utils";
 import { FavoritePropertyButton } from "@/components/favorites/favorite-property-button";
@@ -78,6 +80,7 @@ const statusLabels: Record<string, string> = {
 export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
   const [search, setSearch] = useState("");
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [promotingProperty, setPromotingProperty] = useState<Property | null>(null);
 
   const filteredProperties = properties.filter(
     (property) =>
@@ -130,7 +133,7 @@ export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onSelect={() => {
                           // Use setTimeout to ensure dropdown closes first
                           setTimeout(() => setEditingProperty(property), 0);
@@ -138,6 +141,14 @@ export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
                       >
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          setTimeout(() => setPromotingProperty(property), 0);
+                        }}
+                      >
+                        <Megaphone className="h-4 w-4 mr-2" />
+                        Promote on Facebook
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -232,6 +243,15 @@ export function PropertiesGrid({ properties, contacts }: PropertiesGridProps) {
         open={!!editingProperty}
         onOpenChange={(open) => {
           if (!open) setEditingProperty(null);
+        }}
+      />
+
+      {/* Promote Dialog */}
+      <PromotePropertyDialog
+        property={promotingProperty}
+        open={!!promotingProperty}
+        onOpenChange={(open) => {
+          if (!open) setPromotingProperty(null);
         }}
       />
     </div>
