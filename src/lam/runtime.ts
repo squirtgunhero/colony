@@ -1843,6 +1843,42 @@ const executors: Record<string, ActionExecutor> = {
             }
           }
 
+          // ---- Resolve Facebook Page ID (needed for ad set promoted_object + creative) ----
+          let effectivePageId = (adAccount.metadata as Record<string, unknown>)?.pageId as string || "";
+
+          if (!effectivePageId) {
+            // Try to get pages from Meta API
+            try {
+              const pagesRes = await client.getPages();
+              if (pagesRes.length > 0) {
+                effectivePageId = pagesRes[0].id;
+                // Save for future use
+                await prisma.metaAdAccount.update({
+                  where: { id: adAccount.id },
+                  data: {
+                    metadata: {
+                      ...(adAccount.metadata as Record<string, unknown> || {}),
+                      pageId: effectivePageId,
+                    },
+                  },
+                }).catch(() => {});
+              }
+            } catch {
+              // Can't get pages
+            }
+          }
+
+          if (!effectivePageId) {
+            return {
+              action_id: action.action_id,
+              action_type: action.type,
+              status: "failed" as const,
+              error: "A Facebook Page is required to create ads. Make sure you have a Facebook Page connected to your ad account, then try again.",
+            };
+          }
+
+          console.log("[ADS] Using Facebook Page ID:", effectivePageId);
+
           const adSetResult = await client.createAdSet(adAccount.adAccountId, {
             name: `${campaignName} - Ad Set`,
             campaign_id: campaignResult.id,
@@ -1854,52 +1890,12 @@ const executors: Record<string, ActionExecutor> = {
             start_time: tomorrow.toISOString(),
             status: "PAUSED",
             special_ad_categories: specialAdCategories,
+            promoted_object: { page_id: effectivePageId },
           });
 
           // ---- Step 5: Create Ad Creative ----
           // Determine landing page URL
           const landingUrl = payload.website || `${process.env.NEXT_PUBLIC_APP_URL || "https://mycolonyhq.com"}`;
-
-          // Get user's Facebook page ID from ad account metadata
-          const pageId = (adAccount.metadata as Record<string, unknown>)?.pageId as string || "";
-
-          // For housing/special ad category ads, a Facebook Page is required
-          if (!pageId && specialAdCategories.length > 0) {
-            // Try to get pages from Meta API
-            let resolvedPageId = "";
-            try {
-              const pagesRes = await client.getPages();
-              if (pagesRes.length > 0) {
-                resolvedPageId = pagesRes[0].id;
-                // Save for future use
-                await prisma.metaAdAccount.update({
-                  where: { id: adAccount.id },
-                  data: {
-                    metadata: {
-                      ...(adAccount.metadata as Record<string, unknown> || {}),
-                      pageId: resolvedPageId,
-                    },
-                  },
-                }).catch(() => {});
-              }
-            } catch {
-              // Can't get pages
-            }
-
-            if (!resolvedPageId) {
-              return {
-                action_id: action.action_id,
-                action_type: action.type,
-                status: "failed" as const,
-                error: "Housing ads require a linked Facebook Page. Go to Settings > Integrations to connect your Facebook Page, then try again.",
-              };
-            }
-
-            // Use the resolved page ID
-            (adAccount.metadata as Record<string, unknown>).pageId = resolvedPageId;
-          }
-
-          const effectivePageId = pageId || (adAccount.metadata as Record<string, unknown>)?.pageId as string || "";
 
           let creativeResult: { id: string };
           try {

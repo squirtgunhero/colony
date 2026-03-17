@@ -281,6 +281,11 @@ export interface CreateAdSetParams {
   special_ad_categories?: string[];
   bid_strategy?: "LOWEST_COST_WITHOUT_CAP" | "LOWEST_COST_WITH_BID_CAP" | "COST_CAP";
   bid_amount?: number; // In cents, required for BID_CAP
+  promoted_object?: {
+    page_id?: string;
+    pixel_id?: string;
+    custom_event_type?: string;
+  };
 }
 
 export interface CreateAdSetResponse {

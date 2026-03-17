@@ -373,6 +373,9 @@ class MetaApiClient {
     if (params.bid_amount) {
       body.set("bid_amount", String(params.bid_amount));
     }
+    if (params.promoted_object) {
+      body.set("promoted_object", JSON.stringify(params.promoted_object));
+    }
 
     return this.request<CreateAdSetResponse>(`/${adAccountId}/adsets`, {
       method: "POST",
