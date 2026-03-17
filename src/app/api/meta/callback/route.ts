@@ -117,14 +117,20 @@ export async function GET(request: NextRequest) {
     response.cookies.delete("meta_oauth_state");
     return response;
   } catch (error: unknown) {
-    const msg = error instanceof Error
+    let msg = error instanceof Error
       ? error.message
       : typeof error === "string"
         ? error
         : JSON.stringify(error);
     console.error("[META CALLBACK] Error:", msg);
     console.error("[META CALLBACK] Stack:", error instanceof Error ? error.stack : "no stack");
-    // Pass a truncated error message through the URL so it's visible on the settings page
+    // For Prisma errors, extract the meaningful part (after the invocation dump)
+    if (msg.includes("invocation:")) {
+      // Prisma errors show: "Invalid invocation:\n\n{ ...params... }\n\nActual error reason here"
+      const parts = msg.split("\n\n");
+      // The last part usually has the actual error reason
+      msg = parts.length > 1 ? parts[parts.length - 1].trim() : msg;
+    }
     const safeMsg = encodeURIComponent(msg.slice(0, 500));
     return NextResponse.redirect(`${redirectBase}?error=${safeMsg}`);
   }
