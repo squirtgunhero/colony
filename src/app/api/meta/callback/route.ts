@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
     console.error("[META CALLBACK] Error:", msg);
     console.error("[META CALLBACK] Stack:", error instanceof Error ? error.stack : "no stack");
     // Pass a truncated error message through the URL so it's visible on the settings page
-    const safeMsg = encodeURIComponent(msg.slice(0, 200));
+    const safeMsg = encodeURIComponent(msg.slice(0, 500));
     return NextResponse.redirect(`${redirectBase}?error=${safeMsg}`);
   }
 }
