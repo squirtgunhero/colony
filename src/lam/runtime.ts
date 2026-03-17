@@ -1843,15 +1843,17 @@ const executors: Record<string, ActionExecutor> = {
             }
           }
 
-          // ---- Resolve Facebook Page ID (needed for ad set promoted_object + creative) ----
+          // ---- Resolve Facebook Page ID + Page Access Token (needed for ad set + creative) ----
           let effectivePageId = (adAccount.metadata as Record<string, unknown>)?.pageId as string || "";
+          let pageAccessToken = (adAccount.metadata as Record<string, unknown>)?.pageAccessToken as string || "";
 
-          if (!effectivePageId) {
-            // Try to get pages from Meta API
+          if (!effectivePageId || !pageAccessToken) {
+            // Try to get pages from Meta API (includes page access tokens)
             try {
               const pagesRes = await client.getPages();
               if (pagesRes.length > 0) {
                 effectivePageId = pagesRes[0].id;
+                pageAccessToken = pagesRes[0].access_token || "";
                 // Save for future use
                 await prisma.metaAdAccount.update({
                   where: { id: adAccount.id },
@@ -1859,6 +1861,7 @@ const executors: Record<string, ActionExecutor> = {
                     metadata: {
                       ...(adAccount.metadata as Record<string, unknown> || {}),
                       pageId: effectivePageId,
+                      pageAccessToken: pageAccessToken,
                     },
                   },
                 }).catch(() => {});
@@ -1900,9 +1903,17 @@ const executors: Record<string, ActionExecutor> = {
           let creativeResult: { id: string };
           try {
             if (effectivePageId) {
+              // Use a page-token-authenticated client for object_story_spec if available
+              // This avoids permission errors when the user token lacks pages_manage_ads
+              const creativeClient = pageAccessToken
+                ? createMetaClient(pageAccessToken)
+                : client;
+
+              console.log("[ADS] Creating creative with", pageAccessToken ? "page token" : "user token");
+
               // Page-based creative (required for housing, preferred for all)
               try {
-                creativeResult = await client.createAdCreative(adAccount.adAccountId, {
+                creativeResult = await creativeClient.createAdCreative(adAccount.adAccountId, {
                   name: `${campaignName} - Creative`,
                   object_story_spec: {
                     page_id: effectivePageId,
@@ -1918,12 +1929,11 @@ const executors: Record<string, ActionExecutor> = {
                 });
               } catch (pageCreativeError) {
                 const errMsg = pageCreativeError instanceof Error ? pageCreativeError.message : "";
-                const isPermissionError = errMsg.includes("Permission") || errMsg.includes("1487194") || errMsg.includes("code: 200");
-                const isDevModeError = errMsg.includes("development mode") || errMsg.includes("1885183");
+                console.error("[ADS] Creative with object_story_spec failed:", errMsg);
 
-                // For permission/dev-mode errors on non-housing ads, fall back to asset_feed_spec
-                if ((isPermissionError || isDevModeError) && specialAdCategories.length === 0) {
-                  console.warn("[META ADS] Page creative failed, falling back to asset_feed_spec:", errMsg);
+                // Fall back to asset_feed_spec for non-housing ads
+                if (specialAdCategories.length === 0) {
+                  console.warn("[ADS] Falling back to asset_feed_spec");
                   creativeResult = await client.createAdCreative(adAccount.adAccountId, {
                     name: `${campaignName} - Creative`,
                     asset_feed_spec: {
@@ -1940,17 +1950,12 @@ const executors: Record<string, ActionExecutor> = {
                       },
                     },
                   });
-                } else if (isPermissionError || isDevModeError) {
-                  // Housing ads REQUIRE a page — give clear instructions
-                  throw new Error(
-                    `Your Facebook Page permissions need to be updated. ` +
-                    `Go to developers.facebook.com → your app → App Review, and make sure: ` +
-                    `(1) The app is in Live mode (not Development), ` +
-                    `(2) You have pages_manage_ads and ads_management permissions approved. ` +
-                    `Then reconnect Facebook in Settings > Integrations.`
-                  );
                 } else {
-                  throw pageCreativeError;
+                  // Housing ads require page creative — surface the actual Meta error
+                  throw new Error(
+                    `Ad creative failed: ${errMsg}. ` +
+                    `Try reconnecting Facebook in Settings to refresh your Page permissions.`
+                  );
                 }
               }
             } else {

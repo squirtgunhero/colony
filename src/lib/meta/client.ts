@@ -279,10 +279,11 @@ class MetaApiClient {
   /**
    * Get Facebook Pages the user manages (needed for ad creatives)
    */
-  async getPages(): Promise<Array<{ id: string; name: string }>> {
-    const data = await this.request<{ data: Array<{ id: string; name: string }> }>("/me/accounts", {
-      method: "GET",
-    });
+  async getPages(): Promise<Array<{ id: string; name: string; access_token?: string }>> {
+    const data = await this.request<{ data: Array<{ id: string; name: string; access_token?: string }> }>(
+      "/me/accounts?fields=id,name,access_token",
+      { method: "GET" }
+    );
     return data.data || [];
   }
 
