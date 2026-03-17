@@ -280,7 +280,7 @@ export function ChatMessageBubble({
               : isAdCopy
                 ? ["Write it for me", "I\u2019ll write my own"]
                 : isImage
-                  ? ["Use my listing photos", "Modern home with pool", "Luxury property at sunset", "Let AI decide"]
+                  ? ["Use my listing photos", "Home valuation graphic", "Modern home with pool", "Luxury property at sunset"]
                   : isSkippable
                     ? ["Just do it", "Let me customize"]
                     : null;

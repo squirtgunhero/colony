@@ -1935,8 +1935,10 @@ const executors: Record<string, ActionExecutor> = {
           });
 
           // ---- Step 5: Create Ad Creative ----
-          // Determine landing page URL
-          const landingUrl = payload.website || `${process.env.NEXT_PUBLIC_APP_URL || "https://mycolonyhq.com"}`;
+          // Determine landing page URL — seller lead gen ads link to the valuation page
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mycolonyhq.com";
+          const isSellerAd = payload.lead_type?.toLowerCase().includes("seller") || false;
+          const landingUrl = payload.website || (isSellerAd ? `${baseUrl}/valuation?agent=${ctx.user_id}` : baseUrl);
 
           let creativeResult: { id: string };
           try {
