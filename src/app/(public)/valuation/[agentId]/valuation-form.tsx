@@ -10,7 +10,21 @@ const US_STATES = [
   "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC",
 ];
 
-export default function ValuationPage() {
+interface ValuationFormProps {
+  agentId: string;
+  agentName: string;
+  businessType: string;
+  serviceArea: string;
+  avatarUrl: string | null;
+}
+
+export function ValuationForm({
+  agentId,
+  agentName,
+  businessType,
+  serviceArea,
+  avatarUrl,
+}: ValuationFormProps) {
   const [form, setForm] = useState({
     address: "",
     city: "",
@@ -34,14 +48,7 @@ export default function ValuationPage() {
     setSubmitting(true);
 
     try {
-      // Pass along any query params (e.g. ?agent=...)
-      const params = new URLSearchParams(window.location.search);
-      const agentParam = params.get("agent");
-      const url = agentParam
-        ? `/api/valuation?agent=${encodeURIComponent(agentParam)}`
-        : "/api/valuation";
-
-      const res = await fetch(url, {
+      const res = await fetch(`/api/valuation?agent=${encodeURIComponent(agentId)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -64,6 +71,8 @@ export default function ValuationPage() {
     "w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-[#f5f0e8] placeholder-white/30 outline-none transition focus:border-[#cf9b46] focus:ring-1 focus:ring-[#cf9b46]";
   const labelClasses = "block text-sm font-medium text-[#f5f0e8]/70 mb-1.5";
 
+  const firstName = agentName.split(" ")[0];
+
   if (submitted) {
     return (
       <main className="min-h-screen bg-[#0d0d0d] flex items-center justify-center px-4">
@@ -83,7 +92,7 @@ export default function ValuationPage() {
             Your Valuation Request Has Been Received
           </h1>
           <p className="text-[#f5f0e8]/60 text-lg leading-relaxed">
-            Thank you, {form.name.split(" ")[0]}! A local market expert will review your
+            Thank you, {form.name.split(" ")[0]}! {firstName} will review your
             property details and reach out within 24 hours with a personalized home
             valuation.
           </p>
@@ -104,6 +113,28 @@ export default function ValuationPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#cf9b46]/5 to-transparent" />
         <div className="relative mx-auto max-w-6xl px-4 pt-16 pb-12 sm:pt-24 sm:pb-16">
           <div className="text-center max-w-3xl mx-auto space-y-5">
+            {/* Agent badge */}
+            <div className="flex items-center justify-center gap-3 mb-2">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt={agentName}
+                  className="w-10 h-10 rounded-full object-cover border-2 border-[#cf9b46]/30"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#cf9b46]/20 flex items-center justify-center text-[#cf9b46] font-bold text-sm">
+                  {agentName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="text-left">
+                <p className="text-[#f5f0e8] font-medium text-sm">{agentName}</p>
+                <p className="text-[#f5f0e8]/40 text-xs">
+                  {businessType}{serviceArea ? ` \u00B7 ${serviceArea}` : ""}
+                </p>
+              </div>
+            </div>
+
             <p className="text-[#cf9b46] font-semibold tracking-wide uppercase text-sm">
               Free Home Valuation
             </p>
@@ -112,9 +143,10 @@ export default function ValuationPage() {
               <span className="text-[#cf9b46]">Really Worth</span>
             </h1>
             <p className="text-lg sm:text-xl text-[#f5f0e8]/60 leading-relaxed max-w-2xl mx-auto">
-              Get a complimentary, no-obligation market analysis from a local real estate
-              expert. Accurate valuations powered by current market data and neighborhood
-              trends.
+              Get a complimentary, no-obligation market analysis from {firstName}.
+              {serviceArea
+                ? ` Serving ${serviceArea} and surrounding areas.`
+                : " Accurate valuations powered by current market data and neighborhood trends."}
             </p>
           </div>
         </div>
@@ -133,7 +165,7 @@ export default function ValuationPage() {
                 },
                 {
                   title: "Expert Local Knowledge",
-                  desc: "A local agent who knows your community will factor in upgrades, lot characteristics, and micro-market trends that algorithms miss.",
+                  desc: `${firstName} knows your community and will factor in upgrades, lot characteristics, and micro-market trends that algorithms miss.`,
                 },
                 {
                   title: "No Obligation",
@@ -170,7 +202,7 @@ export default function ValuationPage() {
                   Request Your Free Valuation
                 </h2>
                 <p className="text-[#f5f0e8]/50 text-sm mt-1">
-                  Fill out the form below and a local expert will be in touch.
+                  Fill out the form below and {firstName} will be in touch.
                 </p>
               </div>
 

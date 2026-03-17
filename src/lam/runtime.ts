@@ -1938,7 +1938,7 @@ const executors: Record<string, ActionExecutor> = {
           // Determine landing page URL — seller lead gen ads link to the valuation page
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mycolonyhq.com";
           const isSellerAd = payload.lead_type?.toLowerCase().includes("seller") || false;
-          const landingUrl = payload.website || (isSellerAd ? `${baseUrl}/valuation?agent=${ctx.user_id}` : baseUrl);
+          const landingUrl = payload.website || (isSellerAd ? `${baseUrl}/valuation/${ctx.user_id}` : baseUrl);
 
           let creativeResult: { id: string };
           try {
