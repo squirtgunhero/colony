@@ -59,9 +59,9 @@ export async function GET(request: NextRequest) {
     const longLivedToken = await getLongLivedToken(tokenResponse.access_token);
     console.log("[META CALLBACK] Got long-lived token, expires_in:", longLivedToken.expires_in);
 
-    // Calculate token expiration
-    const expiresAt = new Date();
-    expiresAt.setSeconds(expiresAt.getSeconds() + longLivedToken.expires_in);
+    // Calculate token expiration (expires_in may be missing for never-expiring tokens)
+    const expiresIn = Number(longLivedToken.expires_in) || 5184000; // default 60 days
+    const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
     // Get user info and ad accounts
     const client = createMetaClient(longLivedToken.access_token);
