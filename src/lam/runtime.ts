@@ -1776,10 +1776,12 @@ const executors: Record<string, ActionExecutor> = {
 
           // Priority: property photo > AI-generated image
           let imageSource = propertyImageUrl || null;
+          console.log("[ADS] Property image URL:", imageSource || "none");
 
           // If no property image, generate one with DALL-E
           if (!imageSource && process.env.OPENAI_API_KEY) {
             try {
+              console.log("[ADS] Generating image with DALL-E...");
               const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
               const imgType = payload.listing_focus ? "new_listing" : (payload.lead_type || "lead_generation");
               const prompt = buildAdImagePrompt({
@@ -1793,22 +1795,31 @@ const executors: Record<string, ActionExecutor> = {
                   price: matchedListings[0].price || undefined,
                 } : undefined,
               });
+              console.log("[ADS] DALL-E prompt:", prompt.slice(0, 100));
               const generated = await generateImage({ prompt, size: "1024x1024" });
               imageSource = generated.url;
+              console.log("[ADS] DALL-E image generated:", imageSource?.slice(0, 80));
             } catch (imgGenErr) {
-              console.error("[META ADS] DALL-E image generation failed:", imgGenErr);
+              console.error("[META ADS] DALL-E image generation failed:", imgGenErr instanceof Error ? imgGenErr.message : imgGenErr);
               // Continue without image
             }
+          } else if (!process.env.OPENAI_API_KEY) {
+            console.warn("[ADS] No OPENAI_API_KEY — skipping image generation");
           }
 
           if (imageSource) {
             try {
+              console.log("[ADS] Uploading image to Meta...");
               const uploadResult = await client.uploadImage(adAccount.adAccountId, imageSource);
               imageHash = uploadResult.hash;
-            } catch {
+              console.log("[ADS] Image uploaded, hash:", imageHash);
+            } catch (uploadErr) {
+              console.error("[ADS] Image upload to Meta failed:", uploadErr instanceof Error ? uploadErr.message : uploadErr);
               // Continue without image — will create a link ad
             }
           }
+
+          console.log("[ADS] Final imageHash:", imageHash || "none — ad will be created without image");
 
           // ---- Step 4: Create Ad Set with Advantage+ targeting ----
           const tomorrow = new Date();
