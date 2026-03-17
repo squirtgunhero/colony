@@ -116,10 +116,11 @@ You analyze user requests and generate a precise ActionPlan that the system will
    When the user wants to create ads ("run an ad", "I need leads", "advertise", "promote my listings"), NEVER immediately create ads.create_campaign. Instead, use the GUIDED STEP-BY-STEP flow:
 
    A) FIRST REQUEST — Start the guided builder. Generate ZERO actions. Set follow_up_question to ask the FIRST missing piece (in this order):
-      Step 1: Target area (skip if known from profile service area or conversation)
-      Step 2: Daily budget (skip if already mentioned)
-      Step 3: Ad copy — "What should the ad say? Give me a headline and body text, or I can write it for you."
+      Step 1: Lead type — "What kind of leads are you looking for?" with options: Seller leads, Buyer leads, or Both.
+      Step 2: Target area (skip if known from profile service area or conversation) — "Which area should I target?"
+      Step 3: Daily budget (skip if already mentioned) — "What daily budget works for you?"
       Step 4: Ad image — "What image should I use? Describe what you want and I'll generate it with AI, or say 'use my listing photos'."
+      Step 5: Ad copy — "What should the ad say? Give me a headline and body text, or I can write it for you."
       ONLY create ads.create_campaign AFTER the user has answered all steps (or said "just do it" / "auto" to skip).
 
    B) MID-FLOW QUESTIONS — If the user asks ABOUT the ad during setup (e.g. "what about the audience targeting?", "can I change the headline?", "what image will it use?", "how does targeting work?"), respond CONVERSATIONALLY with ZERO actions. Answer their question and continue the guided flow.
@@ -842,9 +843,67 @@ export async function planFromMessage(
  * Detect if the user's message is about ads/listings and force-reroute
  * misclassified lead.create actions to ads.create_campaign.
  * This is a deterministic guard because the LLM sometimes ignores routing rules.
+ *
+ * IMPORTANT: This should only fire on the INITIAL ad creation request,
+ * NOT on mid-flow answers during the guided ad builder (e.g., user providing
+ * image descriptions, copy text, targeting preferences, lead type, etc.).
  */
 function forceAdRouting(plan: ActionPlan, input: PlannerInput): ActionPlan {
-  const msg = input.user_message.toLowerCase();
+  const fullMsg = input.user_message.toLowerCase();
+
+  // ── Extract only the ACTUAL user message (after "New message: " prefix) ──
+  // The input includes conversation history prepended by the route handler.
+  // We must only analyze the user's latest message, not the entire history.
+  const newMsgMarker = "new message: ";
+  const newMsgIdx = fullMsg.lastIndexOf(newMsgMarker);
+  const msg = newMsgIdx >= 0
+    ? fullMsg.slice(newMsgIdx + newMsgMarker.length).trim()
+    : fullMsg;
+
+  // ── Detect if we're in a GUIDED AD BUILDER flow ──
+  // If the conversation history shows Tara already asked about budget, image,
+  // copy, targeting, lead type, or audience — the user is answering a guided
+  // flow question, NOT making a new ad request. Skip force-routing entirely.
+  const historySection = newMsgIdx >= 0 ? fullMsg.slice(0, newMsgIdx) : "";
+  const guidedFlowIndicators = [
+    /what.*budget/i,
+    /what.*image/i,
+    /what.*headline/i,
+    /what.*copy/i,
+    /what.*text/i,
+    /what.*audience/i,
+    /what.*targeting/i,
+    /what kind of leads/i,
+    /what type of leads/i,
+    /seller.*leads.*buyer.*leads/i,
+    /service area/i,
+    /which area/i,
+    /guided ad builder/i,
+    /let me help you.*campaign/i,
+    /step.*of.*ad/i,
+    /would you like.*image/i,
+    /describe.*image/i,
+    /what should the ad say/i,
+    /choose.*location/i,
+    /select.*area/i,
+  ];
+  const isInGuidedFlow = guidedFlowIndicators.some(p => p.test(historySection));
+  if (isInGuidedFlow) return plan;
+
+  // ── Also skip if the user's message looks like a mid-flow ANSWER ──
+  // Short answers providing content (image descriptions, copy, area names,
+  // budget amounts, lead type selections) should not be force-routed.
+  const midFlowAnswerPatterns = [
+    /^(an? image|image of|image that|image with|photo of|picture of)/i,
+    /^(seller|buyer|both)\s*(leads?)?$/i,
+    /^\$?\d+(\.\d{2})?\s*(\/\s*day|per day|daily)?$/i,  // budget like "$10/day"
+    /^(free home valuation|home valuation|valuation)/i,
+    /^(use|go with|i('d| would) like|let'?s? (use|go))/i,
+    /^(yes|no|sure|okay|ok|sounds good|perfect|that works|looks good)/i,
+    /^(my service area|around|near|within)/i,
+  ];
+  const isMidFlowAnswer = midFlowAnswerPatterns.some(p => p.test(msg.trim()));
+  if (isMidFlowAnswer) return plan;
 
   // Skip re-routing if the user is asking a QUESTION about ads/targeting/copy
   // (not requesting campaign creation)

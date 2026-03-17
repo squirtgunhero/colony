@@ -266,10 +266,10 @@ export function ChatMessageBubble({
       {lamResponse?.response?.follow_up_question && (() => {
         const fq = lamResponse.response.follow_up_question.toLowerCase();
         const isBudget = fq.includes("budget") || fq.includes("daily budget") || fq.includes("spend");
-        const isLeadType = fq.includes("seller") || fq.includes("buyer") || fq.includes("type of lead");
+        const isLeadType = fq.includes("seller") || fq.includes("buyer") || fq.includes("type of lead") || fq.includes("kind of lead") || fq.includes("lead type");
         const isAdCopy = fq.includes("headline") || fq.includes("ad copy") || fq.includes("copy") || fq.includes("text should") || fq.includes("what should the ad say");
         const isImage = fq.includes("image") || fq.includes("photo") || fq.includes("picture") || fq.includes("creative");
-        const isTargeting = fq.includes("target") || fq.includes("location") || fq.includes("city") || fq.includes("where") || fq.includes("audience") || fq.includes("radius");
+        const isTargeting = fq.includes("target") || fq.includes("location") || fq.includes("city") || fq.includes("where") || fq.includes("audience") || fq.includes("radius") || fq.includes("area") || fq.includes("service area");
         const isSkippable = fq.includes("just do it") || fq.includes("auto");
         const chips = isBudget
           ? ["$10/day", "$15/day", "$25/day", "Custom"]
