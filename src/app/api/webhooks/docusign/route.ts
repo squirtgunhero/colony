@@ -9,6 +9,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as Sentry from "@sentry/nextjs";
 import crypto from "crypto";
+import { evaluateAutomations } from "@/lib/automation-engine";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +124,14 @@ export async function POST(request: NextRequest) {
           dealId: envelope.deal.id,
         },
       });
+
+      // Fire automation
+      evaluateAutomations({
+        type: "deal_stage_changed",
+        userId,
+        dealId: envelope.deal.id,
+        metadata: { fromStage: envelope.deal.stage, toStage: "closed" },
+      }).catch(() => {});
     }
 
     return Response.json({ ok: true });

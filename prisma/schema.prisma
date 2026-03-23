@@ -1421,14 +1421,32 @@ model EmailCampaignRecipient {
   status       String    @default("pending") // pending, sent, failed, opened, clicked, bounced
   sentAt       DateTime? @map("sent_at")
   openedAt     DateTime? @map("opened_at")
-  clickedAt    DateTime? @map("clicked_at")
-  errorMessage String?   @map("error_message")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  clickedAt      DateTime? @map("clicked_at")
+  currentStep    Int       @default(0) @map("current_step")
+  lastStepSentAt DateTime? @map("last_step_sent_at")
+  errorMessage   String?   @map("error_message")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
   @@unique([campaignId, contactId])
   @@index([campaignId, status])
   @@index([contactId])
   @@map("email_campaign_recipients")
+}
+
+model Automation {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id") @db.Uuid
+  name        String
+  trigger     Json      // { type: "deal_stage_changed", conditions: { toStage: "closed" } }
+  action      Json      // { type: "send_email", params: { subject: "...", body: "..." } }
+  isActive    Boolean   @default(true) @map("is_active")
+  lastFiredAt DateTime? @map("last_fired_at")
+  fireCount   Int       @default(0) @map("fire_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, isActive])
+  @@map("automations")
 }
 
 model CalendarEvent {

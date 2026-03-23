@@ -1,8 +1,9 @@
-// Communications Domain Executors — Email, SMS, Campaigns
+// Communications Domain Executors — Email, SMS, Campaigns, Drafting
 import { prisma } from "@/lib/prisma";
 import { sendSMS } from "@/lib/twilio";
 import { sendGmailEmail } from "@/lib/gmail";
 import { executeCampaign } from "@/lib/campaign-sender";
+import { draftContextualEmail } from "@/lib/contextual-email";
 import type { ActionExecutor } from "../types";
 
 export const commsExecutors: Record<string, ActionExecutor> = {
@@ -310,6 +311,52 @@ export const commsExecutors: Record<string, ActionExecutor> = {
         failed: result.failed,
         total: result.total,
         message: `Campaign "${campaign.name}" sent to ${result.sent} contacts${result.failed > 0 ? ` (${result.failed} failed)` : ""}`,
+      },
+    };
+  },
+
+  "email.draft": async (action, ctx) => {
+    if (action.type !== "email.draft") throw new Error("Invalid action type");
+
+    const { contactId, contactName, purpose } = action.payload as {
+      contactId?: string;
+      contactName?: string;
+      purpose?: string;
+    };
+
+    let resolvedContactId = contactId;
+
+    if (!resolvedContactId && contactName) {
+      const contact = await prisma.contact.findFirst({
+        where: {
+          userId: ctx.user_id,
+          name: { contains: contactName, mode: "insensitive" },
+        },
+        select: { id: true },
+      });
+      resolvedContactId = contact?.id;
+    }
+
+    if (!resolvedContactId) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Contact not found. Provide a contactId or contactName.",
+      };
+    }
+
+    const draft = await draftContextualEmail(resolvedContactId, ctx.user_id, purpose);
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success" as const,
+      data: {
+        subject: draft.subject,
+        body: draft.body,
+        context_used: draft.context_used,
+        message: `Here's a draft email:\n\nSubject: ${draft.subject}\n\n${draft.body}`,
       },
     };
   },

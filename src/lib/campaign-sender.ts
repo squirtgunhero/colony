@@ -82,6 +82,10 @@ export async function executeCampaign(
         });
       }
 
+      // Inject email tracking
+      body = rewriteLinks(body, recipient.id);
+      body = injectTrackingPixel(body, recipient.id);
+
       // Send via Gmail
       const result = await sendGmailEmail({
         emailAccountId: emailAccount.id,
@@ -165,6 +169,43 @@ export async function executeCampaign(
   });
 
   return { sent, failed, total: sent + failed };
+}
+
+// ---------------------------------------------------------------------------
+// AI Personalization
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Email Tracking Helpers (exported for drip cron reuse)
+// ---------------------------------------------------------------------------
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+export function injectTrackingPixel(html: string, recipientId: string): string {
+  const pixelUrl = `${APP_URL}/api/t/o/${recipientId}`;
+  const pixel = `<img src="${pixelUrl}" width="1" height="1" style="display:none" alt="" />`;
+  // Insert before closing tags if present, otherwise append
+  if (html.includes("</body>")) {
+    return html.replace("</body>", `${pixel}</body>`);
+  }
+  if (html.includes("</div>")) {
+    return html.replace(/<\/div>(?![\s\S]*<\/div>)/, `${pixel}</div>`);
+  }
+  return html + pixel;
+}
+
+export function rewriteLinks(html: string, recipientId: string): string {
+  const trackBase = `${APP_URL}/api/t/c/${recipientId}`;
+  return html.replace(
+    /href="(https?:\/\/[^"]+)"/g,
+    (_match, url: string) => {
+      // Skip mailto, tel, and tracking URLs
+      if (url.startsWith("mailto:") || url.startsWith("tel:") || url.includes("/api/t/")) {
+        return `href="${url}"`;
+      }
+      return `href="${trackBase}?url=${encodeURIComponent(url)}"`;
+    }
+  );
 }
 
 // ---------------------------------------------------------------------------

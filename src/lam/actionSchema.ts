@@ -999,6 +999,76 @@ export const DocuSignCheckStatusActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Automation Actions
+// ============================================================================
+
+export const AutomationCreatePayloadSchema = z.object({
+  name: z.string().min(1),
+  trigger: z.object({
+    type: z.enum([
+      "deal_stage_changed",
+      "email_opened",
+      "email_clicked",
+      "new_lead_created",
+      "contact_dormant",
+      "task_overdue",
+    ]),
+    conditions: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+  }),
+  action: z.object({
+    type: z.enum(["send_email", "create_task", "update_deal_stage", "send_sms", "add_tag"]),
+    params: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+  }),
+});
+
+export const AutomationCreateExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("automation"),
+  created: z.literal(true),
+});
+
+export const AutomationCreateActionSchema = BaseActionSchema.extend({
+  type: z.literal("automation.create"),
+  payload: AutomationCreatePayloadSchema,
+  expected_outcome: AutomationCreateExpectedOutcomeSchema,
+});
+
+export const AutomationListPayloadSchema = z.object({
+  activeOnly: z.boolean().optional().default(false),
+});
+
+export const AutomationListExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("automation"),
+  results_returned: z.literal(true),
+});
+
+export const AutomationListActionSchema = BaseActionSchema.extend({
+  type: z.literal("automation.list"),
+  payload: AutomationListPayloadSchema,
+  expected_outcome: AutomationListExpectedOutcomeSchema,
+});
+
+// ============================================================================
+// AI Email Draft Action (Tier 0 - read-only)
+// ============================================================================
+
+export const EmailDraftPayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+  purpose: z.string().optional(),
+});
+
+export const EmailDraftExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("email"),
+  draft_returned: z.literal(true),
+});
+
+export const EmailDraftActionSchema = BaseActionSchema.extend({
+  type: z.literal("email.draft"),
+  payload: EmailDraftPayloadSchema,
+  expected_outcome: EmailDraftExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // Union Action Type
 // ============================================================================
 
@@ -1050,6 +1120,9 @@ export const ActionSchema = z.discriminatedUnion("type", [
   EmailSendCampaignActionSchema,
   DocuSignSendEnvelopeActionSchema,
   DocuSignCheckStatusActionSchema,
+  AutomationCreateActionSchema,
+  AutomationListActionSchema,
+  EmailDraftActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -1108,6 +1181,8 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "marketing.generate_image":
     case "marketing.generate_content":
     case "docusign.check_status":
+    case "automation.list":
+    case "email.draft":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
@@ -1132,6 +1207,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "savedSearch.create":
     case "savedSearch.update":
     case "deal.addMilestones":
+    case "automation.create":
       return 1;
     // Tier 2: Destructive bulk actions + external communications + spending money
     case "lead.deleteAll":

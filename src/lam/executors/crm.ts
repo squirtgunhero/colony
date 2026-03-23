@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import type { ActionExecutor } from "../types";
 import { recordChange, getUserActiveTeamId } from "../helpers";
+import { evaluateAutomations } from "@/lib/automation-engine";
 
 export const crmExecutors: Record<string, ActionExecutor> = {
   "lead.create": async (action, ctx) => {
@@ -83,6 +84,14 @@ export const crmExecutors: Record<string, ActionExecutor> = {
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for lead.create:", e);
     }
+
+    // Fire automation event
+    evaluateAutomations({
+      type: "new_lead_created",
+      userId: ctx.user_id,
+      contactId: contact.id,
+      metadata: { source: contact.source, type: contact.type },
+    }).catch(() => {});
 
     return {
       action_id: action.action_id,
@@ -394,6 +403,15 @@ export const crmExecutors: Record<string, ActionExecutor> = {
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for deal.moveStage:", e);
     }
+
+    // Fire automation event
+    evaluateAutomations({
+      type: "deal_stage_changed",
+      userId: ctx.user_id,
+      dealId: deal.id,
+      contactId: deal.contactId ?? undefined,
+      metadata: { fromStage: before.stage, toStage: deal.stage },
+    }).catch(() => {});
 
     return {
       action_id: action.action_id,

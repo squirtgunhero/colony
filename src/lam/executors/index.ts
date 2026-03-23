@@ -11,6 +11,7 @@ import { googleExecutors } from "./google";
 import { contactsExecutors } from "./contacts";
 import { marketingExecutors } from "./marketing";
 import { docusignExecutors } from "./docusign";
+import { automationExecutors } from "./automations";
 
 /**
  * Combined executor registry — maps action type strings to executor functions.
@@ -25,4 +26,5 @@ export const executors: Record<string, ActionExecutor> = {
   ...contactsExecutors,
   ...marketingExecutors,
   ...docusignExecutors,
+  ...automationExecutors,
 };
