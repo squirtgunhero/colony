@@ -102,6 +102,14 @@ export const commsExecutors: Record<string, ActionExecutor> = {
       },
     });
 
+    // Keep lastContactedAt fresh
+    if (resolvedContactId) {
+      await prisma.contact.update({
+        where: { id: resolvedContactId },
+        data: { lastContactedAt: new Date() },
+      }).catch(() => {});
+    }
+
     return {
       action_id: action.action_id,
       action_type: action.type,
@@ -187,6 +195,14 @@ export const commsExecutors: Record<string, ActionExecutor> = {
         lamRunId: ctx.run_id,
       },
     });
+
+    // Keep lastContactedAt fresh
+    if (contactId) {
+      await prisma.contact.update({
+        where: { id: contactId },
+        data: { lastContactedAt: new Date() },
+      }).catch(() => {});
+    }
 
     return {
       action_id: action.action_id,

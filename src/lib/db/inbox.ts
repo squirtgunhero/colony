@@ -571,6 +571,34 @@ export async function findOrCreateThread(data: {
     });
   }
 
+  // Auto-refresh: on inbound, fill in missing contact info & mark verified
+  if (contact && data.direction === "inbound") {
+    const updates: Record<string, unknown> = { lastVerifiedAt: new Date() };
+    if (data.channel === "email") {
+      // If contact was matched by phone but has no email, fill it in
+      const fullContact = await prisma.contact.findUnique({
+        where: { id: contact.id },
+        select: { email: true },
+      });
+      if (!fullContact?.email) {
+        updates.email = normalizedAddress;
+      }
+    } else {
+      // If contact was matched by email but has no phone, fill it in
+      const fullContact = await prisma.contact.findUnique({
+        where: { id: contact.id },
+        select: { phone: true },
+      });
+      if (!fullContact?.phone) {
+        updates.phone = normalizePhoneNumber(normalizedAddress);
+      }
+    }
+    await prisma.contact.update({
+      where: { id: contact.id },
+      data: updates,
+    });
+  }
+
   // Look for existing thread
   const existingThread = await prisma.inboxThread.findFirst({
     where: contact

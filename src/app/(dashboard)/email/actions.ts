@@ -74,15 +74,20 @@ export async function sendEmail(data: SendEmailData) {
           type: "email",
           title: `Sent: ${data.subject}`,
           description: data.body.substring(0, 500),
-          metadata: JSON.stringify({ 
-            to: data.to, 
-            from: fromEmail, 
+          metadata: JSON.stringify({
+            to: data.to,
+            from: fromEmail,
             messageId,
             provider: "gmail",
           }),
           contactId: data.contactId,
         },
       });
+      // Keep lastContactedAt fresh
+      await prisma.contact.update({
+        where: { id: data.contactId },
+        data: { lastContactedAt: new Date() },
+      }).catch(() => {});
 
       revalidatePath(`/contacts/${data.contactId}`);
     }

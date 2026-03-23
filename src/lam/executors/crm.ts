@@ -76,6 +76,10 @@ export const crmExecutors: Record<string, ActionExecutor> = {
           contactId: contact.id,
         },
       });
+      await prisma.contact.update({
+        where: { id: contact.id },
+        data: { lastContactedAt: new Date() },
+      });
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for lead.create:", e);
     }
@@ -215,6 +219,10 @@ export const crmExecutors: Record<string, ActionExecutor> = {
           contactId: contactId,
         },
       });
+      await prisma.contact.update({
+        where: { id: contactId },
+        data: { lastContactedAt: new Date() },
+      });
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for lead.update:", e);
     }
@@ -272,6 +280,12 @@ export const crmExecutors: Record<string, ActionExecutor> = {
           contactId: deal.contactId,
         },
       });
+      if (deal.contactId) {
+        await prisma.contact.update({
+          where: { id: deal.contactId },
+          data: { lastContactedAt: new Date() },
+        });
+      }
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for deal.create:", e);
     }

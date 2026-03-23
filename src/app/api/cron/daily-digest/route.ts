@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSMS } from "@/lib/twilio";
 import { isQuietHours } from "@/lib/quiet-hours";
+import { generateAgenda } from "@/lib/daily-agenda";
 import * as Sentry from "@sentry/nextjs";
 
 export const dynamic = "force-dynamic";
@@ -90,8 +91,9 @@ async function buildDigest(
   todayStart: Date,
   weekAgo: Date
 ): Promise<string | null> {
-  const [newContacts, stageChanges, newClaims, overdueTasks, pipeline, pipelineWeekAgo, metaAccount] =
+  const [agenda, newContacts, stageChanges, newClaims, overdueTasks, pipeline, pipelineWeekAgo, metaAccount] =
     await Promise.all([
+      generateAgenda(userId),
       prisma.contact.findMany({
         where: { userId, createdAt: { gte: todayStart } },
         select: { name: true },
@@ -178,7 +180,16 @@ async function buildDigest(
     parts.push(`${overdueTasks.length} overdue task(s) need attention.`);
   }
 
-  if (parts.length === 0) return null;
+  // Build agenda section (top 3 proactive recommendations)
+  const agendaLines: string[] = [];
+  if (agenda.length > 0) {
+    agendaLines.push("Reach out to:");
+    for (const item of agenda.slice(0, 3)) {
+      agendaLines.push(`• ${item.contactName} — ${item.reason}`);
+    }
+  }
+
+  if (parts.length === 0 && agendaLines.length === 0) return null;
 
   const currentPipeline = pipeline._sum.value ?? 0;
   const oldPipeline = pipelineWeekAgo._sum.value ?? 0;
@@ -202,9 +213,11 @@ async function buildDigest(
     }
   }
 
-  const header = `Hey, it's Tara. ${parts.length} thing${parts.length > 1 ? "s" : ""} for you today.`;
+  const header = agendaLines.length > 0
+    ? "Hey, it's Tara. Here's your game plan today."
+    : `Hey, it's Tara. ${parts.length} thing${parts.length > 1 ? "s" : ""} for you today.`;
 
-  return [header, ...parts, pipelineLine].join("\n");
+  return [header, ...agendaLines, "", ...parts, pipelineLine].filter(Boolean).join("\n");
 }
 
 function stageLabel(stage: string): string {

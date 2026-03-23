@@ -236,6 +236,11 @@ export async function sendInboxMessage(data: {
           contactId: thread.contactId,
         },
       });
+      // Keep lastContactedAt fresh
+      await prisma.contact.update({
+        where: { id: thread.contactId },
+        data: { lastContactedAt: new Date() },
+      }).catch(() => {});
     }
 
     revalidatePath("/inbox");

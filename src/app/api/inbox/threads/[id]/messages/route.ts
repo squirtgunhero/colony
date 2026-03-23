@@ -93,6 +93,11 @@ export async function POST(
           contactId: thread.contactId,
         },
       });
+      // Keep lastContactedAt fresh
+      await prisma.contact.update({
+        where: { id: thread.contactId },
+        data: { lastContactedAt: new Date() },
+      }).catch(() => {});
     }
 
     return NextResponse.json({ success: true, messageId: message.id });

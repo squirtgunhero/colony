@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { generateAgenda } from "@/lib/daily-agenda";
 
 export async function GET() {
   const supabase = await createClient();
@@ -18,8 +19,9 @@ export async function GET() {
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
-  const [tasksDueToday, overdueTasks, recentActivities, dealChanges] =
+  const [agenda, tasksDueToday, overdueTasks, recentActivities, dealChanges] =
     await Promise.all([
+      generateAgenda(userId),
       prisma.task.findMany({
         where: {
           userId,
@@ -70,6 +72,7 @@ export async function GET() {
     ]);
 
   return NextResponse.json({
+    agenda,
     tasksDueToday: tasksDueToday.map((t) => ({
       id: t.id,
       title: t.title,

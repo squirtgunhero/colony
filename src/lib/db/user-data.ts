@@ -326,12 +326,22 @@ export async function createUserActivity(data: {
   dealId?: string;
 }) {
   const userId = await requireUserId();
-  return prisma.activity.create({
+  const activity = await prisma.activity.create({
     data: {
       ...data,
       userId,
     },
   });
+
+  // Keep lastContactedAt denormalization fresh
+  if (data.contactId) {
+    await prisma.contact.update({
+      where: { id: data.contactId },
+      data: { lastContactedAt: new Date() },
+    }).catch(() => {});
+  }
+
+  return activity;
 }
 
 // ============================================================================

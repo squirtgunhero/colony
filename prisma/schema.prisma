@@ -129,6 +129,10 @@ model Contact {
   utmTerm         String?  @map("utm_term")
   landingPage     String?  @map("landing_page")     // URL where lead first arrived
 
+  // Proactive agenda fields
+  lastContactedAt DateTime? @map("last_contacted_at") // Denormalized: last Activity date for this contact
+  lastVerifiedAt  DateTime? @map("last_verified_at")  // When contact info was last confirmed/enriched
+
   // Relations
   properties    Property[]
   deals         Deal[]
@@ -142,6 +146,7 @@ model Contact {
   @@index([teamId])
   @@index([campaignChannel])
   @@index([source])
+  @@index([userId, lastContactedAt])
 }
 
 // ============================================================================

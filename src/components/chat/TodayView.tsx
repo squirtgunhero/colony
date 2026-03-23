@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
+import { useAssistantStore } from "@/lib/assistant/store";
 import { toggleTask } from "@/app/(dashboard)/tasks/actions";
 import {
   CheckCircle2,
@@ -12,7 +13,23 @@ import {
   TrendingUp,
   Clock,
   Activity,
+  Zap,
+  ArrowRight,
+  ChevronDown,
 } from "lucide-react";
+
+interface AgendaItem {
+  id: string;
+  contactId: string;
+  contactName: string;
+  dealId?: string;
+  dealTitle?: string;
+  type: string;
+  priority: number;
+  reason: string;
+  suggestedAction: string;
+  score: number;
+}
 
 interface TodayTask {
   id: string;
@@ -40,6 +57,7 @@ interface DealChange {
 }
 
 interface TodayData {
+  agenda: AgendaItem[];
   tasksDueToday: TodayTask[];
   overdueTasks: TodayTask[];
   recentActivities: TodayActivity[];
@@ -50,6 +68,8 @@ export function TodayView() {
   const { theme } = useColonyTheme();
   const [data, setData] = useState<TodayData | null>(null);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [showAllAgenda, setShowAllAgenda] = useState(false);
+  const { setInput } = useAssistantStore();
 
   useEffect(() => {
     fetch("/api/chat/today")
@@ -85,6 +105,7 @@ export function TodayView() {
   }
 
   const isEmpty =
+    (data.agenda?.length ?? 0) === 0 &&
     data.tasksDueToday.length === 0 &&
     data.overdueTasks.length === 0 &&
     data.recentActivities.length === 0 &&
@@ -103,8 +124,41 @@ export function TodayView() {
 
   const neumorphicRaised = `3px 3px 6px rgba(0,0,0,0.35), -3px -3px 6px rgba(255,255,255,0.03)`;
 
+  const agendaItems = data.agenda ?? [];
+  const visibleAgenda = showAllAgenda ? agendaItems : agendaItems.slice(0, 5);
+
   return (
     <div className="space-y-6 w-full max-w-lg mx-auto">
+      {/* Proactive agenda — "Reach Out Today" */}
+      {agendaItems.length > 0 && (
+        <Section
+          title="Reach Out Today"
+          icon={<Zap className="h-3.5 w-3.5" />}
+          accentColor={theme.accent}
+          theme={theme}
+        >
+          {visibleAgenda.map((item) => (
+            <AgendaCard
+              key={item.id}
+              item={item}
+              theme={theme}
+              neumorphic={neumorphicRaised}
+              onAction={() => setInput(item.suggestedAction)}
+            />
+          ))}
+          {agendaItems.length > 5 && !showAllAgenda && (
+            <button
+              onClick={() => setShowAllAgenda(true)}
+              className="flex items-center gap-1 mx-auto text-xs font-medium pt-1 transition-colors"
+              style={{ color: theme.textMuted }}
+            >
+              <ChevronDown className="h-3 w-3" />
+              Show {agendaItems.length - 5} more
+            </button>
+          )}
+        </Section>
+      )}
+
       {/* Overdue tasks */}
       {data.overdueTasks.length > 0 && (
         <Section
@@ -295,6 +349,62 @@ function TaskItem({
           overdue
         </span>
       )}
+    </div>
+  );
+}
+
+const PRIORITY_COLORS: Record<number, string> = {
+  0: "#ef4444", // red — unanswered
+  1: "#ef4444", // red — new lead
+  2: "#f59e0b", // amber — overdue
+  3: "#f59e0b", // amber — stale deal
+  4: "#94a3b8", // muted — decaying
+  5: "#94a3b8", // muted — dormant
+  6: "#94a3b8", // muted — incomplete
+};
+
+function AgendaCard({
+  item,
+  theme,
+  neumorphic,
+  onAction,
+}: {
+  item: AgendaItem;
+  theme: { text: string; textMuted: string; bgGlow: string; accent: string };
+  neumorphic: string;
+  onAction: () => void;
+}) {
+  const badgeColor = PRIORITY_COLORS[item.priority] ?? theme.textMuted;
+
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all"
+      style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphic }}
+    >
+      <div
+        className="shrink-0 w-2 h-2 rounded-full"
+        style={{ backgroundColor: badgeColor }}
+      />
+      <div className="flex-1 min-w-0">
+        <Link
+          href={`/contacts/${item.contactId}`}
+          className="font-medium transition-colors hover:underline"
+          style={{ color: theme.text }}
+        >
+          {item.contactName}
+        </Link>
+        <p className="text-xs mt-0.5" style={{ color: theme.textMuted }}>
+          {item.reason}
+        </p>
+      </div>
+      <button
+        onClick={onAction}
+        className="shrink-0 p-1.5 rounded-lg transition-colors"
+        style={{ color: theme.accent }}
+        title={item.suggestedAction}
+      >
+        <ArrowRight className="h-4 w-4" />
+      </button>
     </div>
   );
 }

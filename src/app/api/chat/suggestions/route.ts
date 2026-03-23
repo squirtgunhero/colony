@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { generateAgenda } from "@/lib/daily-agenda";
 
 export async function GET() {
   const supabase = await createClient();
@@ -163,6 +164,40 @@ export async function GET() {
         action: `Draft a follow-up message for ${c.name}`,
       });
       usedNames.add(nameLower);
+    }
+  }
+
+  // Fill remaining slots with agenda-driven suggestions (dormant, incomplete)
+  if (suggestions.length < 3) {
+    try {
+      const agenda = await generateAgenda(userId);
+      for (const item of agenda) {
+        if (suggestions.length >= 3) break;
+        if (item.type === "dormant") {
+          suggestions.push({
+            id: item.id,
+            type: "dormant",
+            text: `${item.contactName} — ${item.reason}`,
+            action: item.suggestedAction,
+          });
+        } else if (item.type === "incomplete_profile") {
+          suggestions.push({
+            id: item.id,
+            type: "incomplete_profile",
+            text: `${item.contactName} — ${item.reason}`,
+            action: item.suggestedAction,
+          });
+        } else if (item.type === "unanswered") {
+          suggestions.push({
+            id: item.id,
+            type: "unanswered",
+            text: `${item.contactName} — ${item.reason}`,
+            action: item.suggestedAction,
+          });
+        }
+      }
+    } catch {
+      // Agenda is supplementary — don't fail the whole endpoint
     }
   }
 
