@@ -13,6 +13,7 @@ export * from "./audit";
 export * from "./undo";
 export * from "./rateLimit";
 
+import * as Sentry from "@sentry/nextjs";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { planFromMessage, type PlannerInput } from "./planner";
@@ -58,6 +59,21 @@ export interface LamRunResult {
  * Execute a complete LAM run: plan -> execute -> summarize -> audit
  */
 export async function runLam(input: LamRunInput): Promise<LamRunResult> {
+  return Sentry.withScope(async (scope) => {
+    // Tag every LAM error with user and context
+    scope.setUser({ id: input.user_id });
+    scope.setTag("lam.dry_run", input.dry_run ? "true" : "false");
+    scope.setContext("lam_input", {
+      message_length: input.message.length,
+      has_context: !!input.recent_context?.length,
+      context_count: input.recent_context?.length ?? 0,
+    });
+
+    return _runLamInner(input);
+  });
+}
+
+async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
   // Step 1: Plan
   const plannerInput: PlannerInput = {
     user_message: input.message,
@@ -138,13 +154,31 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
     };
   }
 
-  const planResult = await planFromMessage(plannerInput);
+  const planResult = await Sentry.startSpan(
+    { name: "lam.plan", op: "ai.plan" },
+    () => planFromMessage(plannerInput)
+  );
 
   if (!planResult.success) {
+    Sentry.setContext("lam_plan_error", {
+      code: planResult.code,
+      error: planResult.error,
+    });
     throw new Error(planResult.error);
   }
 
   const plan = planResult.plan;
+
+  Sentry.addBreadcrumb({
+    category: "lam",
+    message: `Plan: ${plan.intent} (${plan.actions.length} actions, tier ${plan.highest_risk_tier})`,
+    level: "info",
+    data: {
+      action_types: plan.actions.map((a) => a.type),
+      requires_approval: plan.requires_approval,
+      confidence: plan.confidence,
+    },
+  });
 
   // ── SAFETY NET: Catch misrouted lead.update targeting "user_profile" ──
   // If the planner still generates a lead.update with name containing "profile"
@@ -296,10 +330,48 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
     dry_run: input.dry_run,
   };
 
-  const executionResult = await executePlan(plan, ctx);
+  const executionResult = await Sentry.startSpan(
+    { name: "lam.execute", op: "ai.execute", attributes: { "lam.run_id": runId } },
+    () => executePlan(plan, ctx)
+  );
+
+  Sentry.addBreadcrumb({
+    category: "lam",
+    message: `Executed: ${executionResult.actions_executed} ok, ${executionResult.actions_failed} failed`,
+    level: executionResult.actions_failed > 0 ? "warning" : "info",
+    data: {
+      status: executionResult.status,
+      actions_executed: executionResult.actions_executed,
+      actions_failed: executionResult.actions_failed,
+      actions_pending: executionResult.actions_pending_approval,
+    },
+  });
+
+  // Alert Sentry on execution failures (non-approval)
+  if (executionResult.actions_failed > 0) {
+    Sentry.captureMessage(
+      `LAM execution: ${executionResult.actions_failed} action(s) failed`,
+      {
+        level: "warning",
+        contexts: {
+          lam_execution: {
+            run_id: runId,
+            user_id: input.user_id,
+            intent: plan.intent,
+            failed_actions: executionResult.results
+              .filter((r) => r.status === "failed")
+              .map((r) => ({ type: r.action_type, error: r.error })),
+          },
+        },
+      }
+    );
+  }
 
   // Step 4: Verify
-  const verificationResult = await verify(plan, executionResult);
+  const verificationResult = await Sentry.startSpan(
+    { name: "lam.verify", op: "ai.verify" },
+    () => verify(plan, executionResult)
+  );
 
   // Step 5: Generate conversational summary using LLM with actual data
   const conversationalMessage = await summarizeResults(

@@ -32,6 +32,16 @@ export const LeadCreatePayloadSchema = z.object({
   type: z.enum(["lead", "client", "agent", "vendor"]).optional().default("lead"),
   tags: z.array(z.string()).optional(),
   notes: z.string().optional(),
+  // Attribution fields (optional — populated when lead originates from a campaign)
+  campaign_channel: z.string().optional(),
+  campaign_name: z.string().optional(),
+  campaign_id: z.string().optional(),
+  utm_source: z.string().optional(),
+  utm_medium: z.string().optional(),
+  utm_campaign: z.string().optional(),
+  utm_content: z.string().optional(),
+  utm_term: z.string().optional(),
+  landing_page: z.string().optional(),
 });
 
 export const LeadCreateExpectedOutcomeSchema = z.object({
@@ -635,6 +645,61 @@ export const GoogleAdjustBidActionSchema = BaseActionSchema.extend({
   expected_outcome: GoogleAdjustBidExpectedOutcomeSchema,
 });
 
+export const GoogleCreateCampaignPayloadSchema = z.object({
+  name: z.string().optional(),
+  advertising_channel_type: z.enum(["SEARCH", "DISPLAY"]).optional().default("SEARCH"),
+  daily_budget: z.number().min(1).optional().default(10),
+  keywords: z.array(z.string()).optional(),
+  headlines: z.array(z.string()).optional(),
+  descriptions: z.array(z.string()).optional(),
+  final_url: z.string().optional(),
+  target_locations: z.array(z.string()).optional(),
+  business_name: z.string().optional(),
+  service_area: z.string().optional(),
+});
+
+export const GoogleCreateCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("google_campaign"),
+  created: z.literal(true),
+});
+
+export const GoogleCreateCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("google.create_campaign"),
+  payload: GoogleCreateCampaignPayloadSchema,
+  expected_outcome: GoogleCreateCampaignExpectedOutcomeSchema,
+});
+
+export const GoogleCheckPerformancePayloadSchema = z.object({
+  campaign_name: z.string().optional(),
+  date_range: z.enum(["7d", "14d", "30d"]).optional().default("7d"),
+});
+
+export const GoogleCheckPerformanceExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("google_campaign"),
+  results_returned: z.literal(true),
+});
+
+export const GoogleCheckPerformanceActionSchema = BaseActionSchema.extend({
+  type: z.literal("google.check_performance"),
+  payload: GoogleCheckPerformancePayloadSchema,
+  expected_outcome: GoogleCheckPerformanceExpectedOutcomeSchema,
+});
+
+export const GoogleLaunchCampaignPayloadSchema = z.object({
+  campaign_name: z.string(),
+});
+
+export const GoogleLaunchCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("google_campaign"),
+  launched: z.literal(true),
+});
+
+export const GoogleLaunchCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("google.launch_campaign"),
+  payload: GoogleLaunchCampaignPayloadSchema,
+  expected_outcome: GoogleLaunchCampaignExpectedOutcomeSchema,
+});
+
 // ============================================================================
 // External Communication Actions (Tier 2 - Approval Required)
 // ============================================================================
@@ -906,6 +971,9 @@ export const ActionSchema = z.discriminatedUnion("type", [
   GoogleResumeCampaignActionSchema,
   GoogleAddNegativesActionSchema,
   GoogleAdjustBidActionSchema,
+  GoogleCreateCampaignActionSchema,
+  GoogleCheckPerformanceActionSchema,
+  GoogleLaunchCampaignActionSchema,
   ContactsImportActionSchema,
   SavedSearchCreateActionSchema,
   SavedSearchUpdateActionSchema,
@@ -966,6 +1034,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "ads.suggest_optimizations":
     case "ads.research_competitors":
     case "google.analyze_keywords":
+    case "google.check_performance":
     case "savedSearch.list":
     case "marketing.generate_image":
     case "marketing.generate_content":
@@ -1004,6 +1073,8 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "ads.launch_campaign":
     case "ads.apply_optimization":
     case "google.adjust_bid":
+    case "google.create_campaign":
+    case "google.launch_campaign":
     case "contacts.import":
       return 2;
     default:
@@ -1128,6 +1199,12 @@ export function getActionDescription(action: Action): string {
       return `Add ${action.payload.keywords.length} negative keyword(s) to: ${action.payload.campaign_name}`;
     case "google.adjust_bid":
       return `Adjust Google budget: ${action.payload.campaign_name} → $${action.payload.new_daily_budget}/day`;
+    case "google.create_campaign":
+      return `Create Google Ads campaign: ${action.payload.name || "new campaign"}`;
+    case "google.check_performance":
+      return `Check Google Ads performance${action.payload.campaign_name ? `: ${action.payload.campaign_name}` : ""}`;
+    case "google.launch_campaign":
+      return `Launch Google campaign: ${action.payload.campaign_name}`;
     case "contacts.import":
       return `Import contacts from ${action.payload.source}`;
     case "savedSearch.create":

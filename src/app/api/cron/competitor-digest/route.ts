@@ -5,11 +5,13 @@ import { isQuietHours } from "@/lib/quiet-hours";
 import { createAdLibraryClient } from "@/lib/meta/adLibrary";
 import { getDefaultProvider } from "@/lam/llm";
 import type { AdLibraryAd } from "@/lib/meta/types";
+import * as Sentry from "@sentry/nextjs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120; // Allow more time for multiple Ad Library calls
 
 export async function GET(request: NextRequest) {
+  return Sentry.withMonitor("competitor-digest", async () => {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 });
@@ -52,7 +54,8 @@ export async function GET(request: NextRequest) {
   let adLibrary: ReturnType<typeof createAdLibraryClient> | null = null;
   try {
     adLibrary = createAdLibraryClient();
-  } catch {
+  } catch (error) {
+    Sentry.captureException(error, { tags: { component: "cron", route: "/api/cron/competitor-digest" } });
     console.error("Failed to create Ad Library client — META_APP_ID/SECRET may not be set");
     return Response.json({ error: "Ad Library client init failed", sent: 0 });
   }
@@ -103,6 +106,7 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch (error) {
+        Sentry.captureException(error, { tags: { component: "cron", route: "/api/cron/competitor-digest" } });
         console.error(`Ad Library search failed for page ${watch.pageId}:`, error);
         // Continue with other watches
       }
@@ -170,6 +174,7 @@ ${JSON.stringify(competitorSummaries, null, 2)}`,
 
       sent++;
     } catch (error) {
+      Sentry.captureException(error, { tags: { component: "cron", route: "/api/cron/competitor-digest" } });
       console.error(`Competitor digest failed for user ${userId}:`, error);
     }
   }
@@ -178,5 +183,6 @@ ${JSON.stringify(competitorSummaries, null, 2)}`,
     sent,
     users: userIds.length,
     watches: watches.length,
+  });
   });
 }

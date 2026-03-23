@@ -2,11 +2,13 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSMS } from "@/lib/twilio";
 import { isQuietHours } from "@/lib/quiet-hours";
+import * as Sentry from "@sentry/nextjs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
+  return Sentry.withMonitor("overdue-tasks", async () => {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response("Unauthorized", { status: 401 });
@@ -80,11 +82,13 @@ export async function GET(request: NextRequest) {
 
       sent++;
     } catch (error) {
+      Sentry.captureException(error, { tags: { component: "cron", route: "/api/cron/overdue-tasks" } });
       console.error(`Overdue tasks cron failed for user ${userId}:`, error);
     }
   }
 
   return Response.json({ sent, total: autopilotUsers.length });
+  });
 }
 
 function daysAgoLabel(dueDate: Date, now: Date): string {

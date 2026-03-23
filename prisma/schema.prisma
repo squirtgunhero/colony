@@ -112,22 +112,73 @@ model Contact {
   phone      String?
   type       String   @default("lead") // lead, client, agent, vendor
   tags       String[] @default([]) // buyer, seller, renter
-  source     String? // zillow, website, referral, social, cold_call, open_house, other
+  source     String? // zillow, website, referral, social, cold_call, open_house, other, meta_ads, google_ads
   notes      String?
   isFavorite Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // Attribution tracking
+  campaignChannel String?  @map("campaign_channel") // meta, google, native, llm, organic, direct
+  campaignName    String?  @map("campaign_name")    // Name of the campaign that generated this lead
+  campaignId      String?  @map("campaign_id")      // ID reference to HoneycombCampaign, MetaCampaign, or GoogleCampaign
+  utmSource       String?  @map("utm_source")
+  utmMedium       String?  @map("utm_medium")
+  utmCampaign     String?  @map("utm_campaign")
+  utmContent      String?  @map("utm_content")
+  utmTerm         String?  @map("utm_term")
+  landingPage     String?  @map("landing_page")     // URL where lead first arrived
+
   // Relations
-  properties   Property[]
-  deals        Deal[]
-  tasks        Task[]
-  activities   Activity[]
-  inboxThreads InboxThread[]
-  noteRecords  Note[]
+  properties    Property[]
+  deals         Deal[]
+  tasks         Task[]
+  activities    Activity[]
+  inboxThreads  InboxThread[]
+  noteRecords   Note[]
   savedSearches SavedSearch[]
+  attributions  LeadAttribution[]
 
   @@index([teamId])
+  @@index([campaignChannel])
+  @@index([source])
+}
+
+// ============================================================================
+// Lead Attribution - Tracks how leads are sourced from campaigns
+// Supports multi-touch attribution (a contact can have multiple touchpoints)
+// ============================================================================
+
+model LeadAttribution {
+  id              String   @id @default(cuid())
+  contactId       String   @map("contact_id")
+  contact         Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  // Attribution data
+  channel         String   // meta, google, native, llm, organic, direct, referral, zillow
+  campaignName    String?  @map("campaign_name")
+  campaignId      String?  @map("campaign_id")   // External campaign ID (Meta/Google/Honeycomb)
+  adGroupName     String?  @map("ad_group_name")
+  adName          String?  @map("ad_name")
+  keyword         String?  // For Google search campaigns
+  // UTM parameters captured at lead creation
+  utmSource       String?  @map("utm_source")
+  utmMedium       String?  @map("utm_medium")
+  utmCampaign     String?  @map("utm_campaign")
+  utmContent      String?  @map("utm_content")
+  utmTerm         String?  @map("utm_term")
+  landingPage     String?  @map("landing_page")
+  referrer        String?
+  // Touch type
+  touchType       String   @default("first") @map("touch_type") // first, last, assist
+  // Cost attribution (estimated cost to acquire this lead)
+  attributedCost  Float?   @map("attributed_cost")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([contactId])
+  @@index([channel])
+  @@index([campaignId])
+  @@index([createdAt])
+  @@map("lead_attributions")
 }
 
 model Activity {
@@ -528,18 +579,96 @@ model HoneycombChatBot {
   description       String?
   status            String   @default("draft") // draft | active | paused
   conversationCount Int      @default(0) @map("conversation_count")
-  
+
   // Configuration
   welcomeMessage    String?  @map("welcome_message")
   systemPrompt      String?  @map("system_prompt")
-  
+
+  // Lead qualification flow (ordered list of questions)
+  qualificationFlow Json?    @default("[]") @map("qualification_flow")
+  // Format: [{ id, question, fieldMapping, inputType, required, options? }]
+  // fieldMapping: name, email, phone, budget, timeline, service_area, property_type, notes
+  // inputType: text, email, phone, select, multiselect, number
+
+  // Widget appearance
+  brandColor        String?  @default("#f59e0b") @map("brand_color") // amber-500
+  position          String?  @default("bottom-right") // bottom-right, bottom-left
+  avatarUrl         String?  @map("avatar_url")
+  companyName       String?  @map("company_name")
+
+  // Behavior settings
+  autoGreet         Boolean  @default(true) @map("auto_greet")
+  autoGreetDelay    Int      @default(3) @map("auto_greet_delay") // seconds
+  collectLeadAfter  Int      @default(2) @map("collect_lead_after") // after N messages, start qualification
+  notifyOnLead      Boolean  @default(true) @map("notify_on_lead")
+
+  // Embed token (public identifier for widget)
+  embedToken        String   @unique @default(cuid()) @map("embed_token")
+
   metadata          Json?    @default("{}")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
+  conversations     ChatBotConversation[]
+
   @@index([userId, status])
   @@index([userId, createdAt(sort: Desc)])
+  @@index([embedToken])
   @@map("honeycomb_chat_bots")
+}
+
+// ============================================================================
+// Chat Bot Conversations — Tracks visitor interactions with embedded chatbots
+// ============================================================================
+
+model ChatBotConversation {
+  id           String          @id @default(cuid())
+  botId        String          @map("bot_id")
+  bot          HoneycombChatBot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  // Visitor identification
+  visitorId    String          @map("visitor_id") // Browser fingerprint or session ID
+  visitorName  String?         @map("visitor_name")
+  visitorEmail String?         @map("visitor_email")
+  visitorPhone String?         @map("visitor_phone")
+  // Qualification data collected
+  qualificationData Json?     @default("{}") @map("qualification_data")
+  qualificationComplete Boolean @default(false) @map("qualification_complete")
+  // Lead conversion
+  contactId    String?         @map("contact_id") // Created Contact ID (if converted)
+  // Status
+  status       String          @default("active") // active, qualified, converted, abandoned
+  // Source tracking
+  pageUrl      String?         @map("page_url")
+  referrer     String?
+  utmSource    String?         @map("utm_source")
+  utmMedium    String?         @map("utm_medium")
+  utmCampaign  String?         @map("utm_campaign")
+  // Timestamps
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  lastMessageAt DateTime?     @map("last_message_at")
+
+  messages     ChatBotMessage[]
+
+  @@index([botId, status])
+  @@index([botId, createdAt(sort: Desc)])
+  @@index([visitorId])
+  @@map("chatbot_conversations")
+}
+
+model ChatBotMessage {
+  id             String              @id @default(cuid())
+  conversationId String              @map("conversation_id")
+  conversation   ChatBotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String              // visitor, bot, system
+  content        String
+  // If this message is a qualification question response
+  questionId     String?             @map("question_id")
+  fieldMapping   String?             @map("field_mapping") // name, email, phone, etc.
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  @@index([conversationId, createdAt])
+  @@map("chatbot_messages")
 }
 
 // Publishers - Ad network integrations
@@ -993,6 +1122,7 @@ model GoogleAdAccount {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   campaigns GoogleCampaign[]
+  insights  GoogleInsight[]
 
   @@unique([userId, customerId])
   @@index([userId])
@@ -1006,15 +1136,130 @@ model GoogleCampaign {
   campaignId         String          @map("campaign_id") // Google Ads campaign resource name ID
   name               String
   status             String          // ENABLED, PAUSED, REMOVED
+  advertisingChannelType String?     @map("advertising_channel_type") // SEARCH, DISPLAY, SHOPPING, VIDEO
   budgetAmountMicros String?         @map("budget_amount_micros") // Budget in micros (e.g., 15000000 = $15)
   startDate          String?         @map("start_date") // YYYY-MM-DD
   endDate            String?         @map("end_date")
+  // Aggregate metrics (updated during sync)
+  impressions        Int             @default(0)
+  clicks             Int             @default(0)
+  costMicros         BigInt          @default(0) @map("cost_micros")
+  conversions        Float           @default(0)
   createdAt          DateTime        @default(now()) @map("created_at")
   updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  adGroups GoogleAdGroup[]
+  insights GoogleInsight[]
 
   @@unique([accountId, campaignId])
   @@index([accountId])
   @@map("google_campaigns")
+}
+
+model GoogleAdGroup {
+  id          String         @id @default(cuid())
+  campaignId  String         @map("campaign_id")
+  campaign    GoogleCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adGroupId   String         @map("ad_group_id") // Google Ads ad group resource name ID
+  name        String
+  status      String         // ENABLED, PAUSED, REMOVED
+  type        String?        // SEARCH_STANDARD, DISPLAY_STANDARD, etc.
+  cpcBidMicros String?       @map("cpc_bid_micros")
+  // Aggregate metrics
+  impressions Int            @default(0)
+  clicks      Int            @default(0)
+  costMicros  BigInt         @default(0) @map("cost_micros")
+  conversions Float          @default(0)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  ads      GoogleAd[]
+  keywords GoogleKeyword[]
+  insights GoogleInsight[]
+
+  @@unique([campaignId, adGroupId])
+  @@index([campaignId])
+  @@map("google_ad_groups")
+}
+
+model GoogleAd {
+  id          String        @id @default(cuid())
+  adGroupId   String        @map("ad_group_id")
+  adGroup     GoogleAdGroup @relation(fields: [adGroupId], references: [id], onDelete: Cascade)
+  adId        String        @map("ad_id") // Google Ads ad resource name ID
+  name        String?
+  type        String?       // RESPONSIVE_SEARCH_AD, EXPANDED_TEXT_AD, etc.
+  status      String        // ENABLED, PAUSED, REMOVED
+  // Ad copy fields (for responsive search ads)
+  headlines   String[]      @default([])
+  descriptions String[]     @default([])
+  finalUrls   String[]      @default([]) @map("final_urls")
+  // Aggregate metrics
+  impressions Int           @default(0)
+  clicks      Int           @default(0)
+  costMicros  BigInt        @default(0) @map("cost_micros")
+  conversions Float         @default(0)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@unique([adGroupId, adId])
+  @@index([adGroupId])
+  @@map("google_ads")
+}
+
+model GoogleKeyword {
+  id          String        @id @default(cuid())
+  adGroupId   String        @map("ad_group_id")
+  adGroup     GoogleAdGroup @relation(fields: [adGroupId], references: [id], onDelete: Cascade)
+  criterionId String        @map("criterion_id") // Google Ads criterion ID
+  text        String
+  matchType   String        @map("match_type") // EXACT, PHRASE, BROAD
+  status      String        // ENABLED, PAUSED, REMOVED
+  isNegative  Boolean       @default(false) @map("is_negative")
+  qualityScore Int?         @map("quality_score")
+  // Aggregate metrics
+  impressions Int           @default(0)
+  clicks      Int           @default(0)
+  costMicros  BigInt        @default(0) @map("cost_micros")
+  conversions Float         @default(0)
+  ctr         Float         @default(0)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@unique([adGroupId, criterionId])
+  @@index([adGroupId])
+  @@map("google_keywords")
+}
+
+model GoogleInsight {
+  id          String          @id @default(cuid())
+  accountId   String          @map("account_id")
+  account     GoogleAdAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  campaignId  String?         @map("campaign_id")
+  campaign    GoogleCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  adGroupId   String?         @map("ad_group_id")
+  adGroup     GoogleAdGroup?  @relation(fields: [adGroupId], references: [id], onDelete: SetNull)
+  date        DateTime        @db.Date
+  level       String          // account, campaign, adgroup
+  // Core metrics
+  impressions Int             @default(0)
+  clicks      Int             @default(0)
+  costMicros  BigInt          @default(0) @map("cost_micros")
+  conversions Float           @default(0)
+  allConversions Float        @default(0) @map("all_conversions")
+  // Calculated metrics
+  ctr         Float           @default(0)
+  averageCpcMicros BigInt     @default(0) @map("average_cpc_micros")
+  // Engagement
+  reach       Int             @default(0)
+  interactionRate Float       @default(0) @map("interaction_rate")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@unique([accountId, campaignId, adGroupId, date, level])
+  @@index([accountId])
+  @@index([campaignId])
+  @@index([date])
+  @@map("google_insights")
 }
 
 // ============================================================================

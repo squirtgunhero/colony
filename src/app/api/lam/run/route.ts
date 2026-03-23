@@ -3,6 +3,7 @@
 // Execute a LAM action from natural language
 // ============================================================================
 
+import * as Sentry from "@sentry/nextjs";
 import { NextRequest, NextResponse } from "next/server";
 import { runLam } from "@/lam";
 import { checkRateLimit, recordUsage, LAM_LIMITS } from "@/lam/rateLimit";
@@ -205,6 +206,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("LAM run error:", error);
+    Sentry.captureException(error, {
+      tags: { component: "lam", route: "/api/lam/run" },
+    });
     const message = error instanceof Error ? error.message : "Internal error";
     return NextResponse.json(
       { error: message },

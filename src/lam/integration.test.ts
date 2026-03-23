@@ -527,9 +527,12 @@ describe("LAM Integration Tests", () => {
     });
 
     expect(result.execution_result).toBeNull();
-    expect(result.response.follow_up_question).toBe(
+    // The orchestrator puts the follow-up question in `response.message`
+    // and sets `follow_up_question` to null (see index.ts ~line 276-289).
+    expect(result.response.message).toBe(
       "Which John? I found John Smith and John Doe.",
     );
+    expect(result.response.follow_up_question).toBeNull();
 
     expect(mockPrisma.contact.create).not.toHaveBeenCalled();
     expect(mockPrisma.deal.create).not.toHaveBeenCalled();

@@ -26,6 +26,7 @@ import type {
   ChatBotsResponse,
   ChatBot,
   CreateChatBotInput,
+  UpdateChatBotInput,
   DateRange,
 } from "./types";
 
@@ -232,6 +233,10 @@ export async function getChatBots(): Promise<ChatBotsResponse> {
   return honeycombFetch<ChatBotsResponse>("/chat-studio");
 }
 
+export async function getChatBot(id: string): Promise<ChatBot> {
+  return honeycombFetch<ChatBot>(`/chat-studio/${id}`);
+}
+
 export async function createChatBot(input: CreateChatBotInput): Promise<ChatBot> {
   return honeycombFetch<ChatBot>("/chat-studio", {
     method: "POST",
@@ -239,9 +244,25 @@ export async function createChatBot(input: CreateChatBotInput): Promise<ChatBot>
   });
 }
 
+export async function updateChatBot(id: string, input: UpdateChatBotInput): Promise<ChatBot> {
+  return honeycombFetch<ChatBot>(`/chat-studio/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function deleteChatBot(id: string): Promise<{ success: boolean }> {
   return honeycombFetch<{ success: boolean }>(`/chat-studio/${id}`, {
     method: "DELETE",
+  });
+}
+
+export async function getChatBotConversations(
+  botId: string,
+  params?: { limit?: number; cursor?: string; status?: string }
+): Promise<{ conversations: unknown[]; hasMore: boolean; cursor?: string }> {
+  return honeycombFetch(`/chat-studio/${botId}/conversations`, {
+    params: params as Record<string, string | number | undefined>,
   });
 }
 

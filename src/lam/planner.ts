@@ -98,7 +98,10 @@ You analyze user requests and generate a precise ActionPlan that the system will
 32. google.resume_campaign - Resume a paused Google Ads campaign. Requires: campaign_name.
 33. google.add_negatives - Add negative keywords to a Google Ads campaign to block wasteful searches. Requires: campaign_name, keywords (array of keywords to exclude).
 34. google.adjust_bid - Change the daily budget for a Google Ads campaign. Requires: campaign_name, new_budget (daily budget in dollars). REQUIRES APPROVAL since it changes spend.
-35. contacts.import - Bulk import contacts from CSV, paste, or HubSpot. Requires: source ("csv", "hubspot", or "paste"). Optional: raw_csv (for paste source), dedup_strategy ("skip", "update", "create" — default "skip"). REQUIRES APPROVAL. The UI opens the import panel automatically.
+35. google.create_campaign - Create a new Google Ads search campaign. Creates campaign + budget + ad group + responsive search ad + keywords. Optional: name, advertising_channel_type (SEARCH or DISPLAY, default SEARCH), daily_budget (dollars, default $10), keywords (array), headlines (array, max 30 chars each), descriptions (array, max 90 chars each), final_url, target_locations, business_name, service_area. REQUIRES APPROVAL since it creates spend.
+36. google.check_performance (read-only) - Check how Google Ads campaigns are performing. Returns campaign metrics (impressions, clicks, spend, conversions, CTR, CPC). Optional: campaign_name (filter to specific campaign), date_range (7d, 14d, 30d, default 7d).
+37. google.launch_campaign - Activate a paused Google Ads campaign to start spending. Requires: campaign_name. REQUIRES APPROVAL since it starts spend.
+38. contacts.import - Bulk import contacts from CSV, paste, or HubSpot. Requires: source ("csv", "hubspot", or "paste"). Optional: raw_csv (for paste source), dedup_strategy ("skip", "update", "create" — default "skip"). REQUIRES APPROVAL. The UI opens the import panel automatically.
 36. savedSearch.create - Set a buyer up on a saved property search with their criteria. Use when agent says things like "set John up on search", "add buyer criteria", "John wants 3 beds, Westside, $400-600k". Fields: contactName (to link to buyer), priceMin, priceMax, bedsMin, bathsMin, neighborhoods (array), cities (array), propertyTypes (array), mustHaves (array e.g. ["garage","no_hoa"]), name (optional label).
 37. savedSearch.update - Update an existing buyer's search criteria. Use when agent says "John also wants X" or "update John's search". Fields: contactName (to find the search), patch (object with fields to change).
 38. savedSearch.list - View saved searches. Use for "show John's search", "what is John looking for", "show all active searches". Fields: contactName (optional filter), active (optional boolean).
@@ -107,9 +110,9 @@ You analyze user requests and generate a precise ActionPlan that the system will
 41. marketing.generate_content - Generate marketing copy using AI. Use when user says "write me a social post", "create ad copy", "write a listing description". Optional: type (new_listing, open_house, just_sold, market_update, ad_copy, general), platform (facebook, instagram, linkedin, email, generic), propertyId, prompt.
 
 ## Risk Tiers
-- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, savedSearch.list, marketing.generate_image, marketing.generate_content) - auto-execute
+- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, google.check_performance, savedSearch.list, marketing.generate_image, marketing.generate_content) - auto-execute
 - Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives, savedSearch.create, savedSearch.update, deal.addMilestones) - auto-execute with undo capability
-- Tier 2: Bulk deletes (deleteAll), external communications (email/sms), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid), and bulk import (contacts.import) - requires user approval
+- Tier 2: Bulk deletes (deleteAll), external communications (email/sms), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid, google.create_campaign, google.launch_campaign), and bulk import (contacts.import) - requires user approval
 
 ## Critical Rules
 0. AD CAMPAIGN FLOW — INTERACTIVE BUILDER (HIGHEST PRIORITY):
@@ -169,6 +172,9 @@ You analyze user requests and generate a precise ActionPlan that the system will
 30. For "resume my Google campaign", "turn Google ads back on" — use google.resume_campaign with campaign_name.
 31. For "block these keywords on Google", "add negative keywords", "exclude [keywords] from Google" — use google.add_negatives with campaign_name and keywords array.
 32. For "change Google budget", "adjust my Google ad spend", "increase/decrease Google budget" — use google.adjust_bid with campaign_name and new_budget (in dollars).
+33. For "create a Google ad", "run Google ads", "start a Google campaign", "advertise on Google" — use google.create_campaign. Extract budget, keywords, business name, and area from conversation. Default to SEARCH channel and $10/day budget if not specified.
+34. For "how are my Google ads doing", "check Google performance", "Google ad stats" — use google.check_performance. Include campaign_name if user mentions a specific campaign.
+35. For "launch my Google campaign", "activate my Google ads", "turn on my Google campaign" — use google.launch_campaign with campaign_name.
 33. For "import contacts", "load this CSV", "upload my spreadsheet", "import this file", "bring in my contacts" — use contacts.import with source "csv". For "import from HubSpot", "sync HubSpot", "pull my HubSpot leads" — use contacts.import with source "hubspot". For pasted tabular data — use contacts.import with source "paste". REQUIRES APPROVAL. The UI opens the import panel automatically — do NOT ask for the file in follow_up_question. Set user_summary to "I'll open the import panel so you can upload your contacts file and preview the data before anything is saved."
 
 ## CRITICAL ROUTING RULES
@@ -311,6 +317,7 @@ function normalizeActionType(type: string): ActionType {
     "ads.analyze_performance", "ads.suggest_optimizations", "ads.apply_optimization",
     "ads.research_competitors", "ads.watch_competitor",
     "google.analyze_keywords", "google.pause_campaign", "google.resume_campaign", "google.add_negatives", "google.adjust_bid",
+    "google.create_campaign", "google.check_performance", "google.launch_campaign",
     "contacts.import",
     "savedSearch.create", "savedSearch.update", "savedSearch.list",
     "marketing.generate_image", "marketing.generate_content",
@@ -363,6 +370,12 @@ function normalizeActionType(type: string): ActionType {
     "add_negatives": "google.add_negatives",
     "google.adjustbid": "google.adjust_bid",
     "adjust_bid": "google.adjust_bid",
+    "google.createcampaign": "google.create_campaign",
+    "google.create_campaign": "google.create_campaign",
+    "google.checkperformance": "google.check_performance",
+    "google.check_performance": "google.check_performance",
+    "google.launchcampaign": "google.launch_campaign",
+    "google.launch_campaign": "google.launch_campaign",
     "contacts.import": "contacts.import",
     "import_contacts": "contacts.import",
     "contact.import": "contacts.import",
@@ -569,6 +582,28 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         campaign_name: payload.campaign_name || payload.name,
         new_budget: payload.new_budget || payload.budget,
       };
+    case "google.create_campaign":
+      return {
+        name: payload.name || payload.campaign_name,
+        advertising_channel_type: payload.advertising_channel_type || payload.channel_type || "SEARCH",
+        daily_budget: payload.daily_budget || payload.budget || 10,
+        keywords: payload.keywords || [],
+        headlines: payload.headlines || [],
+        descriptions: payload.descriptions || [],
+        final_url: payload.final_url || payload.website || payload.url,
+        target_locations: payload.target_locations || [],
+        business_name: payload.business_name,
+        service_area: payload.service_area || payload.target_city || payload.city,
+      };
+    case "google.check_performance":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+        date_range: payload.date_range || "7d",
+      };
+    case "google.launch_campaign":
+      return {
+        campaign_name: payload.campaign_name || payload.name,
+      };
     case "contacts.import":
       return {
         source: payload.source || "csv",
@@ -714,6 +749,12 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: "google_campaign", negatives_added: true };
     case "google.adjust_bid":
       return { entity_type: "google_campaign", budget_adjusted: true };
+    case "google.create_campaign":
+      return { entity_type: "google_campaign", created: true };
+    case "google.check_performance":
+      return { entity_type: "google_campaign", results_returned: true };
+    case "google.launch_campaign":
+      return { entity_type: "google_campaign", launched: true };
     case "contacts.import":
       return { entity_type: "contact", imported: true };
     case "savedSearch.create":

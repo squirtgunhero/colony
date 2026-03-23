@@ -325,6 +325,15 @@ export interface SettingsResponse {
 // Chat Studio Types
 // ============================================
 
+export interface QualificationQuestion {
+  id: string;
+  question: string;
+  fieldMapping: "name" | "email" | "phone" | "budget" | "timeline" | "service_area" | "property_type" | "notes";
+  inputType: "text" | "email" | "phone" | "select" | "multiselect" | "number";
+  required: boolean;
+  options?: string[]; // For select/multiselect
+}
+
 export interface ChatBot {
   id: string;
   name: string;
@@ -332,6 +341,19 @@ export interface ChatBot {
   status: "draft" | "active" | "paused";
   conversationCount: number;
   welcomeMessage?: string;
+  embedToken: string;
+  // Qualification
+  qualificationFlow: QualificationQuestion[];
+  // Appearance
+  brandColor: string;
+  position: "bottom-right" | "bottom-left";
+  avatarUrl?: string;
+  companyName?: string;
+  // Behavior
+  autoGreet: boolean;
+  autoGreetDelay: number;
+  collectLeadAfter: number;
+  notifyOnLead: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -345,6 +367,45 @@ export interface CreateChatBotInput {
   description?: string;
   welcomeMessage?: string;
   systemPrompt?: string;
+  qualificationFlow?: QualificationQuestion[];
+  brandColor?: string;
+  position?: "bottom-right" | "bottom-left";
+  avatarUrl?: string;
+  companyName?: string;
+  autoGreet?: boolean;
+  autoGreetDelay?: number;
+  collectLeadAfter?: number;
+  notifyOnLead?: boolean;
+}
+
+export interface UpdateChatBotInput extends Partial<CreateChatBotInput> {
+  status?: "draft" | "active" | "paused";
+}
+
+export interface ChatBotConversation {
+  id: string;
+  botId: string;
+  visitorId: string;
+  visitorName?: string;
+  visitorEmail?: string;
+  visitorPhone?: string;
+  qualificationData: Record<string, unknown>;
+  qualificationComplete: boolean;
+  contactId?: string;
+  status: "active" | "closed" | "archived";
+  pageUrl?: string;
+  createdAt: string;
+  lastMessageAt?: string;
+  messages: ChatBotMessage[];
+}
+
+export interface ChatBotMessage {
+  id: string;
+  role: "visitor" | "bot" | "system";
+  content: string;
+  questionId?: string;
+  fieldMapping?: string;
+  createdAt: string;
 }
 
 export interface CreatePublisherInput {

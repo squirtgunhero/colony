@@ -645,6 +645,16 @@ export interface ChatBotListItem {
   status: ChatBotStatus;
   conversationCount: number;
   welcomeMessage: string | null;
+  embedToken: string;
+  qualificationFlow: unknown;
+  brandColor: string | null;
+  position: string | null;
+  avatarUrl: string | null;
+  companyName: string | null;
+  autoGreet: boolean;
+  autoGreetDelay: number;
+  collectLeadAfter: number;
+  notifyOnLead: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -654,6 +664,61 @@ export interface CreateChatBotInput {
   description?: string;
   welcomeMessage?: string;
   systemPrompt?: string;
+  qualificationFlow?: unknown;
+  brandColor?: string;
+  position?: string;
+  avatarUrl?: string;
+  companyName?: string;
+  autoGreet?: boolean;
+  autoGreetDelay?: number;
+  collectLeadAfter?: number;
+  notifyOnLead?: boolean;
+}
+
+export interface UpdateChatBotInput extends Partial<CreateChatBotInput> {
+  status?: ChatBotStatus;
+}
+
+function mapBotToListItem(bot: {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  conversationCount: number;
+  welcomeMessage: string | null;
+  embedToken: string;
+  qualificationFlow: unknown;
+  brandColor: string | null;
+  position: string | null;
+  avatarUrl: string | null;
+  companyName: string | null;
+  autoGreet: boolean;
+  autoGreetDelay: number;
+  collectLeadAfter: number;
+  notifyOnLead: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}): ChatBotListItem {
+  return {
+    id: bot.id,
+    name: bot.name,
+    description: bot.description,
+    status: bot.status as ChatBotStatus,
+    conversationCount: bot.conversationCount,
+    welcomeMessage: bot.welcomeMessage,
+    embedToken: bot.embedToken,
+    qualificationFlow: bot.qualificationFlow,
+    brandColor: bot.brandColor,
+    position: bot.position,
+    avatarUrl: bot.avatarUrl,
+    companyName: bot.companyName,
+    autoGreet: bot.autoGreet,
+    autoGreetDelay: bot.autoGreetDelay,
+    collectLeadAfter: bot.collectLeadAfter,
+    notifyOnLead: bot.notifyOnLead,
+    createdAt: bot.createdAt,
+    updatedAt: bot.updatedAt,
+  };
 }
 
 /**
@@ -667,16 +732,20 @@ export async function getChatBots(): Promise<ChatBotListItem[]> {
     orderBy: { createdAt: "desc" },
   });
 
-  return chatBots.map((bot) => ({
-    id: bot.id,
-    name: bot.name,
-    description: bot.description,
-    status: bot.status as ChatBotStatus,
-    conversationCount: bot.conversationCount,
-    welcomeMessage: bot.welcomeMessage,
-    createdAt: bot.createdAt,
-    updatedAt: bot.updatedAt,
-  }));
+  return chatBots.map(mapBotToListItem);
+}
+
+/**
+ * Get a single chat bot by ID (user-scoped)
+ */
+export async function getChatBot(id: string): Promise<ChatBotListItem | null> {
+  const userId = await requireUserId();
+
+  const bot = await prisma.honeycombChatBot.findFirst({
+    where: { id, userId },
+  });
+
+  return bot ? mapBotToListItem(bot) : null;
 }
 
 /**
@@ -692,19 +761,55 @@ export async function createChatBot(input: CreateChatBotInput): Promise<ChatBotL
       description: input.description,
       welcomeMessage: input.welcomeMessage,
       systemPrompt: input.systemPrompt,
+      qualificationFlow: input.qualificationFlow ?? [],
+      brandColor: input.brandColor,
+      position: input.position,
+      avatarUrl: input.avatarUrl,
+      companyName: input.companyName,
+      autoGreet: input.autoGreet,
+      autoGreetDelay: input.autoGreetDelay,
+      collectLeadAfter: input.collectLeadAfter,
+      notifyOnLead: input.notifyOnLead,
     },
   });
 
-  return {
-    id: chatBot.id,
-    name: chatBot.name,
-    description: chatBot.description,
-    status: chatBot.status as ChatBotStatus,
-    conversationCount: chatBot.conversationCount,
-    welcomeMessage: chatBot.welcomeMessage,
-    createdAt: chatBot.createdAt,
-    updatedAt: chatBot.updatedAt,
-  };
+  return mapBotToListItem(chatBot);
+}
+
+/**
+ * Update a chat bot
+ */
+export async function updateChatBot(id: string, input: UpdateChatBotInput): Promise<ChatBotListItem | null> {
+  const userId = await requireUserId();
+
+  const existing = await prisma.honeycombChatBot.findFirst({
+    where: { id, userId },
+  });
+
+  if (!existing) return null;
+
+  const data: Record<string, unknown> = {};
+  if (input.name !== undefined) data.name = input.name;
+  if (input.description !== undefined) data.description = input.description;
+  if (input.welcomeMessage !== undefined) data.welcomeMessage = input.welcomeMessage;
+  if (input.systemPrompt !== undefined) data.systemPrompt = input.systemPrompt;
+  if (input.status !== undefined) data.status = input.status;
+  if (input.qualificationFlow !== undefined) data.qualificationFlow = input.qualificationFlow;
+  if (input.brandColor !== undefined) data.brandColor = input.brandColor;
+  if (input.position !== undefined) data.position = input.position;
+  if (input.avatarUrl !== undefined) data.avatarUrl = input.avatarUrl;
+  if (input.companyName !== undefined) data.companyName = input.companyName;
+  if (input.autoGreet !== undefined) data.autoGreet = input.autoGreet;
+  if (input.autoGreetDelay !== undefined) data.autoGreetDelay = input.autoGreetDelay;
+  if (input.collectLeadAfter !== undefined) data.collectLeadAfter = input.collectLeadAfter;
+  if (input.notifyOnLead !== undefined) data.notifyOnLead = input.notifyOnLead;
+
+  const chatBot = await prisma.honeycombChatBot.update({
+    where: { id },
+    data,
+  });
+
+  return mapBotToListItem(chatBot);
 }
 
 /**
@@ -724,6 +829,71 @@ export async function deleteChatBot(id: string): Promise<boolean> {
   });
 
   return true;
+}
+
+/**
+ * Get a chat bot by embed token (public, no auth required)
+ */
+export async function getChatBotByEmbedToken(embedToken: string) {
+  return prisma.honeycombChatBot.findUnique({
+    where: { embedToken },
+    select: {
+      id: true,
+      name: true,
+      welcomeMessage: true,
+      qualificationFlow: true,
+      brandColor: true,
+      position: true,
+      avatarUrl: true,
+      companyName: true,
+      autoGreet: true,
+      autoGreetDelay: true,
+      collectLeadAfter: true,
+      status: true,
+      systemPrompt: true,
+    },
+  });
+}
+
+/**
+ * Get conversations for a bot with pagination
+ */
+export async function getBotConversations(botId: string, opts?: { limit?: number; cursor?: string; status?: string }) {
+  const userId = await requireUserId();
+
+  // Verify bot ownership
+  const bot = await prisma.honeycombChatBot.findFirst({
+    where: { id: botId, userId },
+  });
+  if (!bot) return null;
+
+  const limit = opts?.limit || 50;
+
+  const conversations = await prisma.chatBotConversation.findMany({
+    where: {
+      botId,
+      ...(opts?.status ? { status: opts.status } : {}),
+    },
+    include: {
+      messages: {
+        orderBy: { createdAt: "asc" },
+        take: 5, // Last 5 messages preview
+      },
+      _count: { select: { messages: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit + 1,
+    ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+  });
+
+  const hasMore = conversations.length > limit;
+  const data = hasMore ? conversations.slice(0, limit) : conversations;
+
+  return {
+    data,
+    hasMore,
+    cursor: hasMore ? data[data.length - 1]?.id : undefined,
+  };
 }
 
 // ============================================================================

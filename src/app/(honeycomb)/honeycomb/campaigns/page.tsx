@@ -18,7 +18,7 @@ const CHANNELS: Array<{
   { key: "meta", label: "Facebook & Instagram", sublabel: "Run ads on Meta's network", icon: Facebook, status: "active" },
   { key: "native", label: "Honeycomb Network", sublabel: "Show ads on local business websites", icon: Globe, status: "active" },
   { key: "llm", label: "LLM Placement", sublabel: "Get recommended by AI assistants", icon: Bot, status: "active" },
-  { key: "google", label: "Google Ads", sublabel: "Search and display ads", icon: Search, status: "coming_soon" },
+  { key: "google", label: "Google Ads", sublabel: "Search and display ads", icon: Search, status: "active" },
   { key: "bing", label: "Microsoft Ads", sublabel: "Bing search ads", icon: Monitor, status: "coming_soon" },
   { key: "local", label: "Local Exchange", sublabel: "Auto-match with nearby businesses", icon: Handshake, status: "active" },
 ];
