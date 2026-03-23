@@ -141,7 +141,8 @@ model Contact {
   inboxThreads  InboxThread[]
   noteRecords   Note[]
   savedSearches SavedSearch[]
-  attributions  LeadAttribution[]
+  attributions        LeadAttribution[]
+  campaignRecipients  EmailCampaignRecipient[]
 
   @@index([teamId])
   @@index([campaignChannel])
@@ -274,9 +275,10 @@ model Deal {
   contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
   propertyId String?
   property   Property?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  tasks      Task[]
-  activities Activity[]
-  documents  Document[]
+  tasks              Task[]
+  activities         Activity[]
+  documents          Document[]
+  docuSignEnvelopes  DocuSignEnvelope[]
 
   @@index([teamId])
 }
@@ -313,9 +315,11 @@ model EmailAccount {
   accessToken  String   @map("access_token") // OAuth access token
   refreshToken String   @map("refresh_token") // OAuth refresh token
   expiresAt    DateTime @map("expires_at") // Token expiration
-  isDefault    Boolean  @default(false) @map("is_default")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  isDefault      Boolean  @default(false) @map("is_default")
+  lastSyncedAt   DateTime? @map("last_synced_at")
+  gmailHistoryId String?   @map("gmail_history_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, email])
   @@index([userId])
@@ -1384,7 +1388,8 @@ model EmailCampaign {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  steps EmailCampaignStep[]
+  steps      EmailCampaignStep[]
+  recipients EmailCampaignRecipient[]
 
   @@index([userId, status])
   @@index([userId, type])
@@ -1405,6 +1410,25 @@ model EmailCampaignStep {
 
   @@index([campaignId, stepOrder])
   @@map("email_campaign_steps")
+}
+
+model EmailCampaignRecipient {
+  id           String    @id @default(cuid())
+  campaignId   String    @map("campaign_id")
+  campaign     EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId    String    @map("contact_id")
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status       String    @default("pending") // pending, sent, failed, opened, clicked, bounced
+  sentAt       DateTime? @map("sent_at")
+  openedAt     DateTime? @map("opened_at")
+  clickedAt    DateTime? @map("clicked_at")
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId, status])
+  @@index([contactId])
+  @@map("email_campaign_recipients")
 }
 
 model CalendarEvent {
@@ -1448,4 +1472,47 @@ model LandingPage {
   @@index([userId, status])
   @@index([slug])
   @@map("landing_pages")
+}
+
+// ============================================================================
+// DOCUSIGN - Document signing and transaction management
+// ============================================================================
+
+model DocuSignAccount {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id") @db.Uuid
+  accountId    String   @map("account_id")
+  baseUri      String   @map("base_uri")
+  email        String
+  accessToken  String   @map("access_token")
+  refreshToken String   @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  envelopes DocuSignEnvelope[]
+
+  @@unique([userId, accountId])
+  @@index([userId])
+  @@map("docusign_accounts")
+}
+
+model DocuSignEnvelope {
+  id                String          @id @default(cuid())
+  docuSignAccountId String          @map("docusign_account_id")
+  docuSignAccount   DocuSignAccount @relation(fields: [docuSignAccountId], references: [id], onDelete: Cascade)
+  envelopeId        String          @map("envelope_id") @unique
+  dealId            String?         @map("deal_id")
+  deal              Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  status            String          @default("created") // created, sent, delivered, signed, completed, declined, voided
+  subject           String?
+  recipients        Json?           // Array of { name, email, status, signedAt }
+  sentAt            DateTime?       @map("sent_at")
+  completedAt       DateTime?       @map("completed_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  @@index([dealId])
+  @@index([status])
+  @@map("docusign_envelopes")
 }

@@ -1,7 +1,8 @@
-// Communications Domain Executors — Email, SMS
+// Communications Domain Executors — Email, SMS, Campaigns
 import { prisma } from "@/lib/prisma";
 import { sendSMS } from "@/lib/twilio";
 import { sendGmailEmail } from "@/lib/gmail";
+import { executeCampaign } from "@/lib/campaign-sender";
 import type { ActionExecutor } from "../types";
 
 export const commsExecutors: Record<string, ActionExecutor> = {
@@ -213,6 +214,102 @@ export const commsExecutors: Record<string, ActionExecutor> = {
         to,
         recipientName,
         message: `SMS sent to ${recipientName}`,
+      },
+    };
+  },
+
+  "email.send_campaign": async (action, ctx) => {
+    if (action.type !== "email.send_campaign") throw new Error("Invalid action type");
+
+    const { campaignId, campaignName, personalize, contactIds, segment } = action.payload as {
+      campaignId?: string;
+      campaignName?: string;
+      personalize?: boolean;
+      contactIds?: string[];
+      segment?: string;
+    };
+
+    // Resolve campaign
+    let campaign;
+    if (campaignId) {
+      campaign = await prisma.emailCampaign.findUnique({ where: { id: campaignId } });
+    } else if (campaignName) {
+      campaign = await prisma.emailCampaign.findFirst({
+        where: { userId: ctx.user_id, name: { contains: campaignName, mode: "insensitive" } },
+      });
+    }
+
+    if (!campaign) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Campaign not found. Create a campaign first in Marketing > Email.",
+      };
+    }
+
+    if (campaign.userId !== ctx.user_id) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "Campaign belongs to a different user",
+      };
+    }
+
+    // Resolve contacts
+    let resolvedContactIds = contactIds ?? [];
+    if (resolvedContactIds.length === 0 && segment) {
+      const where: Record<string, unknown> = { userId: ctx.user_id };
+      if (segment !== "all") where.type = segment.slice(0, -1); // "leads" -> "lead"
+      const contacts = await prisma.contact.findMany({
+        where,
+        select: { id: true },
+        take: 500,
+      });
+      resolvedContactIds = contacts.map((c) => c.id);
+    }
+
+    if (resolvedContactIds.length === 0) {
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: "No contacts specified. Provide contactIds or a segment (all, leads, clients, agents, vendors).",
+      };
+    }
+
+    // Create recipient rows
+    await prisma.emailCampaignRecipient.createMany({
+      data: resolvedContactIds.map((cid) => ({
+        campaignId: campaign.id,
+        contactId: cid,
+        status: "pending",
+      })),
+      skipDuplicates: true,
+    });
+
+    // Set campaign active + personalization flag
+    await prisma.emailCampaign.update({
+      where: { id: campaign.id },
+      data: {
+        status: "active",
+        ...(personalize ? { metadata: { ...(campaign.metadata as object ?? {}), personalize: true } } : {}),
+      },
+    });
+
+    const result = await executeCampaign(campaign.id, ctx.user_id);
+
+    return {
+      action_id: action.action_id,
+      action_type: action.type,
+      status: "success" as const,
+      data: {
+        campaignName: campaign.name,
+        sent: result.sent,
+        failed: result.failed,
+        total: result.total,
+        message: `Campaign "${campaign.name}" sent to ${result.sent} contacts${result.failed > 0 ? ` (${result.failed} failed)` : ""}`,
       },
     };
   },

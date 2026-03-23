@@ -31,6 +31,16 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    const docuSignAccount = await prisma.docuSignAccount.findFirst({
+      where: { userId },
+      select: {
+        email: true,
+        accountId: true,
+        expiresAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
     return NextResponse.json({
       meta: metaAccount
         ? {
@@ -52,6 +62,17 @@ export async function GET() {
             customerId: googleAccount.customerId,
           }
         : { connected: false },
+      docusign: docuSignAccount
+        ? {
+            connected: true,
+            email: docuSignAccount.email,
+            accountId: docuSignAccount.accountId,
+            status:
+              docuSignAccount.expiresAt < new Date()
+                ? "expired"
+                : "active",
+          }
+        : { connected: false },
     });
   } catch {
     return NextResponse.json(
@@ -70,6 +91,8 @@ export async function DELETE(request: NextRequest) {
       await prisma.metaAdAccount.deleteMany({ where: { userId } });
     } else if (provider === "google") {
       await prisma.googleAdAccount.deleteMany({ where: { userId } });
+    } else if (provider === "docusign") {
+      await prisma.docuSignAccount.deleteMany({ where: { userId } });
     } else {
       return NextResponse.json(
         { error: "Invalid provider" },

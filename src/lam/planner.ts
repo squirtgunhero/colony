@@ -108,11 +108,14 @@ You analyze user requests and generate a precise ActionPlan that the system will
 39. deal.addMilestones - Auto-create all milestone tasks when a deal goes under contract or a listing is created. Use when agent says "we're under contract", "just listed", "create milestones for". Fields: dealTitle (to find deal), milestoneType (buyer_under_contract | seller_listing | seller_under_contract), closingDate (ISO — used to calculate all other task dates if not specified), inspectionDate, appraisalDate, loanContingencyDate, walkThroughDate.
 40. marketing.generate_image - Generate a marketing image using AI (DALL-E). Use when user says "create an image for my ad", "generate a marketing image", "make me an ad image". Optional: type (new_listing, open_house, just_sold, market_update, lead_generation, general — default "general"), propertyId (for property-specific images), custom_prompt (user's own image description), size (1024x1024, 1792x1024, 1024x1792 — default "1024x1024"). Returns a URL to the generated image.
 41. marketing.generate_content - Generate marketing copy using AI. Use when user says "write me a social post", "create ad copy", "write a listing description". Optional: type (new_listing, open_house, just_sold, market_update, ad_copy, general), platform (facebook, instagram, linkedin, email, generic), propertyId, prompt.
+42. email.send_campaign - Send an email campaign to a list of contacts with optional AI personalization. Use when user says "send the campaign", "blast this email", "send [campaign name] to my leads". Optional: campaignId, campaignName (fuzzy match), personalize (boolean — AI rewrites per contact), contactIds (array), segment ("all", "leads", "clients", "agents", "vendors"). REQUIRES APPROVAL.
+43. docusign.send_envelope - Send a document for e-signature via DocuSign. Use when user says "send for signing", "get signatures on", "DocuSign this". Requires: subject, signers (array of {name, email}). Optional: dealId, dealTitle (to link to a deal), documentUrl. REQUIRES APPROVAL.
+44. docusign.check_status - Check the status of DocuSign envelopes. Use when user asks "has [name] signed?", "DocuSign status", "check my envelopes". Optional: envelopeId, dealId, dealTitle. Read-only, auto-execute.
 
 ## Risk Tiers
-- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, google.check_performance, savedSearch.list, marketing.generate_image, marketing.generate_content) - auto-execute
+- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, google.check_performance, savedSearch.list, marketing.generate_image, marketing.generate_content, docusign.check_status) - auto-execute
 - Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives, savedSearch.create, savedSearch.update, deal.addMilestones) - auto-execute with undo capability
-- Tier 2: Bulk deletes (deleteAll), external communications (email/sms), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid, google.create_campaign, google.launch_campaign), and bulk import (contacts.import) - requires user approval
+- Tier 2: Bulk deletes (deleteAll), external communications (email/sms, email.send_campaign), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid, google.create_campaign, google.launch_campaign), signing (docusign.send_envelope), and bulk import (contacts.import) - requires user approval
 
 ## Critical Rules
 0. AD CAMPAIGN FLOW — INTERACTIVE BUILDER (HIGHEST PRIORITY):
@@ -176,6 +179,10 @@ You analyze user requests and generate a precise ActionPlan that the system will
 34. For "how are my Google ads doing", "check Google performance", "Google ad stats" — use google.check_performance. Include campaign_name if user mentions a specific campaign.
 35. For "launch my Google campaign", "activate my Google ads", "turn on my Google campaign" — use google.launch_campaign with campaign_name.
 33. For "import contacts", "load this CSV", "upload my spreadsheet", "import this file", "bring in my contacts" — use contacts.import with source "csv". For "import from HubSpot", "sync HubSpot", "pull my HubSpot leads" — use contacts.import with source "hubspot". For pasted tabular data — use contacts.import with source "paste". REQUIRES APPROVAL. The UI opens the import panel automatically — do NOT ask for the file in follow_up_question. Set user_summary to "I'll open the import panel so you can upload your contacts file and preview the data before anything is saved."
+
+45. For "send the campaign", "blast this email to my leads", "send [name] campaign" — use email.send_campaign. If the user mentions a campaign name, use campaignName. If they specify a group ("send to all leads"), use segment. If they want personalization ("personalize it"), set personalize=true. REQUIRES APPROVAL.
+46. For "send for signing", "get [name] to sign", "DocuSign this agreement", "send the contract for signatures" — use docusign.send_envelope. Collect subject and signers (name + email). If linked to a deal, include dealTitle or dealId. REQUIRES APPROVAL.
+47. For "has [name] signed?", "DocuSign status", "check my envelopes", "any signatures pending?" — use docusign.check_status. Include dealTitle if the user asks about a specific deal's documents.
 
 ## CRITICAL ROUTING RULES
 34. LEAD GENERATION vs CONTACT CREATION: Ad/lead generation requests (see Rule 0) always use the guided ad builder flow — NEVER lead.create. The ONLY time you use lead.create is when the user gives a SPECIFIC person's name and info to add (like "add John Smith as a lead").
@@ -321,6 +328,8 @@ function normalizeActionType(type: string): ActionType {
     "contacts.import",
     "savedSearch.create", "savedSearch.update", "savedSearch.list",
     "marketing.generate_image", "marketing.generate_content",
+    "email.send_campaign",
+    "docusign.send_envelope", "docusign.check_status",
   ];
 
   const normalized = type.toLowerCase().replace(/_/g, ".");
@@ -396,6 +405,15 @@ function normalizeActionType(type: string): ActionType {
     "marketing.generate.content": "marketing.generate_content",
     "generate_content": "marketing.generate_content",
     "generatecontent": "marketing.generate_content",
+    "email.sendcampaign": "email.send_campaign",
+    "email.send.campaign": "email.send_campaign",
+    "send_campaign": "email.send_campaign",
+    "sendcampaign": "email.send_campaign",
+    "docusign.sendenvelope": "docusign.send_envelope",
+    "docusign.send.envelope": "docusign.send_envelope",
+    "send_envelope": "docusign.send_envelope",
+    "docusign.checkstatus": "docusign.check_status",
+    "docusign.check.status": "docusign.check_status",
   };
 
   return typeMap[type.toLowerCase()] || "lead.create";

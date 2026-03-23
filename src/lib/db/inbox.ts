@@ -492,6 +492,53 @@ export async function createOutboundMessage(data: {
 }
 
 /**
+ * System-level outbound message creation (for cron jobs / background processes).
+ * Identical to createOutboundMessage but accepts userId as a parameter
+ * instead of reading from auth context.
+ */
+export async function createOutboundMessageSystem(data: {
+  threadId: string;
+  channel: MessageChannel;
+  toAddress: string;
+  fromAddress: string;
+  userId: string;
+  subject?: string;
+  bodyText?: string;
+  bodyHtml?: string;
+  providerMessageId?: string;
+  metadata?: Prisma.JsonValue;
+  occurredAt?: Date;
+}): Promise<{ id: string }> {
+  const message = await prisma.inboxMessage.create({
+    data: {
+      threadId: data.threadId,
+      channel: data.channel,
+      direction: "outbound",
+      status: "sent",
+      occurredAt: data.occurredAt ?? new Date(),
+      fromAddress: data.fromAddress,
+      toAddress: data.toAddress,
+      subject: data.subject,
+      bodyText: data.bodyText,
+      bodyHtml: data.bodyHtml,
+      providerMessageId: data.providerMessageId,
+      metadata: data.metadata ?? {},
+      createdByUserId: data.userId,
+    },
+  });
+
+  await prisma.inboxThread.update({
+    where: { id: data.threadId },
+    data: {
+      lastMessageAt: message.occurredAt,
+      lastMessagePreview: data.bodyText?.substring(0, 200) ?? data.subject ?? null,
+    },
+  });
+
+  return { id: message.id };
+}
+
+/**
  * Create an inbound message (from webhook/provider event)
  * This reopens archived/snoozed threads
  */

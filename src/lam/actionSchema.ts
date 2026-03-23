@@ -933,6 +933,72 @@ export const MarketingGenerateContentActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Email Campaign Action (Tier 2 - sends bulk email)
+// ============================================================================
+
+export const EmailSendCampaignPayloadSchema = z.object({
+  campaignId: z.string().optional(),
+  campaignName: z.string().optional(),
+  personalize: z.boolean().optional().default(false),
+  contactIds: z.array(z.string()).optional(),
+  segment: z.enum(["all", "leads", "clients", "agents", "vendors"]).optional(),
+});
+
+export const EmailSendCampaignExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("campaign"),
+  sent: z.literal(true),
+});
+
+export const EmailSendCampaignActionSchema = BaseActionSchema.extend({
+  type: z.literal("email.send_campaign"),
+  payload: EmailSendCampaignPayloadSchema,
+  expected_outcome: EmailSendCampaignExpectedOutcomeSchema,
+});
+
+// ============================================================================
+// DocuSign Actions
+// ============================================================================
+
+export const DocuSignSendEnvelopePayloadSchema = z.object({
+  dealId: z.string().optional(),
+  dealTitle: z.string().optional(),
+  documentUrl: z.string().optional(),
+  subject: z.string(),
+  signers: z.array(z.object({
+    name: z.string(),
+    email: z.string().email(),
+  })).min(1),
+});
+
+export const DocuSignSendEnvelopeExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("envelope"),
+  sent: z.literal(true),
+});
+
+export const DocuSignSendEnvelopeActionSchema = BaseActionSchema.extend({
+  type: z.literal("docusign.send_envelope"),
+  payload: DocuSignSendEnvelopePayloadSchema,
+  expected_outcome: DocuSignSendEnvelopeExpectedOutcomeSchema,
+});
+
+export const DocuSignCheckStatusPayloadSchema = z.object({
+  envelopeId: z.string().optional(),
+  dealId: z.string().optional(),
+  dealTitle: z.string().optional(),
+});
+
+export const DocuSignCheckStatusExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("envelope"),
+  results_returned: z.literal(true),
+});
+
+export const DocuSignCheckStatusActionSchema = BaseActionSchema.extend({
+  type: z.literal("docusign.check_status"),
+  payload: DocuSignCheckStatusPayloadSchema,
+  expected_outcome: DocuSignCheckStatusExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // Union Action Type
 // ============================================================================
 
@@ -981,6 +1047,9 @@ export const ActionSchema = z.discriminatedUnion("type", [
   DealAddMilestonesActionSchema,
   MarketingGenerateImageActionSchema,
   MarketingGenerateContentActionSchema,
+  EmailSendCampaignActionSchema,
+  DocuSignSendEnvelopeActionSchema,
+  DocuSignCheckStatusActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -1038,6 +1107,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "savedSearch.list":
     case "marketing.generate_image":
     case "marketing.generate_content":
+    case "docusign.check_status":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
@@ -1076,6 +1146,8 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "google.create_campaign":
     case "google.launch_campaign":
     case "contacts.import":
+    case "email.send_campaign":
+    case "docusign.send_envelope":
       return 2;
     default:
       return 2;
