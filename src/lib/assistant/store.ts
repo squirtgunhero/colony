@@ -4,13 +4,16 @@
 // ============================================
 
 import { create } from "zustand";
-import type { 
-  AssistantMessage, 
-  PendingAction, 
-  Action, 
+import type {
+  AssistantMessage,
+  PendingAction,
+  Action,
   AssistantContext,
   LamResponse,
+  ActionExecution,
+  ExecutionStep,
 } from "./types";
+import { getActionUIDef } from "@/lib/lam/actionSteps";
 
 interface AssistantState {
   // UI State
@@ -34,7 +37,10 @@ interface AssistantState {
   
   // Pending Actions (mutations awaiting confirmation - legacy)
   pendingActions: PendingAction[];
-  
+
+  // Action Execution UI
+  executions: Map<string, ActionExecution>;
+
   // Actions
   setInput: (input: string) => void;
   openDrawer: () => void;
@@ -63,6 +69,15 @@ interface AssistantState {
   approveRun: (runId: string) => Promise<void>;
   undoLastRun: () => Promise<void>;
   
+  // Execution UI
+  startExecution: (id: string, actionType: string) => void;
+  advanceStep: (executionId: string, stepId: string, status: ExecutionStep["status"]) => void;
+  completeExecution: (executionId: string, result: LamResponse) => void;
+  failExecution: (executionId: string, error?: string) => void;
+  cancelExecution: (executionId: string) => void;
+  setExecutionAwaitingApproval: (executionId: string) => void;
+  getExecution: (id: string) => ActionExecution | undefined;
+
   // Legacy: Pending Actions
   addPendingAction: (action: Action) => void;
   applyAction: (id: string) => void;
@@ -84,7 +99,8 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   canUndo: false,
   pendingApprovalRunId: null,
   pendingActions: [],
-  
+  executions: new Map(),
+
   // UI Actions
   setInput: (input) => {
     const isSlash = input.startsWith("/");
@@ -114,12 +130,13 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     messages: [...state.messages, message],
   })),
   
-  clearMessages: () => set({ 
-    messages: [], 
+  clearMessages: () => set({
+    messages: [],
     pendingActions: [],
     lastRunId: null,
     canUndo: false,
     pendingApprovalRunId: null,
+    executions: new Map(),
   }),
 
   // ============================================
@@ -252,7 +269,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       const res = await fetch("/api/lam/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           message: message.trim(),
           recent_context: recentContext,
         }),
@@ -266,7 +283,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       const data: LamResponse = await res.json();
 
       let responseContent = data.response.message;
-      
+
       if (data.response.follow_up_question) {
         responseContent += `\n\n${data.response.follow_up_question}`;
       }
@@ -281,18 +298,68 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         set({ pendingApprovalRunId: data.run_id });
       }
 
-      // Add assistant message
-      addMessage({
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: responseContent,
-        timestamp: new Date(),
-        lamResponse: data,
-        isExecuted: data.execution_result?.status === "completed",
-        canUndo: data.response.can_undo,
-        runId: data.run_id,
-        actionCards: data.plan?.action_cards || [],
-      });
+      // Determine if this action has an execution UI
+      const primaryActionType = data.plan?.actions?.[0]?.type;
+      const hasExecUI = primaryActionType ? !!getActionUIDef(primaryActionType) : false;
+      const hasExecution = data.execution_result && (
+        data.execution_result.status === "completed" ||
+        data.execution_result.status === "partial" ||
+        data.execution_result.status === "approval_required"
+      );
+
+      if (hasExecUI && primaryActionType && hasExecution) {
+        // Use execution card UI
+        const execId = `exec-${data.run_id}`;
+
+        // Start the execution animation
+        get().startExecution(execId, primaryActionType);
+
+        // Add execution message to chat
+        addMessage({
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: responseContent,
+          timestamp: new Date(),
+          lamResponse: data,
+          isExecuted: data.execution_result?.status === "completed",
+          canUndo: data.response.can_undo,
+          runId: data.run_id,
+          actionCards: data.plan?.action_cards || [],
+          executionId: execId,
+          messageType: "execution",
+        });
+
+        // Calculate total animation time from step defs
+        const uiDef = getActionUIDef(primaryActionType);
+        const totalAnimTime = uiDef
+          ? uiDef.steps.reduce((sum, s) => sum + Math.max(s.estimatedDuration, 400), 0)
+          : 2000;
+
+        // Handle approval state
+        if (data.response.requires_approval) {
+          setTimeout(() => {
+            get().setExecutionAwaitingApproval(execId);
+          }, totalAnimTime);
+        } else {
+          // Complete execution after animation finishes
+          setTimeout(() => {
+            get().completeExecution(execId, data);
+          }, totalAnimTime);
+        }
+      } else {
+        // Fall through to normal text message
+        addMessage({
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: responseContent,
+          timestamp: new Date(),
+          lamResponse: data,
+          isExecuted: data.execution_result?.status === "completed",
+          canUndo: data.response.can_undo,
+          runId: data.run_id,
+          actionCards: data.plan?.action_cards || [],
+        });
+      }
 
       // Handle UI sentinel: open the import panel when Tara triggers contacts.import
       // with a file/HubSpot source. Delay slightly so the message can render first.
@@ -358,6 +425,13 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         content: resultMsg,
         timestamp: new Date(),
       });
+
+      // Complete any awaiting execution card
+      const execId = `exec-${runId}`;
+      const execution = get().executions.get(execId);
+      if (execution && execution.status === "awaiting_approval") {
+        get().completeExecution(execId, data as LamResponse);
+      }
 
       set({ pendingApprovalRunId: null });
 
@@ -436,6 +510,180 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     }
   },
   
+  // ============================================
+  // Action Execution UI
+  // ============================================
+  startExecution: (id: string, actionType: string) => {
+    const uiDef = getActionUIDef(actionType);
+    if (!uiDef) return;
+
+    const execution: ActionExecution = {
+      id,
+      actionType,
+      label: uiDef.label,
+      icon: uiDef.icon,
+      steps: uiDef.steps.map((s) => ({
+        id: s.id,
+        label: s.label,
+        detail: s.detail,
+        status: "pending" as const,
+      })),
+      status: "running",
+      startedAt: Date.now(),
+    };
+
+    // Set first step to active
+    if (execution.steps.length > 0) {
+      execution.steps[0].status = "active";
+      execution.steps[0].startedAt = Date.now();
+    }
+
+    set((state) => {
+      const next = new Map(state.executions);
+      next.set(id, execution);
+      return { executions: next };
+    });
+
+    // Start optimistic step animation using estimated durations
+    const stepDefs = uiDef.steps;
+    let cumulativeDelay = 0;
+
+    for (let i = 0; i < stepDefs.length; i++) {
+      const stepDef = stepDefs[i];
+      const minVisible = 400; // Minimum visible time per step
+      const duration = Math.max(stepDef.estimatedDuration, minVisible);
+
+      if (i > 0) {
+        // Activate this step after the cumulative delay
+        const activateAt = cumulativeDelay;
+        setTimeout(() => {
+          const current = get().executions.get(id);
+          // Only animate if still running and step is still pending
+          if (!current || current.status !== "running") return;
+          if (current.steps[i].status !== "pending") return;
+
+          set((state) => {
+            const exec = state.executions.get(id);
+            if (!exec || exec.status !== "running") return state;
+
+            const updatedSteps = [...exec.steps];
+            updatedSteps[i] = { ...updatedSteps[i], status: "active", startedAt: Date.now() };
+            // Mark previous step as complete
+            if (i > 0 && updatedSteps[i - 1].status === "active") {
+              updatedSteps[i - 1] = { ...updatedSteps[i - 1], status: "complete", completedAt: Date.now() };
+            }
+
+            const next = new Map(state.executions);
+            next.set(id, { ...exec, steps: updatedSteps });
+            return { executions: next };
+          });
+        }, activateAt);
+      }
+
+      cumulativeDelay += duration;
+    }
+  },
+
+  advanceStep: (executionId: string, stepId: string, status: ExecutionStep["status"]) => {
+    set((state) => {
+      const exec = state.executions.get(executionId);
+      if (!exec) return state;
+
+      const updatedSteps = exec.steps.map((s) =>
+        s.id === stepId
+          ? { ...s, status, ...(status === "complete" ? { completedAt: Date.now() } : {}), ...(status === "active" ? { startedAt: Date.now() } : {}) }
+          : s
+      );
+
+      const next = new Map(state.executions);
+      next.set(executionId, { ...exec, steps: updatedSteps });
+      return { executions: next };
+    });
+  },
+
+  completeExecution: (executionId: string, result: LamResponse) => {
+    set((state) => {
+      const exec = state.executions.get(executionId);
+      if (!exec) return state;
+
+      // Mark all remaining steps as complete
+      const now = Date.now();
+      const updatedSteps = exec.steps.map((s) =>
+        s.status === "pending" || s.status === "active"
+          ? { ...s, status: "complete" as const, completedAt: now, startedAt: s.startedAt ?? now }
+          : s
+      );
+
+      // Determine the result renderer from the action UI def
+      const uiDef = getActionUIDef(exec.actionType);
+      const resultWithRenderer = {
+        ...result,
+        __resultRenderer: uiDef?.resultRenderer ?? "CRMResult",
+      };
+
+      const next = new Map(state.executions);
+      next.set(executionId, {
+        ...exec,
+        steps: updatedSteps,
+        status: "complete",
+        result: resultWithRenderer as unknown as LamResponse,
+        completedAt: now,
+      });
+      return { executions: next };
+    });
+  },
+
+  failExecution: (executionId: string, error?: string) => {
+    set((state) => {
+      const exec = state.executions.get(executionId);
+      if (!exec) return state;
+
+      // Mark active step as error, leave rest as pending
+      const updatedSteps = exec.steps.map((s) =>
+        s.status === "active"
+          ? { ...s, status: "error" as const, result: error }
+          : s
+      );
+
+      const next = new Map(state.executions);
+      next.set(executionId, { ...exec, steps: updatedSteps, status: "error" });
+      return { executions: next };
+    });
+  },
+
+  cancelExecution: (executionId: string) => {
+    set((state) => {
+      const exec = state.executions.get(executionId);
+      if (!exec) return state;
+
+      const next = new Map(state.executions);
+      next.set(executionId, { ...exec, status: "cancelled" });
+      return { executions: next };
+    });
+  },
+
+  setExecutionAwaitingApproval: (executionId: string) => {
+    set((state) => {
+      const exec = state.executions.get(executionId);
+      if (!exec) return state;
+
+      // Find the last active or next pending step and mark it as awaiting_approval
+      const updatedSteps = [...exec.steps];
+      const activeIdx = updatedSteps.findIndex((s) => s.status === "active");
+      if (activeIdx >= 0) {
+        updatedSteps[activeIdx] = { ...updatedSteps[activeIdx], status: "awaiting_approval" };
+      }
+
+      const next = new Map(state.executions);
+      next.set(executionId, { ...exec, steps: updatedSteps, status: "awaiting_approval" });
+      return { executions: next };
+    });
+  },
+
+  getExecution: (id: string) => {
+    return get().executions.get(id);
+  },
+
   // ============================================
   // Legacy Pending Actions (for backwards compat)
   // ============================================

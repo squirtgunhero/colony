@@ -94,7 +94,35 @@ export interface AssistantMessage {
   // Welcome message chips
   chips?: WelcomeChip[];
   actionCards?: Array<{ type: string; data: Record<string, unknown> }>;
+  // Execution UI
+  executionId?: string;
+  messageType?: "text" | "execution" | "approval";
+}
 
+// ============================================
+// Action Execution UI Types
+// ============================================
+
+export interface ExecutionStep {
+  id: string;
+  label: string;
+  detail: string;
+  status: "pending" | "active" | "complete" | "error" | "awaiting_approval";
+  startedAt?: number;
+  completedAt?: number;
+  result?: unknown;
+}
+
+export interface ActionExecution {
+  id: string;
+  actionType: string;
+  label: string;
+  icon: string;
+  steps: ExecutionStep[];
+  status: "running" | "complete" | "error" | "cancelled" | "awaiting_approval";
+  result?: LamResponse;
+  startedAt: number;
+  completedAt?: number;
 }
 
 export interface PendingAction {

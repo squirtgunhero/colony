@@ -12,6 +12,8 @@ import { ChatSuggestionChips } from "./ChatSuggestionChips";
 import { ColonySuggestions } from "./ColonySuggestions";
 import { OnboardingFlow } from "./OnboardingFlow";
 import { TodayView } from "./TodayView";
+import { ActionExecutionCard } from "./ActionExecutionCard";
+import { QuickActions } from "./QuickActions";
 
 interface Summary {
   firstName: string | null;
@@ -53,6 +55,10 @@ export function ChatCanvas() {
     isListening,
     loadHistory,
     addMessage,
+    executions,
+    approveRun,
+    cancelExecution,
+    sendToLam,
   } = useAssistantStore();
 
   const { activeChips, clearChips } = useModeStore();
@@ -228,6 +234,11 @@ export function ChatCanvas() {
                 isNewUser={suggestions.isNewUser}
               />
             )}
+
+            {/* Quick action chips */}
+            <div className="mt-4 w-full max-w-md">
+              <QuickActions />
+            </div>
             </>
             )}
           </div>
@@ -257,28 +268,44 @@ export function ChatCanvas() {
             >
               Clear chat
             </button>
-            {messages.map((message, index) => (
-              <div
-                key={message.id}
-                className="animate-in fade-in slide-in-from-bottom-2 duration-400"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <ChatMessageBubble
-                  message={message}
-                  pendingActions={pendingActions.filter((pa) =>
-                    message.actions?.some(
-                      (a) => JSON.stringify(a) === JSON.stringify(pa.action)
-                    )
-                  )}
-                  onApplyAction={applyAction}
-                  onCancelAction={cancelAction}
-                />
+            {messages.map((message, index) => {
+              // Render execution card for execution-type messages
+              const execution = message.executionId
+                ? executions.get(message.executionId)
+                : undefined;
 
-                {message.role === "assistant" &&
-                  index === messages.length - 1 &&
-                  activeChips.length > 0 && <ChatSuggestionChips />}
-              </div>
-            ))}
+              return (
+                <div
+                  key={message.id}
+                  className="animate-in fade-in slide-in-from-bottom-2 duration-400"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  {message.messageType === "execution" && execution ? (
+                    <ActionExecutionCard
+                      execution={execution}
+                      onRetry={() => sendToLam(message.content)}
+                      onCancel={() => message.executionId && cancelExecution(message.executionId)}
+                      onApprove={() => message.runId && approveRun(message.runId)}
+                    />
+                  ) : (
+                    <ChatMessageBubble
+                      message={message}
+                      pendingActions={pendingActions.filter((pa) =>
+                        message.actions?.some(
+                          (a) => JSON.stringify(a) === JSON.stringify(pa.action)
+                        )
+                      )}
+                      onApplyAction={applyAction}
+                      onCancelAction={cancelAction}
+                    />
+                  )}
+
+                  {message.role === "assistant" &&
+                    index === messages.length - 1 &&
+                    activeChips.length > 0 && <ChatSuggestionChips />}
+                </div>
+              );
+            })}
 
             {/* Typing indicator */}
             {isLoading && (
