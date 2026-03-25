@@ -260,6 +260,7 @@ model Contact {
   attributions        LeadAttribution[]
   campaignRecipients  EmailCampaignRecipient[]
   calls               Call[]
+  aiEngagements       AIEngagement[]
 
   @@index([teamId])
   @@index([campaignChannel])
@@ -1469,6 +1470,47 @@ model SMSMessage {
   @@index([profileId, createdAt(sort: Desc)])
   @@index([twilioSid])
   @@map("sms_messages")
+}
+
+// AI Lead Engagement — autonomous lead nurturing by Tara
+model AIEngagement {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id") @db.Uuid
+  contactId    String    @map("contact_id")
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel      String    @default("sms") // sms, email
+  status       String    @default("active") // active, paused, qualified, unresponsive, converted, opted_out
+  aiObjective  String    @default("qualify") @map("ai_objective") // qualify, nurture, schedule_showing, re_engage
+  messageCount Int       @default(0) @map("message_count")
+  lastMessageAt DateTime? @map("last_message_at")
+  lastReplyAt  DateTime? @map("last_reply_at")
+  qualifiedAt  DateTime? @map("qualified_at")
+  convertedAt  DateTime? @map("converted_at")
+  summary      String?   // AI-generated summary of conversation so far
+  nextFollowUp DateTime? @map("next_follow_up")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  messages AIEngagementMessage[]
+
+  @@unique([userId, contactId, channel])
+  @@index([userId, status])
+  @@index([nextFollowUp])
+  @@map("ai_engagements")
+}
+
+model AIEngagementMessage {
+  id           String   @id @default(cuid())
+  engagementId String   @map("engagement_id")
+  engagement   AIEngagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  role         String   // assistant (Tara) | contact
+  content      String
+  channel      String   @default("sms") // sms, email
+  smsSid       String?  @map("sms_sid") // Twilio message SID if SMS
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([engagementId, createdAt(sort: Asc)])
+  @@map("ai_engagement_messages")
 }
 
 model Conversation {
