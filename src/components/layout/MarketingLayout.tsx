@@ -29,7 +29,7 @@ export function MarketingLayout({ children }: MarketingLayoutProps) {
     >
       <ModeSidebar />
       <ViewToggle />
-      <div className="md:pl-44 min-h-screen flex flex-col" suppressHydrationWarning>
+      <div className="md:pl-48 min-h-screen flex flex-col" suppressHydrationWarning>
         <MarketingTopNav />
         <main className="flex-1 pb-24" suppressHydrationWarning>
           {children}
