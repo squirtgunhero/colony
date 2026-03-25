@@ -5,23 +5,26 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
-import { cn } from "@/lib/utils";
 import { useColonyTheme } from "@/lib/chat-theme-context";
-import { Menu, Megaphone, PenTool, Mail, CalendarDays, Plus } from "lucide-react";
+import { withAlpha } from "@/lib/themes";
+import { Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
 const marketingTabs = [
-  { label: "Campaigns", href: "/marketing/campaigns", icon: Megaphone },
-  { label: "Content", href: "/marketing/content", icon: PenTool },
-  { label: "Email", href: "/marketing/email", icon: Mail },
-  { label: "Calendar", href: "/marketing/calendar", icon: CalendarDays },
+  { label: "Campaigns", href: "/marketing/campaigns" },
+  { label: "Content", href: "/marketing/content" },
+  { label: "Email", href: "/marketing/email" },
+  { label: "Calendar", href: "/marketing/calendar" },
 ];
 
 const mobileNavItems = [
-  { label: "Home", href: "/chat" },
+  { label: "Dashboard", href: "/dashboard" },
+  { label: "Contacts", href: "/browse/contacts" },
+  { label: "Companies", href: "/browse/companies" },
+  { label: "Deals", href: "/browse/deals" },
   { label: "Marketing", href: "/marketing" },
-  { label: "Browse", href: "/browse" },
+  { label: "Inbox", href: "/inbox" },
   { label: "Settings", href: "/settings" },
 ];
 
@@ -36,31 +39,33 @@ export function MarketingTopNav() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  const borderColor = withAlpha(theme.text, 0.06);
+
   return (
     <header
-      className="sticky top-0 z-40 h-14 flex items-center justify-between px-6 backdrop-blur-sm transition-colors duration-500"
+      className="sticky top-0 z-40 h-12 flex items-center gap-4 px-5 backdrop-blur-sm transition-colors duration-500"
       style={{
-        backgroundColor: `${theme.bg}cc`,
-        borderBottom: `1px solid ${theme.accentGlow}`,
+        backgroundColor: `${theme.bg}ee`,
+        borderBottom: `1px solid ${borderColor}`,
       }}
       suppressHydrationWarning
     >
-      {/* Left: Mobile Menu + Brand */}
-      <div className="flex items-center gap-4" suppressHydrationWarning>
+      {/* Mobile: hamburger + brand */}
+      <div className="flex items-center gap-3 md:hidden" suppressHydrationWarning>
         {mounted ? (
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 <Menu className="h-4 w-4" />
-                <span className="sr-only">Toggle menu</span>
+                <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
             <SheetContent
               side="left"
-              className="w-72 p-0 border-r"
+              className="w-64 p-0 border-r"
               style={{
                 backgroundColor: theme.bg,
-                borderColor: theme.accentGlow,
+                borderColor,
                 fontFamily: "var(--font-dm-sans), sans-serif",
               }}
               aria-describedby={undefined}
@@ -68,93 +73,111 @@ export function MarketingTopNav() {
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <div className="flex h-full flex-col">
                 <div
-                  className="flex h-14 items-center gap-3 px-4"
-                  style={{ borderBottom: `1px solid ${theme.accentGlow}` }}
+                  className="flex h-12 items-center gap-2.5 px-4"
+                  style={{ borderBottom: `1px solid ${borderColor}` }}
                 >
-                  <Image
-                    src="/colony-icon.svg"
-                    alt="Colony"
-                    width={24}
-                    height={24}
-                    className="h-6 w-6"
-                  />
+                  <Image src="/colony-icon.svg" alt="Colony" width={20} height={20} className="h-5 w-5" />
                   <span
-                    className="text-sm font-light tracking-[0.2em] uppercase"
-                    style={{ color: theme.textMuted }}
+                    className="text-[11px] font-light tracking-[0.18em] uppercase"
+                    style={{ color: withAlpha(theme.text, 0.35) }}
                   >
                     Colony
                   </span>
                 </div>
 
-                <nav className="flex-1 p-3 space-y-1">
-                  {mobileNavItems.map((tab) => (
-                    <Link
-                      key={tab.href}
-                      href={tab.href}
-                      onClick={() => setOpen(false)}
-                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium"
-                      style={{ color: theme.textMuted }}
-                    >
-                      {tab.label}
-                    </Link>
-                  ))}
+                <nav className="flex-1 p-2.5 space-y-px">
+                  {mobileNavItems.map((tab) => {
+                    const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+                    return (
+                      <Link
+                        key={tab.href}
+                        href={tab.href}
+                        onClick={() => setOpen(false)}
+                        className="flex items-center h-9 px-3 rounded-lg text-[13px] transition-colors"
+                        style={{
+                          backgroundColor: isActive ? withAlpha(theme.accent, 0.08) : "transparent",
+                          color: isActive ? theme.text : withAlpha(theme.text, 0.5),
+                          fontWeight: isActive ? 500 : 400,
+                        }}
+                      >
+                        {tab.label}
+                      </Link>
+                    );
+                  })}
                 </nav>
+
+                {/* Mobile Tara pill */}
+                <div className="p-3" style={{ borderTop: `1px solid ${borderColor}` }}>
+                  <Link
+                    href="/chat"
+                    className="flex items-center justify-center h-9 rounded-full transition-colors"
+                    style={{
+                      backgroundColor: withAlpha(theme.accent, 0.12),
+                      border: `1px solid ${withAlpha(theme.accent, 0.2)}`,
+                    }}
+                    onClick={() => setOpen(false)}
+                  >
+                    <span
+                      className="text-[13px] font-medium tracking-wide"
+                      style={{ fontFamily: "'Spectral', serif", color: theme.accent }}
+                    >
+                      Tara
+                    </span>
+                  </Link>
+                </div>
               </div>
             </SheetContent>
           </Sheet>
         ) : (
-          <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
             <Menu className="h-4 w-4" />
-            <span className="sr-only">Toggle menu</span>
+            <span className="sr-only">Menu</span>
           </Button>
         )}
 
-        <Link href="/marketing" className="flex items-center gap-2 md:hidden" suppressHydrationWarning>
-          <Image
-            src="/colony-icon.svg"
-            alt="Colony"
-            width={24}
-            height={24}
-            className="h-6 w-6"
-            suppressHydrationWarning
-          />
+        <Link href="/chat" className="flex items-center" suppressHydrationWarning>
+          <Image src="/colony-icon.svg" alt="Colony" width={20} height={20} className="h-5 w-5" />
         </Link>
       </div>
 
-      {/* Center: Marketing Tabs */}
-      <div className="hidden md:flex items-center gap-1">
+      {/* Desktop: Marketing sub-tabs */}
+      <div className="hidden md:flex items-center gap-0.5">
         {marketingTabs.map((tab) => {
           const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-          const Icon = tab.icon;
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
+              className="flex items-center h-7 px-3 rounded-md text-[12px] transition-colors"
+              style={{
+                backgroundColor: isActive ? withAlpha(theme.accent, 0.08) : "transparent",
+                color: isActive ? theme.text : withAlpha(theme.text, 0.4),
+                fontWeight: isActive ? 500 : 400,
+              }}
             >
-              <Icon className="h-4 w-4" />
               {tab.label}
             </Link>
           );
         })}
       </div>
 
-      {/* Right: Actions + User */}
-      <div className="flex items-center gap-2" suppressHydrationWarning>
-        <Link href="/marketing/campaigns/new">
-          <Button size="sm" className="hidden sm:flex gap-2">
-            <Plus className="h-4 w-4" />
-            <span>New Campaign</span>
-          </Button>
-        </Link>
-        <div className="ml-2 pl-2 border-l border-border" suppressHydrationWarning>
-          {mounted && <UserMenu />}
-        </div>
+      <div className="flex-1" />
+
+      {/* Quick action */}
+      <Link href="/marketing/campaigns/new">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 hidden sm:flex"
+          title="New campaign"
+        >
+          <Plus className="h-3.5 w-3.5" style={{ color: withAlpha(theme.text, 0.4) }} />
+        </Button>
+      </Link>
+
+      {/* Mobile-only user menu */}
+      <div className="md:hidden" suppressHydrationWarning>
+        {mounted && <UserMenu size="sm" />}
       </div>
     </header>
   );

@@ -15,7 +15,7 @@ import { useColonyTheme } from "@/lib/chat-theme-context";
 
 // Unified nav: matches ModeSidebar
 const navTabs = [
-  { label: "Tara", href: "/chat" },
+  { label: "Dashboard", href: "/dashboard" },
   { label: "Contacts", href: "/browse/contacts" },
   { label: "Companies", href: "/browse/companies" },
   { label: "Deals", href: "/browse/deals" },
