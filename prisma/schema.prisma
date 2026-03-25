@@ -261,6 +261,7 @@ model Contact {
   campaignRecipients  EmailCampaignRecipient[]
   calls               Call[]
   aiEngagements       AIEngagement[]
+  textCampaignRecipients TextCampaignRecipient[]
 
   @@index([teamId])
   @@index([campaignChannel])
@@ -1470,6 +1471,50 @@ model SMSMessage {
   @@index([profileId, createdAt(sort: Desc)])
   @@index([twilioSid])
   @@map("sms_messages")
+}
+
+// Mass Text Campaigns
+model TextCampaign {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id") @db.Uuid
+  name           String
+  message        String    // Template with {{name}}, {{first_name}} merge tags
+  status         String    @default("draft") // draft, scheduled, sending, completed, paused
+  scheduledAt    DateTime? @map("scheduled_at")
+  startedAt      DateTime? @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  recipientCount Int       @default(0) @map("recipient_count")
+  sentCount      Int       @default(0) @map("sent_count")
+  deliveredCount Int       @default(0) @map("delivered_count")
+  failedCount    Int       @default(0) @map("failed_count")
+  replyCount     Int       @default(0) @map("reply_count")
+  filterJson     Json?     @map("filter_json") // Contact filter criteria
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  recipients TextCampaignRecipient[]
+
+  @@index([userId, status])
+  @@map("text_campaigns")
+}
+
+model TextCampaignRecipient {
+  id           String    @id @default(cuid())
+  campaignId   String    @map("campaign_id")
+  campaign     TextCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId    String    @map("contact_id")
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  phone        String    // Snapshot of phone at send time
+  status       String    @default("pending") // pending, sent, delivered, failed, replied, opted_out
+  sentAt       DateTime? @map("sent_at")
+  deliveredAt  DateTime? @map("delivered_at")
+  twilioSid    String?   @map("twilio_sid")
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId, status])
+  @@map("text_campaign_recipients")
 }
 
 // AI Lead Engagement — autonomous lead nurturing by Tara
