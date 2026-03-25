@@ -52,7 +52,7 @@ export default async function DialerPage() {
   return (
     <DialerDashboard
       callLists={listsWithProgress}
-      recentCalls={recentCalls}
+      recentCalls={recentCalls.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() }))}
       todayStats={todayStats}
     />
   );
