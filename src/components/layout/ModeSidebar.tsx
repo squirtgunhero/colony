@@ -35,69 +35,29 @@ export function ModeSidebar() {
       .catch(() => {});
   }, []);
 
-  const crmItems: NavItem[] = [
-    { href: "/browse/contacts", label: "Contacts" },
-    { href: "/browse/companies", label: "Companies" },
+  const navItems: NavItem[] = [
+    { href: "/dashboard", label: "Home" },
+    { href: "/browse/contacts", label: "People" },
     { href: "/browse/deals", label: "Deals" },
     { href: "/browse/properties", label: "Properties" },
     { href: "/browse/tasks", label: "Tasks" },
-  ];
-
-  const otherItems: NavItem[] = [
     { href: "/marketing", label: "Marketing" },
+    { href: "/calendar", label: "Calendar" },
     { href: "/inbox", label: "Inbox", badge: inboxUnread },
+    { href: "/reports", label: "Reports" },
   ];
 
   const isActive = (href: string) => {
     if (href === "/chat") return pathname === "/chat" || pathname.startsWith("/chat/");
     if (href === "/dashboard") return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
     if (href === "/marketing") return pathname.startsWith("/marketing");
-    if (href === "/browse") return pathname.startsWith("/browse");
+    if (href === "/calendar") return pathname.startsWith("/calendar");
+    if (href === "/reports") return pathname.startsWith("/reports");
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
   const taraActive = isActive("/chat");
-  const dashActive = isActive("/dashboard");
   const borderColor = withAlpha(theme.text, 0.06);
-
-  function NavLink({ item }: { item: NavItem }) {
-    const active = isActive(item.href);
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className="group flex items-center rounded-md h-9 px-3 relative transition-all duration-150"
-        style={{
-          backgroundColor: active ? withAlpha(theme.accent, 0.08) : "transparent",
-        }}
-        suppressHydrationWarning
-      >
-        {active && (
-          <div
-            className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
-            style={{ backgroundColor: theme.accent }}
-          />
-        )}
-        <span
-          className="text-[14px] tracking-[-0.01em] transition-colors duration-150"
-          style={{
-            color: active ? theme.text : withAlpha(theme.text, 0.5),
-            fontWeight: active ? 600 : 450,
-          }}
-        >
-          {item.label}
-        </span>
-        {item.badge != null && item.badge > 0 && (
-          <span
-            className="ml-auto flex items-center justify-center h-[18px] min-w-[18px] px-1 rounded-full text-[10px] font-bold"
-            style={{ backgroundColor: withAlpha(theme.accent, 0.2), color: theme.accent }}
-          >
-            {item.badge > 99 ? "99+" : item.badge}
-          </span>
-        )}
-      </Link>
-    );
-  }
 
   return (
     <aside
@@ -140,77 +100,85 @@ export function ModeSidebar() {
         </div>
       )}
 
-      {/* Dashboard — prominent top item */}
-      <div className="px-2.5 pt-4 pb-2" suppressHydrationWarning>
-        <Link
-          href="/dashboard"
-          className="flex items-center h-9 px-3 rounded-md relative transition-all duration-150"
-          style={{
-            backgroundColor: dashActive ? withAlpha(theme.accent, 0.08) : "transparent",
-          }}
-        >
-          {dashActive && (
-            <div
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
-              style={{ backgroundColor: theme.accent }}
-            />
-          )}
-          <span
-            className="text-[14px] tracking-[-0.01em]"
-            style={{
-              color: dashActive ? theme.text : withAlpha(theme.text, 0.5),
-              fontWeight: dashActive ? 600 : 450,
-            }}
-          >
-            Dashboard
-          </span>
-        </Link>
-      </div>
-
-      {/* Section label */}
-      <div className="px-5 pt-2 pb-1.5">
-        <span
-          className="text-[10px] font-semibold tracking-[0.12em] uppercase"
-          style={{ color: withAlpha(theme.text, 0.22) }}
-        >
-          CRM
-        </span>
-      </div>
-
-      {/* CRM Navigation */}
-      <nav className="flex flex-col px-2.5 gap-0.5" suppressHydrationWarning>
-        {crmItems.map((item) => (
-          <NavLink key={item.href} item={item} />
-        ))}
-      </nav>
-
-      {/* Section label */}
-      <div className="px-5 pt-4 pb-1.5">
-        <span
-          className="text-[10px] font-semibold tracking-[0.12em] uppercase"
-          style={{ color: withAlpha(theme.text, 0.22) }}
-        >
-          More
-        </span>
-      </div>
-
-      {/* Other */}
-      <nav className="flex flex-col px-2.5 gap-0.5" suppressHydrationWarning>
-        {otherItems.map((item) => (
-          <NavLink key={item.href} item={item} />
-        ))}
+      {/* Navigation — one flat list */}
+      <nav className="flex flex-col px-2.5 pt-3 gap-0.5" suppressHydrationWarning>
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group flex items-center rounded-md h-9 px-3 relative transition-all duration-150"
+              style={{
+                backgroundColor: active ? withAlpha(theme.accent, 0.08) : "transparent",
+              }}
+              suppressHydrationWarning
+            >
+              {active && (
+                <div
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
+                  style={{ backgroundColor: theme.accent }}
+                />
+              )}
+              <span
+                className="text-[14px] tracking-[-0.01em] transition-colors duration-150"
+                style={{
+                  color: active ? theme.text : withAlpha(theme.text, 0.5),
+                  fontWeight: active ? 600 : 450,
+                }}
+              >
+                {item.label}
+              </span>
+              {item.badge != null && item.badge > 0 && (
+                <span
+                  className="ml-auto flex items-center justify-center h-[18px] min-w-[18px] px-1 rounded-full text-[10px] font-bold"
+                  style={{ backgroundColor: withAlpha(theme.accent, 0.2), color: theme.accent }}
+                >
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Bottom: Settings + Tara pill + User */}
+      {/* Bottom: Settings + Tara + User */}
       <div
         className="flex flex-col gap-1.5 py-3 px-2.5"
         style={{ borderTop: `1px solid ${borderColor}` }}
         suppressHydrationWarning
       >
-        <NavLink item={{ href: "/settings", label: "Settings" }} />
+        {(() => {
+          const settingsActive = isActive("/settings");
+          return (
+            <Link
+              href="/settings"
+              className="flex items-center rounded-md h-9 px-3 relative transition-all duration-150"
+              style={{
+                backgroundColor: settingsActive ? withAlpha(theme.accent, 0.08) : "transparent",
+              }}
+            >
+              {settingsActive && (
+                <div
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
+                  style={{ backgroundColor: theme.accent }}
+                />
+              )}
+              <span
+                className="text-[14px] tracking-[-0.01em]"
+                style={{
+                  color: settingsActive ? theme.text : withAlpha(theme.text, 0.5),
+                  fontWeight: settingsActive ? 600 : 450,
+                }}
+              >
+                Settings
+              </span>
+            </Link>
+          );
+        })()}
 
         <div
           className="flex items-center gap-2 mt-1.5 pt-2.5 px-0.5"

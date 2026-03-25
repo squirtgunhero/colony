@@ -1,4 +1,3 @@
-// HIDDEN: Phase 2 - /reports removed from nav; still accessible via URL.
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
 import { PageHeader } from "@/components/layout/page-header";
@@ -66,13 +65,11 @@ async function getReportData(userId: string) {
     }),
   ]);
 
-  // Total revenue from sold properties
   const totalRevenue = await prisma.property.aggregate({
     where: { userId, status: "sold" },
     _sum: { price: true },
   });
 
-  // Pipeline value from non-sold properties
   const pipelineValue = await prisma.property.aggregate({
     where: { userId, status: { not: "sold" } },
     _sum: { price: true },
@@ -88,13 +85,13 @@ async function getReportData(userId: string) {
       totalContacts,
       newLeadsThisMonth,
       newLeadsLastMonth,
-      leadGrowth: newLeadsLastMonth > 0 
+      leadGrowth: newLeadsLastMonth > 0
         ? Math.round(((newLeadsThisMonth - newLeadsLastMonth) / newLeadsLastMonth) * 100)
         : newLeadsThisMonth > 0 ? 100 : 0,
       totalProperties,
       completedTasks,
       pendingTasks,
-      taskCompletionRate: (completedTasks + pendingTasks) > 0 
+      taskCompletionRate: (completedTasks + pendingTasks) > 0
         ? Math.round((completedTasks / (completedTasks + pendingTasks)) * 100)
         : 0,
     },
@@ -132,63 +129,47 @@ export default async function ReportsPage() {
         </div>
       </PageHeader>
 
-      {/* Bento Grid Layout */}
       <div className="p-4 sm:p-6">
         <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6 auto-rows-[120px]">
-          {/* Revenue - Large */}
           <div className="col-span-2 row-span-2">
-            <RevenueCard 
-              revenue={data.metrics.totalRevenue} 
-              closedDeals={data.metrics.closedDeals} 
+            <RevenueCard
+              revenue={data.metrics.totalRevenue}
+              closedDeals={data.metrics.closedDeals}
             />
           </div>
-
-          {/* Pipeline */}
           <div className="col-span-2 row-span-1">
-            <PipelineCard 
-              value={data.metrics.pipelineValue} 
-              activeDeals={data.metrics.totalDeals - data.metrics.closedDeals} 
+            <PipelineCard
+              value={data.metrics.pipelineValue}
+              activeDeals={data.metrics.totalDeals - data.metrics.closedDeals}
             />
           </div>
-
-          {/* Leads */}
           <div className="col-span-1 row-span-2">
-            <LeadsCard 
+            <LeadsCard
               newLeads={data.metrics.newLeadsThisMonth}
               totalContacts={data.metrics.totalContacts}
               growth={data.metrics.leadGrowth}
             />
           </div>
-
-          {/* Conversion */}
           <div className="col-span-1 row-span-2">
-            <ConversionCard 
+            <ConversionCard
               rate={data.metrics.conversionRate}
               closed={data.metrics.closedDeals}
               total={data.metrics.totalDeals}
             />
           </div>
-
-          {/* Tasks */}
           <div className="col-span-2 row-span-1">
-            <TasksCard 
+            <TasksCard
               completed={data.metrics.completedTasks}
               pending={data.metrics.pendingTasks}
               rate={data.metrics.taskCompletionRate}
             />
           </div>
-
-          {/* Contact Sources - Tall */}
           <div className="col-span-2 row-span-3">
             <LeadSourceCard leadSources={data.leadSources} />
           </div>
-
-          {/* Top Deals - Wide */}
           <div className="col-span-2 md:col-span-4 row-span-3">
             <TopDealsCard recentDeals={data.recentDeals} />
           </div>
-
-          {/* Activity Timeline - Full width */}
           <div className="col-span-2 md:col-span-4 lg:col-span-6 row-span-2">
             <ActivityCard recentDeals={data.recentDeals} />
           </div>

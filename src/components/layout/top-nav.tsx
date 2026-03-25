@@ -15,14 +15,15 @@ import { useColonyTheme } from "@/lib/chat-theme-context";
 
 // Unified nav: matches ModeSidebar
 const navTabs = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Contacts", href: "/browse/contacts" },
-  { label: "Companies", href: "/browse/companies" },
+  { label: "Home", href: "/dashboard" },
+  { label: "People", href: "/browse/contacts" },
   { label: "Deals", href: "/browse/deals" },
   { label: "Properties", href: "/browse/properties" },
   { label: "Tasks", href: "/browse/tasks" },
   { label: "Marketing", href: "/marketing" },
+  { label: "Calendar", href: "/calendar" },
   { label: "Inbox", href: "/inbox" },
+  { label: "Reports", href: "/reports" },
   { label: "Settings", href: "/settings" },
 ];
 
