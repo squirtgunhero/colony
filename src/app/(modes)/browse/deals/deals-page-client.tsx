@@ -7,6 +7,7 @@ import { withAlpha } from "@/lib/themes";
 import { DealsListView } from "@/components/browse/DealsListView";
 import { DealsBoard } from "@/components/deals/deals-board";
 import { PipelineStats } from "@/components/deals/PipelineStats";
+import { ForecastBar } from "@/components/browse/ForecastBar";
 
 interface Deal {
   id: string;
@@ -104,6 +105,7 @@ export function DealsPageClient({
             properties={properties}
           />
           <PipelineStats deals={deals as unknown as { id: string; stage: string; value: number | null; createdAt: string | Date; updatedAt: string | Date }[]} />
+          <ForecastBar />
         </>
       ) : (
         <DealsListView deals={deals} />

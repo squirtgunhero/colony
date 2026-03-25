@@ -13,11 +13,15 @@ import { ContactDialog } from "@/components/contacts/contact-dialog";
 import { globalSearch } from "@/app/(dashboard)/search/actions";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 
-// Unified nav: matches ModeSidebar (mobile sheet — 5 items per Step 7)
+// Unified nav: matches ModeSidebar
 const navTabs = [
-  { label: "Home", href: "/chat" },
-  { label: "Browse", href: "/browse" },
-  { label: "Referrals", href: "/referrals" },
+  { label: "Tara", href: "/chat" },
+  { label: "Contacts", href: "/browse/contacts" },
+  { label: "Companies", href: "/browse/companies" },
+  { label: "Deals", href: "/browse/deals" },
+  { label: "Properties", href: "/browse/properties" },
+  { label: "Tasks", href: "/browse/tasks" },
+  { label: "Marketing", href: "/marketing" },
   { label: "Inbox", href: "/inbox" },
   { label: "Settings", href: "/settings" },
 ];

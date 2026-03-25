@@ -2,41 +2,40 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Search, User, Mail, Phone, MapPin, MoreHorizontal, Trash2 } from "lucide-react";
+import { Search, Building2, Globe, MapPin, MoreHorizontal, Trash2, Users, Handshake } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import { formatDate } from "@/lib/date-utils";
-import { deleteContact } from "@/app/(dashboard)/contacts/actions";
-import { LeadScoreBadge } from "@/components/contacts/LeadScoreBadge";
-import { DuplicatesPanel } from "@/components/contacts/DuplicatesPanel";
+import { deleteCompany } from "@/app/(dashboard)/companies/actions";
 
-interface Contact {
+interface Company {
   id: string;
   name: string;
-  email?: string | null;
+  domain?: string | null;
+  industry?: string | null;
+  size?: string | null;
+  city?: string | null;
+  state?: string | null;
   phone?: string | null;
-  type: string;
-  source?: string | null;
+  email?: string | null;
+  website?: string | null;
   updatedAt: Date;
-  deals: Array<{ id: string }>;
-  properties: Array<{ id: string; city?: string | null; state?: string | null }>;
-  leadScore?: { score: number; grade: string } | null;
   _count: {
-    activities: number;
-    tasks: number;
+    contacts: number;
+    deals: number;
   };
 }
 
-interface ContactsListViewProps {
-  contacts: Contact[];
+interface CompaniesListViewProps {
+  companies: Company[];
 }
 
-export function ContactsListView({ contacts: initialContacts }: ContactsListViewProps) {
+export function CompaniesListView({ companies: initialCompanies }: CompaniesListViewProps) {
   const { theme } = useColonyTheme();
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [contacts, setContacts] = useState(initialContacts);
+  const [companies, setCompanies] = useState(initialCompanies);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,22 +50,23 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
     }
   }, [openMenuId]);
 
-  async function handleDelete(contactId: string, contactName: string) {
+  async function handleDelete(companyId: string, companyName: string) {
     setOpenMenuId(null);
-    if (!confirm(`Delete ${contactName}? This can't be undone.`)) return;
-    await deleteContact(contactId);
-    setContacts((prev) => prev.filter((c) => c.id !== contactId));
+    if (!confirm(`Delete ${companyName}? Contacts and deals will be unlinked.`)) return;
+    await deleteCompany(companyId);
+    setCompanies((prev) => prev.filter((c) => c.id !== companyId));
   }
 
-  const filteredContacts = contacts.filter((contact) => {
+  const filteredCompanies = companies.filter((company) => {
     const matchesSearch =
-      contact.name.toLowerCase().includes(search.toLowerCase()) ||
-      (contact.email?.toLowerCase() || "").includes(search.toLowerCase());
-    const matchesType = typeFilter === "all" || contact.type === typeFilter;
-    return matchesSearch && matchesType;
+      company.name.toLowerCase().includes(search.toLowerCase()) ||
+      (company.domain?.toLowerCase() || "").includes(search.toLowerCase()) ||
+      (company.industry?.toLowerCase() || "").includes(search.toLowerCase());
+    const matchesIndustry = industryFilter === "all" || company.industry === industryFilter;
+    return matchesSearch && matchesIndustry;
   });
 
-  const types = ["all", ...new Set(contacts.map((c) => c.type))];
+  const industries = ["all", ...new Set(companies.map((c) => c.industry).filter(Boolean) as string[])];
 
   const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
   const neumorphicRecessed = `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`;
@@ -80,17 +80,17 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
             className="text-[28px] leading-tight font-semibold tracking-[-0.01em]"
             style={{ color: theme.text, fontFamily: "'Spectral', serif" }}
           >
-            Contacts
+            Companies
           </h1>
           <p
             className="text-sm mt-1"
             style={{ color: theme.textMuted, fontFamily: "'DM Sans', sans-serif" }}
           >
-            {filteredContacts.length} contact{filteredContacts.length !== 1 ? "s" : ""}
+            {filteredCompanies.length} compan{filteredCompanies.length !== 1 ? "ies" : "y"}
           </p>
         </div>
         <Link
-          href="/browse/contacts/new"
+          href="/browse/companies/new"
           className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200"
           style={{
             backgroundColor: theme.accent,
@@ -98,7 +98,7 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
             boxShadow: neumorphicRaised,
           }}
         >
-          Add Contact
+          Add Company
         </Link>
       </div>
 
@@ -110,7 +110,7 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
             style={{ color: theme.textMuted }}
           />
           <input
-            placeholder="Search contacts..."
+            placeholder="Search companies..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-10 pl-9 pr-3 rounded-xl text-sm outline-none transition-all"
@@ -124,42 +124,41 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
             }}
           />
         </div>
-        <div className="flex gap-2">
-          {types.map((type) => {
-            const isActive = typeFilter === type;
-            return (
-              <button
-                key={type}
-                onClick={() => setTypeFilter(type)}
-                className="px-3 py-1.5 text-sm rounded-lg capitalize transition-all duration-200"
-                style={{
-                  backgroundColor: isActive ? withAlpha(theme.accent, 0.15) : "transparent",
-                  color: isActive ? theme.accent : theme.textMuted,
-                  boxShadow: isActive ? neumorphicRaised : "none",
-                }}
-              >
-                {type}
-              </button>
-            );
-          })}
-        </div>
+        {industries.length > 1 && (
+          <div className="flex gap-2 flex-wrap">
+            {industries.map((ind) => {
+              const isActive = industryFilter === ind;
+              return (
+                <button
+                  key={ind}
+                  onClick={() => setIndustryFilter(ind)}
+                  className="px-3 py-1.5 text-sm rounded-lg capitalize transition-all duration-200"
+                  style={{
+                    backgroundColor: isActive ? withAlpha(theme.accent, 0.15) : "transparent",
+                    color: isActive ? theme.accent : theme.textMuted,
+                    boxShadow: isActive ? neumorphicRaised : "none",
+                  }}
+                >
+                  {ind}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
-
-      {/* Duplicates warning */}
-      <DuplicatesPanel />
 
       {/* List */}
       <div className="space-y-2">
-        {filteredContacts.length === 0 ? (
+        {filteredCompanies.length === 0 ? (
           <div className="text-center py-12">
-            <User className="h-12 w-12 mx-auto mb-4" style={{ color: theme.accent, opacity: 0.4 }} />
-            <p style={{ color: theme.textMuted }}>No contacts found</p>
+            <Building2 className="h-12 w-12 mx-auto mb-4" style={{ color: theme.accent, opacity: 0.4 }} />
+            <p style={{ color: theme.textMuted }}>No companies found</p>
           </div>
         ) : (
-          filteredContacts.map((contact) => (
+          filteredCompanies.map((company) => (
             <Link
-              key={contact.id}
-              href={`/contacts/${contact.id}`}
+              key={company.id}
+              href={`/companies/${company.id}`}
               className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200 group"
               style={{
                 backgroundColor: theme.bgGlow,
@@ -174,13 +173,13 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
             >
               {/* Avatar */}
               <div
-                className="flex items-center justify-center h-12 w-12 rounded-full font-medium shrink-0"
+                className="flex items-center justify-center h-12 w-12 rounded-xl font-medium shrink-0"
                 style={{
                   background: `linear-gradient(135deg, ${withAlpha(theme.accent, 0.2)}, ${withAlpha(theme.accent, 0.08)})`,
                   color: theme.accent,
                 }}
               >
-                {contact.name
+                {company.name
                   .split(" ")
                   .map((n) => n[0])
                   .join("")
@@ -192,46 +191,35 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="font-medium truncate" style={{ color: theme.text }}>
-                    {contact.name}
+                    {company.name}
                   </h3>
-                  <span
-                    className="text-[10px] px-2 py-0.5 rounded-full capitalize font-medium"
-                    style={{
-                      backgroundColor: withAlpha(theme.accent, 0.15),
-                      color: theme.accent,
-                    }}
-                  >
-                    {contact.type}
-                  </span>
-                  {contact.leadScore && (
-                    <LeadScoreBadge score={contact.leadScore.score} grade={contact.leadScore.grade} compact />
+                  {company.industry && (
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full capitalize font-medium"
+                      style={{
+                        backgroundColor: withAlpha(theme.accent, 0.15),
+                        color: theme.accent,
+                      }}
+                    >
+                      {company.industry}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center gap-4 mt-1 text-sm" style={{ color: theme.textMuted }}>
-                  {contact.email && (
+                  {company.domain && (
                     <span className="flex items-center gap-1 truncate">
-                      <Mail className="h-3 w-3" />
-                      {contact.email}
+                      <Globe className="h-3 w-3" />
+                      {company.domain}
                     </span>
                   )}
-                  {contact.phone && (
+                  {(company.city || company.state) && (
                     <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {contact.phone}
+                      <MapPin className="h-3 w-3" />
+                      {[company.city, company.state].filter(Boolean).join(", ")}
                     </span>
                   )}
-                  {(() => {
-                    const prop = contact.properties?.[0];
-                    const loc = prop ? [prop.city, prop.state].filter(Boolean).join(", ") : null;
-                    return loc ? (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {loc}
-                      </span>
-                    ) : null;
-                  })()}
-                  {!contact.email && !contact.phone && (
-                    <span className="italic opacity-50 text-xs">No contact info</span>
+                  {!company.domain && !company.city && (
+                    <span className="italic opacity-50 text-xs">No details</span>
                   )}
                 </div>
               </div>
@@ -241,12 +229,19 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                 className="hidden sm:flex items-center gap-4 text-xs"
                 style={{ color: theme.textMuted }}
               >
-                {contact.deals.length > 0 && (
-                  <span>
-                    {contact.deals.length} deal{contact.deals.length !== 1 ? "s" : ""}
+                {company._count.contacts > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {company._count.contacts}
                   </span>
                 )}
-                <span>{formatDate(contact.updatedAt)}</span>
+                {company._count.deals > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Handshake className="h-3 w-3" />
+                    {company._count.deals}
+                  </span>
+                )}
+                <span>{formatDate(company.updatedAt)}</span>
               </div>
 
               {/* Actions */}
@@ -257,13 +252,13 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    setOpenMenuId(openMenuId === contact.id ? null : contact.id);
+                    setOpenMenuId(openMenuId === company.id ? null : company.id);
                   }}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
 
-                {openMenuId === contact.id && (
+                {openMenuId === company.id && (
                   <div
                     ref={menuRef}
                     className="absolute right-0 top-full mt-1 z-50 rounded-xl py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-150"
@@ -277,7 +272,7 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        handleDelete(contact.id, contact.name);
+                        handleDelete(company.id, company.name);
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors"
                       style={{ color: "#ef4444" }}

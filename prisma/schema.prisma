@@ -62,6 +62,7 @@ model Team {
   tasks       Task[]
   properties  Property[]
   activities  Activity[]
+  companies   Company[]
 
   @@index([ownerId])
   @@map("teams")
@@ -102,6 +103,114 @@ model TeamInvitation {
   @@map("team_invitations")
 }
 
+// ============================================================================
+// COMPANIES - Organization / Company records
+// ============================================================================
+
+model Company {
+  id         String   @id @default(cuid())
+  userId     String?  @map("user_id") @db.Uuid
+  teamId     String?  @map("team_id")
+  team       Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  name       String
+  domain     String?  // e.g. "acme.com"
+  industry   String?
+  size       String?  // 1-10, 11-50, 51-200, 201-500, 501-1000, 1000+
+  phone      String?
+  email      String?
+  website    String?
+  address    String?
+  city       String?
+  state      String?
+  zipCode    String?  @map("zip_code")
+  notes      String?
+  logoUrl    String?  @map("logo_url")
+  isFavorite Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  contacts   Contact[]
+  deals      Deal[]
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([domain])
+  @@map("companies")
+}
+
+// ============================================================================
+// LEAD SCORING - Automated scoring for contact prioritization
+// ============================================================================
+
+// ============================================================================
+// CUSTOM FIELDS - EAV (Entity-Attribute-Value) system
+// ============================================================================
+
+model CustomFieldDefinition {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id") @db.Uuid
+  entityType  String   @map("entity_type") // contact, deal, company, property
+  name        String   // Display label
+  fieldKey    String   @map("field_key") // Programmatic key (snake_case)
+  fieldType   String   @map("field_type") // text, number, date, select, multiselect, boolean, url, email, phone
+  options     Json?    @default("[]") // For select/multiselect: ["Option A", "Option B"]
+  isRequired  Boolean  @default(false) @map("is_required")
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  values CustomFieldValue[]
+
+  @@unique([userId, entityType, fieldKey])
+  @@index([userId, entityType, isActive])
+  @@map("custom_field_definitions")
+}
+
+model CustomFieldValue {
+  id           String   @id @default(cuid())
+  definitionId String   @map("definition_id")
+  definition   CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  entityId     String   @map("entity_id") // ID of the contact, deal, company, etc.
+  value        String   // Stored as string; parsed based on fieldType
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([definitionId, entityId])
+  @@index([entityId])
+  @@map("custom_field_values")
+}
+
+model LeadScore {
+  id         String   @id @default(cuid())
+  contactId  String   @unique @map("contact_id")
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  score      Int      @default(0) // 0-100
+  grade      String   @default("D") // A, B, C, D, F
+  signals    Json     @default("{}") // { engagement: 30, fit: 25, recency: 20, activity: 15 }
+  scoredAt   DateTime @default(now()) @map("scored_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([score(sort: Desc)])
+  @@map("lead_scores")
+}
+
+model LeadScoreRule {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id") @db.Uuid
+  signal     String   // engagement, fit, recency, activity, custom
+  condition  String   // has_email, has_phone, deal_value_gt, days_since_activity_lt, tag_is, source_is
+  value      String   // threshold or match value
+  points     Int      // points to add (can be negative)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, isActive])
+  @@map("lead_score_rules")
+}
+
 model Contact {
   id         String   @id @default(cuid())
   userId     String?  @map("user_id") @db.Uuid // Owner of this contact
@@ -133,6 +242,13 @@ model Contact {
   lastContactedAt DateTime? @map("last_contacted_at") // Denormalized: last Activity date for this contact
   lastVerifiedAt  DateTime? @map("last_verified_at")  // When contact info was last confirmed/enriched
 
+  // Company association
+  companyId  String?  @map("company_id")
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  // Lead scoring
+  leadScore  LeadScore?
+
   // Relations
   properties    Property[]
   deals         Deal[]
@@ -148,6 +264,7 @@ model Contact {
   @@index([campaignChannel])
   @@index([source])
   @@index([userId, lastContactedAt])
+  @@index([companyId])
 }
 
 // ============================================================================
@@ -264,7 +381,11 @@ model Deal {
   title             String
   stage             String    @default("new_lead") // new_lead, qualified, showing, offer, negotiation, closed
   value             Float?
+  probability       Int?      // 0-100, win probability percentage
+  weightedValue     Float?    @map("weighted_value") // value * (probability / 100)
   expectedCloseDate DateTime?
+  closedAt          DateTime? @map("closed_at")
+  lostReason        String?   @map("lost_reason")
   notes             String?
   isFavorite        Boolean   @default(false)
   createdAt         DateTime  @default(now())
@@ -275,12 +396,15 @@ model Deal {
   contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
   propertyId String?
   property   Property?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  companyId  String?    @map("company_id")
+  company    Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
   tasks              Task[]
   activities         Activity[]
   documents          Document[]
   docuSignEnvelopes  DocuSignEnvelope[]
 
   @@index([teamId])
+  @@index([companyId])
 }
 
 model Task {

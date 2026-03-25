@@ -62,6 +62,58 @@ const LEAD_DELETE: ActionUIDef = {
   resultRenderer: "CRMResult",
 };
 
+const LEAD_SCORE: ActionUIDef = {
+  actionType: "lead.score",
+  label: "Scoring Leads",
+  icon: "TrendingUp",
+  steps: [
+    { id: "gather", label: "Gathering contact data", detail: "Loading activity, deals, and engagement data for each contact...", estimatedDuration: 800 },
+    { id: "compute", label: "Computing scores", detail: "Evaluating engagement, fit, recency, and activity signals...", estimatedDuration: 1200 },
+    { id: "rank", label: "Ranking results", detail: "Sorting contacts by score and assigning grades...", estimatedDuration: 600 },
+    { id: "save", label: "Saving scores", detail: "Updating lead scores in the database...", estimatedDuration: 500 },
+  ],
+  resultRenderer: "LeadScoreResult",
+};
+
+const COMPANY_CREATE: ActionUIDef = {
+  actionType: "company.create",
+  label: "Creating Company",
+  icon: "Building2",
+  steps: [
+    { id: "parse", label: "Parsing input", detail: "Extracting company name, domain, industry, and details...", estimatedDuration: 600 },
+    { id: "dedup", label: "Checking for duplicates", detail: "Scanning your companies for existing records with matching name or domain...", estimatedDuration: 800 },
+    { id: "create", label: "Creating record", detail: "Adding the new company to your CRM...", estimatedDuration: 700 },
+    { id: "log", label: "Logging activity", detail: "Recording this creation in the audit trail...", estimatedDuration: 400 },
+  ],
+  resultRenderer: "CRMResult",
+};
+
+const COMPANY_UPDATE: ActionUIDef = {
+  actionType: "company.update",
+  label: "Updating Company",
+  icon: "Building2",
+  steps: [
+    { id: "locate", label: "Locating company", detail: "Finding the right company in your database...", estimatedDuration: 600 },
+    { id: "validate", label: "Validating changes", detail: "Checking that the updates are consistent...", estimatedDuration: 500 },
+    { id: "update", label: "Updating record", detail: "Applying changes to the company record...", estimatedDuration: 700 },
+    { id: "log", label: "Logging activity", detail: "Recording the update in the audit trail...", estimatedDuration: 400 },
+  ],
+  resultRenderer: "CRMResult",
+};
+
+const COMPANY_DELETE: ActionUIDef = {
+  actionType: "company.delete",
+  label: "Deleting Company",
+  icon: "Building2",
+  steps: [
+    { id: "locate", label: "Locating company", detail: "Finding the company record to remove...", estimatedDuration: 600 },
+    { id: "unlink", label: "Unlinking records", detail: "Detaching contacts and deals from this company...", estimatedDuration: 800 },
+    { id: "delete", label: "Deleting record", detail: "Removing the company from your CRM...", estimatedDuration: 700 },
+    { id: "log", label: "Logging activity", detail: "Recording the deletion in the audit trail...", estimatedDuration: 400 },
+  ],
+  resultRenderer: "CRMResult",
+};
+
 const CRM_SEARCH: ActionUIDef = {
   actionType: "crm.search",
   label: "Searching CRM",
@@ -670,6 +722,8 @@ const DEAL_ADD_MILESTONES: ActionUIDef = {
 const ALL_ACTIONS: ActionUIDef[] = [
   // CRM
   LEAD_CREATE, LEAD_UPDATE, LEAD_DELETE, LEAD_DELETE_ALL,
+  COMPANY_CREATE, COMPANY_UPDATE, COMPANY_DELETE,
+  LEAD_SCORE,
   CRM_SEARCH,
   DEAL_CREATE, DEAL_UPDATE, DEAL_MOVE_STAGE, DEAL_DELETE, DEAL_DELETE_ALL, DEAL_ADD_MILESTONES,
   TASK_CREATE, TASK_COMPLETE, TASK_DELETE, TASK_DELETE_ALL,

@@ -356,7 +356,7 @@ export const NoteDeleteActionSchema = BaseActionSchema.extend({
 // ============================================================================
 
 export const CrmSearchPayloadSchema = z.object({
-  entity: z.enum(["contact", "deal", "task", "property", "referral"]),
+  entity: z.enum(["contact", "deal", "task", "property", "referral", "company"]),
   query: z.string(),
   filters: z
     .object({
@@ -379,6 +379,108 @@ export const CrmSearchActionSchema = BaseActionSchema.extend({
   type: z.literal("crm.search"),
   payload: CrmSearchPayloadSchema,
   expected_outcome: CrmSearchExpectedOutcomeSchema,
+});
+
+// ============================================================================
+// Lead Scoring Actions
+// ============================================================================
+
+export const LeadScorePayloadSchema = z.object({
+  contact_id: z.string().optional(), // Score a specific contact; omit to score all
+});
+
+export const LeadScoreExpectedOutcomeSchema = z.object({
+  scored: z.boolean(),
+});
+
+export const LeadScoreActionSchema = BaseActionSchema.extend({
+  type: z.literal("lead.score"),
+  payload: LeadScorePayloadSchema,
+  expected_outcome: LeadScoreExpectedOutcomeSchema,
+});
+
+// ============================================================================
+// Company Actions
+// ============================================================================
+
+export const CompanyCreatePayloadSchema = z.object({
+  name: z.string().min(1),
+  domain: z.string().optional(),
+  industry: z.string().optional(),
+  size: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+  website: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip_code: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const CompanyCreateExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("company"),
+  name: z.string(),
+  created: z.literal(true),
+});
+
+export const CompanyCreateActionSchema = BaseActionSchema.extend({
+  type: z.literal("company.create"),
+  payload: CompanyCreatePayloadSchema,
+  expected_outcome: CompanyCreateExpectedOutcomeSchema,
+});
+
+export const CompanyUpdatePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+  patch: z.object({
+    name: z.string().optional(),
+    domain: z.string().optional(),
+    industry: z.string().optional(),
+    size: z.string().optional(),
+    phone: z.string().optional(),
+    email: z.string().email().optional(),
+    website: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zip_code: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+}).refine(
+  (data) => data.id || data.name,
+  { message: "Either id or name must be provided" }
+);
+
+export const CompanyUpdateExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("company"),
+  entity_id: z.string().optional(),
+  updated_fields: z.array(z.string()),
+});
+
+export const CompanyUpdateActionSchema = BaseActionSchema.extend({
+  type: z.literal("company.update"),
+  payload: CompanyUpdatePayloadSchema,
+  expected_outcome: CompanyUpdateExpectedOutcomeSchema,
+});
+
+export const CompanyDeletePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine(
+  (data) => data.id || data.name,
+  { message: "Either id or name must be provided" }
+);
+
+export const CompanyDeleteExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("company"),
+  deleted: z.literal(true),
+});
+
+export const CompanyDeleteActionSchema = BaseActionSchema.extend({
+  type: z.literal("company.delete"),
+  payload: CompanyDeletePayloadSchema,
+  expected_outcome: CompanyDeleteExpectedOutcomeSchema,
 });
 
 // ============================================================================
@@ -1088,6 +1190,10 @@ export const ActionSchema = z.discriminatedUnion("type", [
   TaskDeleteAllActionSchema,
   NoteAppendActionSchema,
   NoteDeleteActionSchema,
+  LeadScoreActionSchema,
+  CompanyCreateActionSchema,
+  CompanyUpdateActionSchema,
+  CompanyDeleteActionSchema,
   CrmSearchActionSchema,
   EmailSendActionSchema,
   SmsSendActionSchema,

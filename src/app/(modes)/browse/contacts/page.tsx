@@ -14,6 +14,7 @@ async function getContacts(userId: string) {
     include: {
       deals: { take: 1 },
       properties: { take: 1, select: { id: true, city: true, state: true } },
+      leadScore: { select: { score: true, grade: true } },
       _count: {
         select: {
           activities: true,

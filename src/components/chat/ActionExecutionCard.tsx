@@ -8,6 +8,7 @@ import {
   Zap, PauseCircle, PlayCircle, Rocket, Eye, Bell, Globe,
   MinusCircle, Image, PenTool, Users, Upload, BookmarkPlus,
   FileSignature, FileSearch, Workflow, List, Flag, XCircle, RotateCcw,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
@@ -34,7 +35,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Send, MessageSquare, Megaphone, BarChart3, TrendingUp, Sparkles,
   Zap, PauseCircle, PlayCircle, Rocket, Eye, Bell, Globe,
   MinusCircle, Image, PenTool, Users, Upload, BookmarkPlus,
-  FileSignature, FileSearch, Workflow, List, Flag,
+  FileSignature, FileSearch, Workflow, List, Flag, Building2,
 };
 
 const RESULT_RENDERERS: Record<string, React.ComponentType<{ result: unknown }>> = {
