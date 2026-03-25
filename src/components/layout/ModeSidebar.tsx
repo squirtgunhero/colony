@@ -40,6 +40,7 @@ export function ModeSidebar() {
     { href: "/browse/contacts", label: "People" },
     { href: "/browse/deals", label: "Deals" },
     { href: "/browse/properties", label: "Properties" },
+    { href: "/browse/listing-alerts", label: "Alerts" },
     { href: "/browse/tasks", label: "Tasks" },
     { href: "/browse/dialer", label: "Dialer" },
     { href: "/browse/ai-engage", label: "AI Engage" },

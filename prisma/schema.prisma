@@ -262,6 +262,7 @@ model Contact {
   calls               Call[]
   aiEngagements       AIEngagement[]
   textCampaignRecipients TextCampaignRecipient[]
+  listingAlerts          ListingAlert[]
 
   @@index([teamId])
   @@index([campaignChannel])
@@ -374,6 +375,40 @@ model Property {
   documents  Document[]
 
   @@index([teamId])
+}
+
+// Listing Alerts — notify contacts when properties match their criteria
+model ListingAlert {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id") @db.Uuid
+  contactId    String    @map("contact_id")
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  name         String    // e.g. "3BR homes in Montville under 500k"
+  isActive     Boolean   @default(true) @map("is_active")
+  channel      String    @default("email") // email, sms, both
+  frequency    String    @default("instant") // instant, daily, weekly
+  // Filter criteria
+  cities       String[]  @default([])
+  states       String[]  @default([])
+  zipCodes     String[]  @default([]) @map("zip_codes")
+  minPrice     Float?    @map("min_price")
+  maxPrice     Float?    @map("max_price")
+  minBedrooms  Int?      @map("min_bedrooms")
+  maxBedrooms  Int?      @map("max_bedrooms")
+  minBathrooms Float?    @map("min_bathrooms")
+  minSqft      Float?    @map("min_sqft")
+  maxSqft      Float?    @map("max_sqft")
+  statuses     String[]  @default(["listed"]) // which property statuses to match
+  // Tracking
+  lastSentAt   DateTime? @map("last_sent_at")
+  matchCount   Int       @default(0) @map("match_count")
+  sentCount    Int       @default(0) @map("sent_count")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, isActive])
+  @@index([contactId])
+  @@map("listing_alerts")
 }
 
 model Deal {
