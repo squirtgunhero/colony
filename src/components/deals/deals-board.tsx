@@ -154,7 +154,7 @@ export function DealsBoard({ deals, contacts, properties }: DealsBoardProps) {
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between">
                               <Link 
-                                href={`/deals/${deal.id}`}
+                                href={`/browse/deals/${deal.id}`}
                                 className="font-medium text-sm line-clamp-1 hover:text-primary transition-colors flex-1"
                               >
                                 {deal.title}

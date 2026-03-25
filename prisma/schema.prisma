@@ -392,6 +392,21 @@ model Deal {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  // Transaction fields (activated when deal reaches offer/contract stage)
+  transactionSide    String?   @map("transaction_side") // buyer, seller, both, referral
+  commissionPercent  Float?    @map("commission_percent")
+  commissionAmount   Float?    @map("commission_amount")
+  commissionSplit    Float?    @map("commission_split") // agent's split percentage (e.g. 70 = 70%)
+  contractDate       DateTime? @map("contract_date")
+  inspectionDate     DateTime? @map("inspection_date")
+  appraisalDate      DateTime? @map("appraisal_date")
+  closingDate        DateTime? @map("closing_date")
+  earnestMoney       Float?    @map("earnest_money")
+  escrowCompany      String?   @map("escrow_company")
+  titleCompany       String?   @map("title_company")
+  lenderName         String?   @map("lender_name")
+  loanAmount         Float?    @map("loan_amount")
+
   // Relations
   contactId  String?
   contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
@@ -403,9 +418,26 @@ model Deal {
   activities         Activity[]
   documents          Document[]
   docuSignEnvelopes  DocuSignEnvelope[]
+  closingTasks       ClosingTask[]
 
   @@index([teamId])
   @@index([companyId])
+}
+
+model ClosingTask {
+  id          String    @id @default(cuid())
+  dealId      String    @map("deal_id")
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  title       String
+  category    String    @default("general") // contract, inspection, appraisal, title, financing, closing, general
+  dueDate     DateTime? @map("due_date")
+  isCompleted Boolean   @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@index([dealId, isCompleted, position])
+  @@map("closing_tasks")
 }
 
 model Task {

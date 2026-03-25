@@ -63,8 +63,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         const { Device } = await import("@twilio/voice-sdk");
         const device = new Device(token, {
           closeProtection: true,
-          enableImplicitPermissions: true,
-        });
+        } as Record<string, unknown>);
 
         device.on("registered", () => {
           if (mounted) setIsReady(true);

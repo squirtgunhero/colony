@@ -168,7 +168,7 @@ export function DealsListView({ deals }: DealsListViewProps) {
           filteredDeals.map((deal) => (
             <Link
               key={deal.id}
-              href={`/deals/${deal.id}`}
+              href={`/browse/deals/${deal.id}`}
               className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200 group"
               style={{
                 backgroundColor: theme.bgGlow,

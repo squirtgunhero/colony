@@ -38,13 +38,14 @@ export function outboundCallTwiml(
   const VoiceResponse = Twilio.twiml.VoiceResponse;
   const response = new VoiceResponse();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dial = response.dial({
     callerId: phoneNumber,
     answerOnBridge: true,
     statusCallback: statusCallbackUrl,
     statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
     statusCallbackMethod: "POST",
-  });
+  } as any);
 
   dial.number(toNumber);
   return response.toString();
