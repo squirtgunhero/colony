@@ -41,6 +41,7 @@ export function ModeSidebar() {
     { href: "/browse/deals", label: "Deals" },
     { href: "/browse/properties", label: "Properties" },
     { href: "/browse/tasks", label: "Tasks" },
+    { href: "/browse/dialer", label: "Dialer" },
     { href: "/marketing", label: "Marketing" },
     { href: "/calendar", label: "Calendar" },
     { href: "/inbox", label: "Inbox", badge: inboxUnread },

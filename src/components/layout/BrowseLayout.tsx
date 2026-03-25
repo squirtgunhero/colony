@@ -9,6 +9,8 @@ import { CRMContextProvider } from "@/lib/context/CRMContext";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
 import { FloatingActionButton } from "@/components/quick-capture/FloatingActionButton";
+import { DialerProvider } from "@/components/dialer/DialerProvider";
+import { DialerPanel } from "@/components/dialer/DialerPanel";
 
 interface BrowseLayoutProps {
   children: React.ReactNode;
@@ -25,6 +27,7 @@ export function BrowseLayout({ children }: BrowseLayoutProps) {
 
   return (
     <CRMContextProvider>
+      <DialerProvider>
       <div
         className="min-h-screen transition-colors duration-500"
         style={{ backgroundColor: theme.bg, color: theme.text }}
@@ -39,6 +42,7 @@ export function BrowseLayout({ children }: BrowseLayoutProps) {
           </main>
         </div>
         <FloatingActionButton />
+        <DialerPanel />
         <Toaster
           position="bottom-right"
           toastOptions={{
@@ -48,6 +52,7 @@ export function BrowseLayout({ children }: BrowseLayoutProps) {
           }}
         />
       </div>
+      </DialerProvider>
     </CRMContextProvider>
   );
 }

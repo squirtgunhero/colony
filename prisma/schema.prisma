@@ -259,6 +259,7 @@ model Contact {
   savedSearches SavedSearch[]
   attributions        LeadAttribution[]
   campaignRecipients  EmailCampaignRecipient[]
+  calls               Call[]
 
   @@index([teamId])
   @@index([campaignChannel])
@@ -1657,4 +1658,85 @@ model DocuSignEnvelope {
   @@index([dealId])
   @@index([status])
   @@map("docusign_envelopes")
+}
+
+// ============================================================================
+// POWER DIALER - Browser-based calling with Twilio Voice SDK
+// ============================================================================
+
+model Call {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id") @db.Uuid
+  contactId     String?   @map("contact_id")
+  contact       Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  callListId    String?   @map("call_list_id")
+  callList      CallList? @relation(fields: [callListId], references: [id], onDelete: SetNull)
+  direction     String    @default("outbound")
+  status        String    @default("initiated")
+  outcome       String?
+  fromNumber    String    @map("from_number")
+  toNumber      String    @map("to_number")
+  twilioCallSid String?   @unique @map("twilio_call_sid")
+  duration      Int?
+  recordingUrl  String?   @map("recording_url")
+  notes         String?
+  startedAt     DateTime  @default(now()) @map("started_at")
+  answeredAt    DateTime? @map("answered_at")
+  endedAt       DateTime? @map("ended_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([contactId])
+  @@index([callListId])
+  @@index([twilioCallSid])
+  @@map("calls")
+}
+
+model CallList {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id") @db.Uuid
+  name        String
+  description String?
+  filterJson  Json?    @map("filter_json")
+  status      String   @default("active")
+  sortOrder   String   @default("lead_score_desc") @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  entries CallListEntry[]
+  calls   Call[]
+
+  @@index([userId, status])
+  @@map("call_lists")
+}
+
+model CallListEntry {
+  id         String    @id @default(cuid())
+  callListId String    @map("call_list_id")
+  callList   CallList  @relation(fields: [callListId], references: [id], onDelete: Cascade)
+  contactId  String    @map("contact_id")
+  position   Int       @default(0)
+  status     String    @default("pending")
+  calledAt   DateTime? @map("called_at")
+  outcome    String?
+  notes      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@unique([callListId, contactId])
+  @@index([callListId, status, position])
+  @@map("call_list_entries")
+}
+
+model VoicemailDrop {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id") @db.Uuid
+  name         String
+  recordingUrl String   @map("recording_url")
+  duration     Int?
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("voicemail_drops")
 }
