@@ -33,7 +33,7 @@ export function AnalyzeLayout({ children }: AnalyzeLayoutProps) {
       >
         <ModeSidebar />
         <ViewToggle />
-        <div className="md:pl-48 min-h-screen flex flex-col" suppressHydrationWarning>
+        <div className="md:pl-[208px] min-h-screen flex flex-col" suppressHydrationWarning>
           <TopNav />
           <main className="flex-1" suppressHydrationWarning>
             {children}

@@ -1839,6 +1839,16 @@ model Call {
   endedAt       DateTime? @map("ended_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
+  // Voice AI fields
+  isVoiceAI        Boolean   @default(false) @map("is_voice_ai")
+  aiObjective      String?   @map("ai_objective")       // qualify, appointment, followup
+  aiTranscript     String?   @map("ai_transcript")      // JSON array of {role, text, ts}
+  aiSummary        String?   @map("ai_summary")
+  appointmentSet   Boolean   @default(false) @map("appointment_set")
+  appointmentDate  DateTime? @map("appointment_date")
+  leadQualified    Boolean?  @map("lead_qualified")
+  amdResult        String?   @map("amd_result")         // human, machine_start, machine_end, fax, unknown
+
   @@index([userId, createdAt(sort: Desc)])
   @@index([contactId])
   @@index([callListId])

@@ -17,6 +17,9 @@ import {
   BedDouble,
   Search,
 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { ActionButton } from "@/components/ui/action-button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Alert {
   id: string;
@@ -143,31 +146,19 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1
-            className="text-[22px] font-semibold"
-            style={{ fontFamily: "'Spectral', serif", color: theme.text }}
-          >
-            Listing Alerts
-          </h1>
-          <p className="text-[13px] mt-0.5" style={{ color: withAlpha(theme.text, 0.4) }}>
-            Automatically notify contacts when properties match their criteria
-            {totalListed > 0 && (
-              <span> · {totalListed} active listing{totalListed !== 1 ? "s" : ""}</span>
-            )}
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-[13px] font-medium transition-colors"
-          style={{ backgroundColor: theme.accent, color: theme.bg }}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New Alert
-        </button>
-      </div>
+      <PageHeader
+        title="Listing Alerts"
+        subtitle={`Automatically notify contacts when properties match their criteria${totalListed > 0 ? ` \u00b7 ${totalListed} active listing${totalListed !== 1 ? "s" : ""}` : ""}`}
+        icon={Bell}
+        actions={
+          <ActionButton
+            label={showCreate ? "Cancel" : "New Alert"}
+            icon={Plus}
+            variant={showCreate ? "secondary" : "primary"}
+            onClick={() => setShowCreate(!showCreate)}
+          />
+        }
+      />
 
       {/* Create form */}
       {showCreate && (

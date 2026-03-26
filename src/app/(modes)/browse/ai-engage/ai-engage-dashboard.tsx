@@ -14,8 +14,12 @@ import {
   Pause,
   Play,
   Eye,
-  MoreHorizontal,
+  BotMessageSquare,
 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ActionButton } from "@/components/ui/action-button";
 
 interface Engagement {
   id: string;
@@ -113,55 +117,26 @@ export function AIEngageDashboard({ engagements, stats }: Props) {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1
-            className="text-[22px] font-semibold"
-            style={{ fontFamily: "'Spectral', serif", color: theme.text }}
-          >
-            AI Lead Engagement
-          </h1>
-          <p className="text-[13px] mt-0.5" style={{ color: withAlpha(theme.text, 0.4) }}>
-            Tara autonomously nurtures and qualifies your leads 24/7
-          </p>
-        </div>
-        <Link
-          href="/browse/contacts"
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-[13px] font-medium transition-colors"
-          style={{ backgroundColor: theme.accent, color: theme.bg }}
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Engage Leads
-        </Link>
-      </div>
+      <PageHeader
+        title="AI Lead Engagement"
+        subtitle="Tara autonomously nurtures and qualifies your leads 24/7"
+        icon={BotMessageSquare}
+        actions={
+          <ActionButton
+            label="Engage Leads"
+            icon={Sparkles}
+            onClick={() => window.location.href = "/browse/contacts"}
+          />
+        }
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {[
-          { label: "Active", value: stats.active, icon: Zap, color: "#22c55e" },
-          { label: "Qualified", value: stats.qualified, icon: UserCheck, color: "#3b82f6" },
-          { label: "Converted", value: stats.converted, icon: TrendingUp, color: "#8b5cf6" },
-          { label: "Unresponsive", value: stats.unresponsive, icon: UserX, color: "#6b7280" },
-          { label: "Messages Sent", value: stats.totalMessages, icon: MessageCircle, color: theme.accent },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-xl p-3.5"
-            style={{ backgroundColor: withAlpha(theme.text, 0.03), border: `1px solid ${borderColor}` }}
-          >
-            <div className="flex items-center gap-2 mb-1.5">
-              <stat.icon className="h-3.5 w-3.5" style={{ color: stat.color }} />
-              <span className="text-[10px] uppercase tracking-wider" style={{ color: withAlpha(theme.text, 0.35) }}>
-                {stat.label}
-              </span>
-            </div>
-            <p className="text-[22px] font-semibold" style={{ color: theme.text }}>
-              {stat.value}
-            </p>
-          </div>
-        ))}
-      </div>
+      <StatGrid columns={4}>
+        <StatCard label="Active" value={stats.active} icon={Zap} color="#22c55e" />
+        <StatCard label="Qualified" value={stats.qualified} icon={UserCheck} color="#3b82f6" />
+        <StatCard label="Converted" value={stats.converted} icon={TrendingUp} color="#8b5cf6" />
+        <StatCard label="Messages Sent" value={stats.totalMessages} icon={MessageCircle} />
+      </StatGrid>
 
       {/* Filter tabs */}
       <div className="flex gap-1" style={{ borderBottom: `1px solid ${borderColor}` }}>
@@ -184,18 +159,21 @@ export function AIEngageDashboard({ engagements, stats }: Props) {
 
       {/* Engagement list */}
       {filtered.length === 0 ? (
-        <div
-          className="rounded-xl p-10 text-center"
-          style={{ backgroundColor: withAlpha(theme.text, 0.02), border: `1px solid ${borderColor}` }}
-        >
-          <Sparkles className="h-8 w-8 mx-auto mb-3" style={{ color: withAlpha(theme.text, 0.2) }} />
-          <p className="text-[14px] font-medium mb-1" style={{ color: theme.text }}>
-            {filter === "all" ? "No AI engagements yet" : `No ${filter} engagements`}
-          </p>
-          <p className="text-[12px]" style={{ color: withAlpha(theme.text, 0.4) }}>
-            Start by selecting leads from your People page and enabling AI engagement
-          </p>
-        </div>
+        <EmptyState
+          icon={Sparkles}
+          title={filter === "all" ? "No AI engagements yet" : `No ${filter} engagements`}
+          description="Start by selecting leads from your People page and enabling AI engagement."
+          action={
+            filter === "all" ? (
+              <ActionButton
+                label="Engage Leads"
+                icon={Sparkles}
+                variant="secondary"
+                onClick={() => window.location.href = "/browse/contacts"}
+              />
+            ) : undefined
+          }
+        />
       ) : (
         <div className="space-y-2">
           {filtered.map((eng) => {

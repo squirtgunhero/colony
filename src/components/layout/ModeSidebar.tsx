@@ -8,10 +8,28 @@ import { UserMenu } from "@/components/auth/user-menu";
 import { TeamSwitcher } from "@/components/team";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
+import {
+  Home,
+  Users,
+  Handshake,
+  Building2,
+  Bell,
+  CheckSquare,
+  Phone,
+  BotMessageSquare,
+  MessageSquareText,
+  Megaphone,
+  CalendarDays,
+  Inbox,
+  BarChart3,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 
 interface NavItem {
   href: string;
   label: string;
+  icon: LucideIcon;
   badge?: number;
 }
 
@@ -36,19 +54,19 @@ export function ModeSidebar() {
   }, []);
 
   const navItems: NavItem[] = [
-    { href: "/dashboard", label: "Home" },
-    { href: "/browse/contacts", label: "People" },
-    { href: "/browse/deals", label: "Deals" },
-    { href: "/browse/properties", label: "Properties" },
-    { href: "/browse/listing-alerts", label: "Alerts" },
-    { href: "/browse/tasks", label: "Tasks" },
-    { href: "/browse/dialer", label: "Dialer" },
-    { href: "/browse/ai-engage", label: "AI Engage" },
-    { href: "/browse/text-campaigns", label: "Texts" },
-    { href: "/marketing", label: "Marketing" },
-    { href: "/calendar", label: "Calendar" },
-    { href: "/inbox", label: "Inbox", badge: inboxUnread },
-    { href: "/reports", label: "Reports" },
+    { href: "/dashboard", label: "Home", icon: Home },
+    { href: "/browse/contacts", label: "People", icon: Users },
+    { href: "/browse/deals", label: "Deals", icon: Handshake },
+    { href: "/browse/properties", label: "Properties", icon: Building2 },
+    { href: "/browse/listing-alerts", label: "Alerts", icon: Bell },
+    { href: "/browse/tasks", label: "Tasks", icon: CheckSquare },
+    { href: "/browse/dialer", label: "Dialer", icon: Phone },
+    { href: "/browse/ai-engage", label: "AI Engage", icon: BotMessageSquare },
+    { href: "/browse/text-campaigns", label: "Texts", icon: MessageSquareText },
+    { href: "/marketing", label: "Marketing", icon: Megaphone },
+    { href: "/calendar", label: "Calendar", icon: CalendarDays },
+    { href: "/inbox", label: "Inbox", icon: Inbox, badge: inboxUnread },
+    { href: "/reports", label: "Reports", icon: BarChart3 },
   ];
 
   const isActive = (href: string) => {
@@ -65,12 +83,14 @@ export function ModeSidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 z-50 hidden md:flex h-screen w-48 flex-col"
+      className="fixed left-0 top-0 z-50 hidden md:flex h-screen w-[208px] flex-col"
       style={{
         backgroundColor: theme.sidebarBg,
         borderRight: `1px solid ${borderColor}`,
         fontFamily: "var(--font-dm-sans), sans-serif",
       }}
+      role="navigation"
+      aria-label="Main navigation"
       suppressHydrationWarning
     >
       {/* Logo */}
@@ -79,6 +99,7 @@ export function ModeSidebar() {
         className="flex h-13 items-center gap-2.5 px-4 transition-opacity hover:opacity-80"
         style={{ borderBottom: `1px solid ${borderColor}` }}
         title="Return to Tara"
+        aria-label="Colony — Return to Tara"
       >
         <div className="flex h-7 w-7 shrink-0 items-center justify-center">
           <Image
@@ -104,18 +125,23 @@ export function ModeSidebar() {
         </div>
       )}
 
-      {/* Navigation — one flat list */}
-      <nav className="flex flex-col px-2.5 pt-3 gap-0.5" suppressHydrationWarning>
+      {/* Navigation */}
+      <nav
+        className="flex-1 flex flex-col px-2.5 pt-3 gap-0.5 overflow-y-auto scrollbar-none"
+        suppressHydrationWarning
+      >
         {navItems.map((item) => {
           const active = isActive(item.href);
+          const IconComponent = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="group flex items-center rounded-md h-9 px-3 relative transition-all duration-150"
+              className="group flex items-center gap-2.5 rounded-lg h-9 px-3 relative transition-all duration-150"
               style={{
                 backgroundColor: active ? withAlpha(theme.accent, 0.08) : "transparent",
               }}
+              aria-current={active ? "page" : undefined}
               suppressHydrationWarning
             >
               {active && (
@@ -124,10 +150,17 @@ export function ModeSidebar() {
                   style={{ backgroundColor: theme.accent }}
                 />
               )}
-              <span
-                className="text-[14px] tracking-[-0.01em] transition-colors duration-150"
+              <IconComponent
+                className="h-[16px] w-[16px] shrink-0 transition-colors duration-150"
                 style={{
-                  color: active ? theme.text : withAlpha(theme.text, 0.5),
+                  color: active ? theme.accent : withAlpha(theme.text, 0.35),
+                  strokeWidth: active ? 2.2 : 1.8,
+                }}
+              />
+              <span
+                className="text-[13px] tracking-[-0.01em] transition-colors duration-150"
+                style={{
+                  color: active ? theme.text : withAlpha(theme.text, 0.55),
                   fontWeight: active ? 600 : 450,
                 }}
               >
@@ -137,6 +170,7 @@ export function ModeSidebar() {
                 <span
                   className="ml-auto flex items-center justify-center h-[18px] min-w-[18px] px-1 rounded-full text-[10px] font-bold"
                   style={{ backgroundColor: withAlpha(theme.accent, 0.2), color: theme.accent }}
+                  aria-label={`${item.badge} unread`}
                 >
                   {item.badge > 99 ? "99+" : item.badge}
                 </span>
@@ -145,9 +179,6 @@ export function ModeSidebar() {
           );
         })}
       </nav>
-
-      {/* Spacer */}
-      <div className="flex-1" />
 
       {/* Bottom: Settings + Tara + User */}
       <div
@@ -160,10 +191,11 @@ export function ModeSidebar() {
           return (
             <Link
               href="/settings"
-              className="flex items-center rounded-md h-9 px-3 relative transition-all duration-150"
+              className="flex items-center gap-2.5 rounded-lg h-9 px-3 relative transition-all duration-150"
               style={{
                 backgroundColor: settingsActive ? withAlpha(theme.accent, 0.08) : "transparent",
               }}
+              aria-current={settingsActive ? "page" : undefined}
             >
               {settingsActive && (
                 <div
@@ -171,10 +203,17 @@ export function ModeSidebar() {
                   style={{ backgroundColor: theme.accent }}
                 />
               )}
-              <span
-                className="text-[14px] tracking-[-0.01em]"
+              <Settings
+                className="h-[16px] w-[16px] shrink-0 transition-colors duration-150"
                 style={{
-                  color: settingsActive ? theme.text : withAlpha(theme.text, 0.5),
+                  color: settingsActive ? theme.accent : withAlpha(theme.text, 0.35),
+                  strokeWidth: settingsActive ? 2.2 : 1.8,
+                }}
+              />
+              <span
+                className="text-[13px] tracking-[-0.01em]"
+                style={{
+                  color: settingsActive ? theme.text : withAlpha(theme.text, 0.55),
                   fontWeight: settingsActive ? 600 : 450,
                 }}
               >
@@ -200,6 +239,7 @@ export function ModeSidebar() {
               border: `1px solid ${taraActive ? withAlpha(theme.accent, 0.3) : withAlpha(theme.text, 0.08)}`,
             }}
             title="Talk to Tara"
+            aria-label="Open Tara AI assistant"
           >
             <span
               className="text-[13px] font-medium tracking-wide"

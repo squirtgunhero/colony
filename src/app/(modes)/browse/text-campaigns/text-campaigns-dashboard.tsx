@@ -6,6 +6,7 @@ import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import {
   MessageSquare,
+  MessageSquareText,
   Plus,
   Send,
   Clock,
@@ -17,6 +18,9 @@ import {
   Users,
   Search,
 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { ActionButton } from "@/components/ui/action-button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Campaign {
   id: string;
@@ -135,28 +139,19 @@ export function TextCampaignsDashboard({ campaigns, contacts }: Props) {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1
-            className="text-[22px] font-semibold"
-            style={{ fontFamily: "'Spectral', serif", color: theme.text }}
-          >
-            Text Campaigns
-          </h1>
-          <p className="text-[13px] mt-0.5" style={{ color: withAlpha(theme.text, 0.4) }}>
-            Send bulk text messages to your contacts
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg text-[13px] font-medium transition-colors"
-          style={{ backgroundColor: theme.accent, color: theme.bg }}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New Campaign
-        </button>
-      </div>
+      <PageHeader
+        title="Text Campaigns"
+        subtitle="Send bulk text messages to your contacts"
+        icon={MessageSquareText}
+        actions={
+          <ActionButton
+            label={showCreate ? "Cancel" : "New Campaign"}
+            icon={Plus}
+            variant={showCreate ? "secondary" : "primary"}
+            onClick={() => setShowCreate(!showCreate)}
+          />
+        }
+      />
 
       {/* Create form */}
       {showCreate && (

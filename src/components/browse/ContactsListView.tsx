@@ -2,13 +2,16 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Search, User, Mail, Phone, MapPin, MoreHorizontal, Trash2 } from "lucide-react";
+import { Search, User, Users, Mail, Phone, MapPin, MoreHorizontal, Trash2, Plus } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import { formatDate } from "@/lib/date-utils";
 import { deleteContact } from "@/app/(dashboard)/contacts/actions";
 import { LeadScoreBadge } from "@/components/contacts/LeadScoreBadge";
 import { DuplicatesPanel } from "@/components/contacts/DuplicatesPanel";
+import { PageHeader } from "@/components/ui/page-header";
+import { ActionButton } from "@/components/ui/action-button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Contact {
   id: string;
@@ -73,34 +76,18 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1
-            className="text-[28px] leading-tight font-semibold tracking-[-0.01em]"
-            style={{ color: theme.text, fontFamily: "'Spectral', serif" }}
-          >
-            Contacts
-          </h1>
-          <p
-            className="text-sm mt-1"
-            style={{ color: theme.textMuted, fontFamily: "'DM Sans', sans-serif" }}
-          >
-            {filteredContacts.length} contact{filteredContacts.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Link
-          href="/browse/contacts/new"
-          className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200"
-          style={{
-            backgroundColor: theme.accent,
-            color: theme.bg,
-            boxShadow: neumorphicRaised,
-          }}
-        >
-          Add Contact
-        </Link>
-      </div>
+      <PageHeader
+        title="People"
+        subtitle={`${filteredContacts.length} contact${filteredContacts.length !== 1 ? "s" : ""}`}
+        icon={Users}
+        actions={
+          <ActionButton
+            label="Add Contact"
+            icon={Plus}
+            onClick={() => window.location.href = "/browse/contacts/new"}
+          />
+        }
+      />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -113,15 +100,14 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
             placeholder="Search contacts..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-10 pl-9 pr-3 rounded-xl text-sm outline-none transition-all"
+            className="w-full h-10 pl-9 pr-3 rounded-xl text-sm outline-none transition-all focus:ring-1"
             style={{
-              backgroundColor: "rgba(255,255,255,0.03)",
-              boxShadow: neumorphicRecessed,
+              backgroundColor: withAlpha(theme.text, 0.03),
               border: `1px solid ${withAlpha(theme.text, 0.06)}`,
               color: theme.text,
               caretColor: theme.accent,
-              fontFamily: "'DM Sans', sans-serif",
             }}
+            aria-label="Search contacts"
           />
         </div>
         <div className="flex gap-2">
@@ -131,11 +117,11 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
               <button
                 key={type}
                 onClick={() => setTypeFilter(type)}
-                className="px-3 py-1.5 text-sm rounded-lg capitalize transition-all duration-200"
+                className="px-3 py-1.5 text-[12px] font-medium rounded-lg capitalize transition-all duration-150"
                 style={{
-                  backgroundColor: isActive ? withAlpha(theme.accent, 0.15) : "transparent",
-                  color: isActive ? theme.accent : theme.textMuted,
-                  boxShadow: isActive ? neumorphicRaised : "none",
+                  backgroundColor: isActive ? withAlpha(theme.accent, 0.12) : "transparent",
+                  color: isActive ? theme.accent : withAlpha(theme.text, 0.45),
+                  border: isActive ? `1px solid ${withAlpha(theme.accent, 0.2)}` : "1px solid transparent",
                 }}
               >
                 {type}

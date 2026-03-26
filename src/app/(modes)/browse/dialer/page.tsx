@@ -5,36 +5,38 @@ import { DialerDashboard } from "./dialer-dashboard";
 export default async function DialerPage() {
   const userId = await requireUserId();
 
-  const [callLists, recentCalls, todayStats] = await Promise.all([
-    prisma.callList.findMany({
-      where: { userId, status: { in: ["active", "paused"] } },
-      include: {
-        _count: { select: { entries: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 10,
-    }),
-    prisma.call.findMany({
-      where: { userId },
-      include: { contact: { select: { id: true, name: true, phone: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-    (async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const [totalCalls, connectedCalls, totalDuration] = await Promise.all([
-        prisma.call.count({ where: { userId, createdAt: { gte: today } } }),
-        prisma.call.count({ where: { userId, createdAt: { gte: today }, status: "completed", outcome: "connected" } }),
-        prisma.call.aggregate({ where: { userId, createdAt: { gte: today } }, _sum: { duration: true } }),
-      ]);
-      return {
-        totalCalls,
-        connectedCalls,
-        totalDuration: totalDuration._sum.duration || 0,
-      };
-    })(),
-  ]);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [callLists, recentCalls, totalCalls, connectedCalls, totalDuration, voiceAICalls, appointmentsSet] =
+    await Promise.all([
+      prisma.callList.findMany({
+        where: { userId, status: { in: ["active", "paused"] } },
+        include: { _count: { select: { entries: true } } },
+        orderBy: { updatedAt: "desc" },
+        take: 10,
+      }),
+      prisma.call.findMany({
+        where: { userId },
+        include: { contact: { select: { id: true, name: true, phone: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+      prisma.call.count({ where: { userId, createdAt: { gte: today } } }),
+      prisma.call.count({
+        where: { userId, createdAt: { gte: today }, status: "completed", outcome: "connected" },
+      }),
+      prisma.call.aggregate({
+        where: { userId, createdAt: { gte: today } },
+        _sum: { duration: true },
+      }),
+      prisma.call.count({
+        where: { userId, createdAt: { gte: today }, isVoiceAI: true },
+      }),
+      prisma.call.count({
+        where: { userId, createdAt: { gte: today }, appointmentSet: true },
+      }),
+    ]);
 
   const listsWithProgress = await Promise.all(
     callLists.map(async (list) => {
@@ -52,8 +54,21 @@ export default async function DialerPage() {
   return (
     <DialerDashboard
       callLists={listsWithProgress}
-      recentCalls={recentCalls.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() }))}
-      todayStats={todayStats}
+      recentCalls={recentCalls.map((c) => ({
+        ...c,
+        createdAt: c.createdAt.toISOString(),
+        isVoiceAI: c.isVoiceAI,
+        aiObjective: c.aiObjective,
+        appointmentSet: c.appointmentSet,
+        leadQualified: c.leadQualified,
+      }))}
+      todayStats={{
+        totalCalls,
+        connectedCalls,
+        totalDuration: totalDuration._sum.duration || 0,
+        voiceAICalls,
+        appointmentsSet,
+      }}
     />
   );
 }

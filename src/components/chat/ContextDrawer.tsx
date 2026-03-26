@@ -81,7 +81,7 @@ export function ContextDrawer() {
     <>
       {/* Backdrop - subtle for context drawer */}
       <div
-        className="fixed inset-0 z-40 bg-background/20 backdrop-blur-[2px] md:pl-48"
+        className="fixed inset-0 z-40 bg-background/20 backdrop-blur-[2px] md:pl-[208px]"
         onClick={closeDrawer}
         aria-hidden="true"
       />
