@@ -13,7 +13,6 @@ import {
   Users,
   Handshake,
   Building2,
-  Bell,
   CheckSquare,
   Phone,
   BotMessageSquare,
@@ -70,7 +69,6 @@ export function ModeSidebar() {
         { href: "/browse/contacts", label: "People", icon: Users },
         { href: "/browse/deals", label: "Deals", icon: Handshake },
         { href: "/browse/properties", label: "Properties", icon: Building2 },
-        { href: "/browse/listing-alerts", label: "Alerts", icon: Bell },
       ],
     },
     {
