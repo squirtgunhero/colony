@@ -68,6 +68,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("colony-theme");if(t==="light")document.documentElement.classList.add("light");else if(t==="system"){if(window.matchMedia("(prefers-color-scheme:light)").matches)document.documentElement.classList.add("light");else document.documentElement.classList.add("dark")}else document.documentElement.classList.add("dark")}catch(e){document.documentElement.classList.add("dark")}})()`,
+          }}
+        />
+      </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} ${geist.variable} ${spectral.variable} ${dmSans.variable} font-sans antialiased`}
         suppressHydrationWarning

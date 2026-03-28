@@ -1751,24 +1751,46 @@ model CalendarEvent {
 }
 
 model LandingPage {
-  id          String    @id @default(cuid())
-  userId      String    @map("user_id") @db.Uuid
-  propertyId  String?   @map("property_id")
-  name        String
-  slug        String    @unique
-  status      String    @default("draft") // draft | published | archived
-  templateId  String?   @map("template_id")
-  contentJson Json      @map("content_json")
-  views       Int       @default(0)
-  leads       Int       @default(0)
-  publishedAt DateTime? @map("published_at")
-  metadata    Json?     @default("{}")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id") @db.Uuid
+  propertyId    String?   @map("property_id")
+  name          String
+  slug          String    @unique
+  status        String    @default("draft") // draft | published | archived
+  templateId    String?   @map("template_id")
+  contentJson   Json      @map("content_json")
+  views         Int       @default(0)
+  leads         Int       @default(0)
+  publishedAt   DateTime? @map("published_at")
+  metadata      Json?     @default("{}")
+  // AI site builder fields
+  prompt        String?   @db.Text
+  htmlContent   String?   @map("html_content") @db.Text
+  siteType      String    @default("landing_page") @map("site_type") // landing_page | multi_page | property_site
+  deploymentUrl String?   @map("deployment_url")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  revisions SiteRevision[]
 
   @@index([userId, status])
   @@index([slug])
   @@map("landing_pages")
+}
+
+model SiteRevision {
+  id            String      @id @default(cuid())
+  landingPageId String      @map("landing_page_id")
+  landingPage   LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  version       Int
+  prompt        String      @db.Text
+  htmlContent   String      @map("html_content") @db.Text
+  contentJson   Json        @default("{}") @map("content_json")
+  tokensUsed    Int         @default(0) @map("tokens_used")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@index([landingPageId, version])
+  @@map("site_revisions")
 }
 
 // ============================================================================
