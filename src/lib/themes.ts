@@ -71,7 +71,7 @@ export const COLONY_DARK: ColonyTheme = buildTheme({
 
 export const COLONY_LIGHT: ColonyTheme = buildTheme({
   id: "colony-light", name: "Colony Light", isDark: false,
-  bg: "#F5F5F7", bgGlow: "#FFFFFF", accent: "#9A8568", text: "#1D1D1F",
+  bg: "#F2F1EF", bgGlow: "#FFFFFF", accent: "#8B7355", text: "#1A1A1A",
 });
 
 /** @deprecated Use COLONY_DARK instead */

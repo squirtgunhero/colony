@@ -77,64 +77,64 @@
 :root {
   --radius: 14px;
 
-  /* Surfaces — layered grays like Apple */
-  --background: #f5f5f7;          /* Apple system gray background */
-  --foreground: #1d1d1f;          /* Apple primary text */
-  --card: #ffffff;
-  --card-foreground: #1d1d1f;
-  --popover: #ffffff;
-  --popover-foreground: #1d1d1f;
+  /* Surfaces — clean white on warm gray */
+  --background: #F2F1EF;          /* Warm light gray */
+  --foreground: #1A1A1A;          /* Near-black text */
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
 
-  /* Primary — warm champagne accent */
-  --primary: #B8A080;
-  --primary-foreground: #1d1d1f;
+  /* Primary — warm gold accent */
+  --primary: #8B7355;
+  --primary-foreground: #FFFFFF;
 
-  /* Secondary — subtle gray fill */
-  --secondary: #f0f0f2;
-  --secondary-foreground: #1d1d1f;
+  /* Secondary — visible gray fill */
+  --secondary: #E8E7E4;
+  --secondary-foreground: #1A1A1A;
 
-  /* Muted — system gray */
-  --muted: #f0f0f2;
-  --muted-foreground: #86868b;    /* Apple secondary text */
+  /* Muted */
+  --muted: #E8E7E4;
+  --muted-foreground: #6B6B6F;    /* Darker secondary text */
 
   /* Accent */
-  --accent: #f5f0ea;
-  --accent-foreground: #7a6a52;
+  --accent: #EDE8E1;
+  --accent-foreground: #6B5D4A;
 
-  /* Semantic — muted, sophisticated */
-  --destructive: #b91c1c;
-  --success: #34a853;
-  --warning: #b45309;
-  --info: #4a6fa5;
+  /* Semantic — clear, readable */
+  --destructive: #D93025;
+  --success: #188038;
+  --warning: #B45309;
+  --info: #1A73E8;
 
-  /* Borders — barely there */
-  --border: rgba(0, 0, 0, 0.06);
-  --input: rgba(0, 0, 0, 0.06);
-  --ring: #B8A080;
+  /* Borders — visible but subtle */
+  --border: rgba(0, 0, 0, 0.10);
+  --input: rgba(0, 0, 0, 0.10);
+  --ring: #8B7355;
 
-  /* Shadows — soft, Apple-like depth */
-  --shadow-xs: 0 0.5px 1px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.03);
-  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04);
+  /* Shadows — slightly stronger for card definition */
+  --shadow-xs: 0 0.5px 1px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
 
   /* Chart */
-  --chart-1: #1d1d1f;
+  --chart-1: #1A1A1A;
   --chart-2: #525252;
-  --chart-3: #a1a1a1;
-  --chart-4: #c2410c;
-  --chart-5: #ea580c;
+  --chart-3: #8B8B8B;
+  --chart-4: #8B7355;
+  --chart-5: #B8956A;
 
   /* Sidebar */
-  --sidebar: #f0f0f2;
-  --sidebar-foreground: #86868b;
-  --sidebar-primary: #9A8568;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e5e5ea;
-  --sidebar-accent-foreground: #1d1d1f;
-  --sidebar-border: rgba(0, 0, 0, 0.06);
-  --sidebar-ring: #9A8568;
+  --sidebar: #EAEAE8;
+  --sidebar-foreground: #6B6B6F;
+  --sidebar-primary: #8B7355;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #DDDBD8;
+  --sidebar-accent-foreground: #1A1A1A;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-ring: #8B7355;
 }
 
 /* ============================================
@@ -279,23 +279,23 @@
 }
 
 .status-success {
-  background: rgba(52, 168, 83, 0.1);
-  color: #34a853;
+  background: rgba(24, 128, 56, 0.10);
+  color: #188038;
 }
 
 .status-warning {
-  background: rgba(180, 83, 9, 0.1);
+  background: rgba(180, 83, 9, 0.10);
   color: #b45309;
 }
 
 .status-info {
-  background: rgba(74, 111, 165, 0.1);
-  color: #4a6fa5;
+  background: rgba(26, 115, 232, 0.10);
+  color: #1A73E8;
 }
 
 .status-neutral {
-  background: rgba(134, 134, 139, 0.08);
-  color: #86868b;
+  background: rgba(107, 107, 111, 0.08);
+  color: #6B6B6F;
 }
 
 .dark .status-success {
