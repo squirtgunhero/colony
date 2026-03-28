@@ -70,7 +70,7 @@ eventBus.on(async (event) => {
   if (!BROADCAST_EVENTS.has(event.type)) return;
 
   try {
-    const { broadcastChange } = await import("@/lib/realtime/broadcast");
+    const { broadcastChange } = await import("@/lib/realtime/broadcast-server");
     await broadcastChange({
       entityType: event.entityType,
       entityId: event.entityId,
