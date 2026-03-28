@@ -149,11 +149,9 @@ export function ChatCanvas() {
       ref={scrollContainerRef}
       className="flex-1 flex flex-col overflow-y-auto pb-72 relative"
       style={{
-        background: `linear-gradient(160deg, ${theme.bg} 0%, ${theme.bgGlow} 50%, ${theme.bg} 100%)`,
-        backgroundSize: "400% 400%",
-        animation: "colonyBgShift 20s ease infinite",
+        backgroundColor: theme.bg,
         color: theme.text,
-        transition: "background 500ms ease-in-out, color 500ms ease-in-out",
+        transition: "background-color 500ms ease-in-out, color 500ms ease-in-out",
       }}
     >
       <div className={`mx-auto w-full max-w-2xl px-4 py-8 flex flex-col relative z-10 ${hasMessages ? "flex-1" : ""}`}>
