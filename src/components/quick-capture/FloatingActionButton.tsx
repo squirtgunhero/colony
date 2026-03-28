@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
@@ -12,6 +12,25 @@ export function FloatingActionButton() {
   const pathname = usePathname();
   const { theme } = useColonyTheme();
   const [open, setOpen] = useState(false);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+        // Don't trigger when typing in inputs/textareas
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+        e.preventDefault();
+        setOpen(true);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   if (HIDDEN_PATHS.includes(pathname)) return null;
 
@@ -25,7 +44,7 @@ export function FloatingActionButton() {
           color: "#fff",
           boxShadow: `0 4px 14px rgba(0,0,0,0.25), 0 0 20px ${theme.accent}33`,
         }}
-        aria-label="Quick capture"
+        aria-label="Quick capture (⌘N)"
       >
         <Plus className="h-5 w-5" strokeWidth={2.5} />
       </button>

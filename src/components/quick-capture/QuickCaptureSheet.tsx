@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { UserPlus, ListTodo, FileText, PhoneCall } from "lucide-react";
@@ -43,25 +44,27 @@ export function QuickCaptureSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh]">
-        <SheetHeader className="pb-2">
-          <SheetTitle className="text-lg">Quick Capture</SheetTitle>
-          <SheetDescription className="sr-only">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[480px] p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
+          <DialogTitle className="text-lg font-semibold">
+            Quick Capture
+          </DialogTitle>
+          <DialogDescription className="sr-only">
             Quickly add contacts, tasks, notes, or log calls
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Tab Row */}
-        <div className="flex gap-1 px-4 pb-3">
+        <div className="flex gap-1 px-6 pb-4 border-b border-border/50">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               }`}
             >
               <tab.Icon className="h-3.5 w-3.5" />
@@ -71,7 +74,7 @@ export function QuickCaptureSheet({
         </div>
 
         {/* Form Content */}
-        <div className="px-4 pb-6">
+        <div className="px-6 py-5">
           {activeTab === "contact" && (
             <ContactForm
               isPending={isPending}
@@ -101,8 +104,8 @@ export function QuickCaptureSheet({
             />
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -114,6 +117,7 @@ interface FormProps {
 
 function ContactForm({ isPending, startTransition, onSuccess }: FormProps) {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -123,11 +127,13 @@ function ContactForm({ isPending, startTransition, onSuccess }: FormProps) {
       try {
         await createContact({
           name: name.trim(),
+          email: email.trim() || undefined,
           phone: phone.trim() || undefined,
           type: "lead",
         });
         toast.success(`${name.trim()} added`);
         setName("");
+        setEmail("");
         setPhone("");
         onSuccess();
       } catch {
@@ -137,21 +143,44 @@ function ContactForm({ isPending, startTransition, onSuccess }: FormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <Input
-        placeholder="Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        autoFocus
-        required
-      />
-      <Input
-        placeholder="Phone (optional)"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        type="tel"
-      />
-      <Button type="submit" className="w-full" disabled={isPending || !name.trim()}>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="contact-name">Name</Label>
+        <Input
+          id="contact-name"
+          placeholder="Full name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="contact-email">Email</Label>
+        <Input
+          id="contact-email"
+          placeholder="email@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          type="email"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="contact-phone">Phone</Label>
+        <Input
+          id="contact-phone"
+          placeholder="(555) 000-0000"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          type="tel"
+        />
+      </div>
+      <Button
+        type="submit"
+        size="sm"
+        className="w-full"
+        disabled={isPending || !name.trim()}
+      >
         {isPending ? "Adding..." : "Add Contact"}
       </Button>
     </form>
@@ -183,21 +212,33 @@ function TaskForm({ isPending, startTransition, onSuccess }: FormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <Input
-        placeholder="What needs to be done?"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        autoFocus
-        required
-      />
-      <Input
-        type="date"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-        className="text-muted-foreground"
-      />
-      <Button type="submit" className="w-full" disabled={isPending || !title.trim()}>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="task-title">Title</Label>
+        <Input
+          id="task-title"
+          placeholder="What needs to be done?"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          autoFocus
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="task-due">Due Date</Label>
+        <Input
+          id="task-due"
+          type="date"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+        />
+      </div>
+      <Button
+        type="submit"
+        size="sm"
+        className="w-full"
+        disabled={isPending || !title.trim()}
+      >
         {isPending ? "Creating..." : "Add Task"}
       </Button>
     </form>
@@ -223,15 +264,24 @@ function NoteForm({ isPending, startTransition, onSuccess }: FormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <Textarea
-        placeholder="Write a quick note..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        autoFocus
-        rows={3}
-      />
-      <Button type="submit" className="w-full" disabled={isPending || !text.trim()}>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="note-text">Note</Label>
+        <Textarea
+          id="note-text"
+          placeholder="Write a quick note..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          autoFocus
+          rows={4}
+        />
+      </div>
+      <Button
+        type="submit"
+        size="sm"
+        className="w-full"
+        disabled={isPending || !text.trim()}
+      >
         {isPending ? "Saving..." : "Save Note"}
       </Button>
     </form>
@@ -265,45 +315,57 @@ function CallForm({ isPending, startTransition, onSuccess }: FormProps) {
   };
 
   const durations = [
-    { label: "5 min", value: "5" },
-    { label: "15 min", value: "15" },
-    { label: "30 min", value: "30" },
-    { label: "1 hr", value: "60" },
+    { label: "5m", value: "5" },
+    { label: "15m", value: "15" },
+    { label: "30m", value: "30" },
+    { label: "1h", value: "60" },
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <Input
-        placeholder="Who did you call?"
-        value={contactName}
-        onChange={(e) => setContactName(e.target.value)}
-        autoFocus
-        required
-      />
-      <div className="flex gap-2">
-        {durations.map((d) => (
-          <button
-            key={d.value}
-            type="button"
-            onClick={() => setDuration(d.value)}
-            className={`flex-1 py-2 rounded-xl text-xs font-medium transition-all ${
-              duration === d.value
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            {d.label}
-          </button>
-        ))}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="call-contact">Contact</Label>
+        <Input
+          id="call-contact"
+          placeholder="Who did you call?"
+          value={contactName}
+          onChange={(e) => setContactName(e.target.value)}
+          autoFocus
+          required
+        />
       </div>
-      <Textarea
-        placeholder="Notes (optional)"
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        rows={2}
-      />
+      <div className="space-y-2">
+        <Label>Duration</Label>
+        <div className="flex gap-2">
+          {durations.map((d) => (
+            <button
+              key={d.value}
+              type="button"
+              onClick={() => setDuration(d.value)}
+              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                duration === d.value
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              }`}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="call-notes">Notes</Label>
+        <Textarea
+          id="call-notes"
+          placeholder="Call notes (optional)"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+        />
+      </div>
       <Button
         type="submit"
+        size="sm"
         className="w-full"
         disabled={isPending || !contactName.trim()}
       >
