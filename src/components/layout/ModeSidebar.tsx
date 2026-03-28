@@ -70,7 +70,7 @@ export function ModeSidebar() {
         { href: "/browse/contacts", label: "People", icon: Users },
         { href: "/browse/deals", label: "Deals", icon: Handshake },
         { href: "/browse/properties", label: "Properties", icon: Building2 },
-        { href: "/browse/tasks", label: "Tasks", icon: CheckSquare },
+        { href: "/browse/listing-alerts", label: "Alerts", icon: Bell },
       ],
     },
     {
@@ -84,9 +84,9 @@ export function ModeSidebar() {
       ],
     },
     {
-      label: "Insights",
+      label: "Workspace",
       items: [
-        { href: "/browse/listing-alerts", label: "Alerts", icon: Bell },
+        { href: "/browse/tasks", label: "Tasks", icon: CheckSquare },
         { href: "/calendar", label: "Calendar", icon: CalendarDays },
         { href: "/reports", label: "Reports", icon: BarChart3 },
       ],
