@@ -22,6 +22,41 @@ interface ChatMessageBubbleProps {
 }
 
 /**
+ * Parse message content into text body + extracted option chips.
+ * Detects lines starting with • or - followed by text and pulls them out.
+ */
+function parseMessageOptions(content: string): { body: string; options: string[] } {
+  const lines = content.split("\n");
+  const bodyLines: string[] = [];
+  const options: string[] = [];
+  let foundBullets = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const bulletMatch = trimmed.match(/^[•\-\*]\s+(.+)$/);
+    if (bulletMatch) {
+      foundBullets = true;
+      // Strip parenthetical descriptions for chip label, keep full text as value
+      const full = bulletMatch[1].trim();
+      options.push(full);
+    } else {
+      // If we already found bullets and hit a non-bullet, stop extracting
+      if (foundBullets && trimmed.length > 0) {
+        bodyLines.push(line);
+      } else {
+        bodyLines.push(line);
+      }
+    }
+  }
+
+  // Only extract if we found 2+ options (otherwise it's just regular content)
+  if (options.length >= 2) {
+    return { body: bodyLines.join("\n").trim(), options };
+  }
+  return { body: content, options: [] };
+}
+
+/**
  * Render message content with support for **bold**, ![alt](url) images
  */
 function renderMessageContent(content: string) {
@@ -152,6 +187,9 @@ export function ChatMessageBubble({
     );
   }
 
+  // Parse bullet-point options out of message content for chip rendering
+  const { body: messageBody, options: messageOptions } = parseMessageOptions(message.content);
+
   return (
     <div className="flex flex-col gap-2 max-w-[90%]">
       {/* Colony's message — no bubble, floating text */}
@@ -164,7 +202,7 @@ export function ChatMessageBubble({
           lineHeight: 1.65,
         }}
       >
-        {renderMessageContent(message.content)}
+        {renderMessageContent(messageBody)}
         {/* Inline success indicator when no action cards and execution succeeded */}
         {lamResponse && hasExecution && !hasActionCards && isExecuted && !hasFailed && !needsApproval && (
           <CheckCircle2
@@ -173,6 +211,33 @@ export function ChatMessageBubble({
           />
         )}
       </div>
+
+      {/* Parsed option chips — from bullet points in message */}
+      {messageOptions.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-1">
+          {messageOptions.map((option) => {
+            // Use a short label (strip parenthetical) for the chip display
+            const label = option.replace(/\s*\([^)]+\)\s*$/, "").trim();
+            return (
+              <button
+                key={option}
+                onClick={() => { setInput(label); sendToLam(label); }}
+                className="text-[13px] font-medium transition-all duration-150 hover:brightness-110 active:scale-[0.97]"
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: 24,
+                  backgroundColor: theme.accentGlow,
+                  border: `1px solid ${theme.accentSoft}`,
+                  color: theme.accent,
+                  fontFamily: "var(--font-dm-sans), sans-serif",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Welcome Chips */}
       {message.chips && message.chips.length > 0 && (
