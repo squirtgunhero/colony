@@ -236,8 +236,6 @@ export function ContactDetailView({
     .toUpperCase();
 
   const dividerColor = withAlpha(theme.text, 0.06);
-  
-  const neumorphicPressed = `inset 3px 3px 6px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(255,255,255,0.04)`;
 
   return (
     <div
@@ -323,23 +321,21 @@ export function ContactDetailView({
       </div>
 
       {/* Hero section */}
-      <div className="max-w-5xl mx-auto px-6 pt-8 pb-6">
+      <div className="max-w-5xl mx-auto px-6 pt-6 pb-4">
         <div className="flex items-start gap-5">
           {/* Avatar */}
           {contact.avatarUrl ? (
             <img
               src={contact.avatarUrl}
               alt={contact.name}
-              className="h-20 w-20 rounded-full object-cover shrink-0"
-              style={{ border: `2px solid ${withAlpha(theme.accent, 0.3)}` }}
+              className="h-14 w-14 rounded-full object-cover shrink-0"
             />
           ) : (
             <div
-              className="h-20 w-20 rounded-full flex items-center justify-center text-2xl font-medium shrink-0"
+              className="h-14 w-14 rounded-full flex items-center justify-center text-lg font-medium shrink-0"
               style={{
-                background: `linear-gradient(135deg, ${withAlpha(theme.accent, 0.20)}, ${withAlpha(theme.accent, 0.08)})`,
-                color: theme.accent,
-                border: `2px solid ${withAlpha(theme.accent, 0.3)}`,
+                backgroundColor: withAlpha(theme.text, 0.08),
+                color: withAlpha(theme.text, 0.5),
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
@@ -350,7 +346,7 @@ export function ContactDetailView({
           <div className="flex-1 min-w-0 pt-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h1
-                className="text-[32px] leading-tight font-semibold tracking-[-0.01em]"
+                className="text-[26px] leading-tight font-semibold tracking-[-0.01em]"
                 style={{
                   color: theme.text,
                   fontFamily: "'Manrope', var(--font-inter), sans-serif",
@@ -453,8 +449,8 @@ export function ContactDetailView({
       )}
 
       {/* Action buttons */}
-      <div className="max-w-5xl mx-auto px-6 pb-8">
-        <div className="flex items-center gap-3 overflow-x-auto pb-1 -mb-1">
+      <div className="max-w-5xl mx-auto px-6 pb-6">
+        <div className="flex items-center gap-2">
           <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
             <ActionButton theme={theme} icon={<Phone className="h-4 w-4" />} label="Call" raised={"none"} pressed={"none"} />
           </ActivityDialog>
@@ -463,19 +459,12 @@ export function ContactDetailView({
               <ActionButton theme={theme} icon={<Mail className="h-4 w-4" />} label="Email" raised={"none"} pressed={"none"} />
             </SendEmailDialog>
           )}
-          <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="meeting">
-            <ActionButton theme={theme} icon={<Users className="h-4 w-4" />} label="Meeting" raised={"none"} pressed={"none"} />
-          </ActivityDialog>
           <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="note">
             <ActionButton theme={theme} icon={<FileText className="h-4 w-4" />} label="Note" raised={"none"} pressed={"none"} />
           </ActivityDialog>
-          <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
-            <ActionButton theme={theme} icon={<MessageSquare className="h-4 w-4" />} label="Text" raised={"none"} pressed={"none"} />
+          <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="meeting">
+            <ActionButton theme={theme} icon={<Users className="h-4 w-4" />} label="Meeting" raised={"none"} pressed={"none"} />
           </ActivityDialog>
-          <ActionButton theme={theme} icon={<CheckSquare className="h-4 w-4" />} label="Task" raised={"none"} pressed={"none"} />
-          <EnrollInSequenceDialog contactId={contact.id} contactName={contact.name}>
-            <ActionButton theme={theme} icon={<Mail className="h-4 w-4" />} label="Sequence" raised={"none"} pressed={"none"} />
-          </EnrollInSequenceDialog>
         </div>
       </div>
 
@@ -540,7 +529,7 @@ export function ContactDetailView({
       </div>
 
       {/* Content: Timeline + Sidebar */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-6 py-6">
         <div className="flex gap-8 flex-col xl:flex-row">
           {/* Timeline (main column) */}
           <div className="flex-1 min-w-0">

@@ -109,9 +109,9 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
         }
       />
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
+      {/* Search + Filters */}
+      <div className="space-y-3">
+        <div className="relative max-w-md">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4"
             style={{ color: withAlpha(theme.text, 0.25) }}
@@ -130,62 +130,63 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
             aria-label="Search contacts"
           />
         </div>
-        {/* Segmented filter */}
-        <div
-          className="inline-flex rounded-xl p-1 self-start"
-          style={{ backgroundColor: withAlpha(theme.text, 0.05) }}
-        >
-          {types.map((type) => {
-            const isActive = typeFilter === type;
-            return (
-              <button
-                key={type}
-                onClick={() => setTypeFilter(type)}
-                className="px-3 py-1.5 text-[12px] font-medium rounded-lg capitalize transition-all duration-200"
-                style={{
-                  backgroundColor: isActive ? withAlpha(theme.text, 0.1) : "transparent",
-                  color: isActive ? theme.text : withAlpha(theme.text, 0.4),
-                }}
-              >
-                {type}
-              </button>
-            );
-          })}
-        </div>
-        {/* Score filter chips */}
-        <div className="inline-flex items-center gap-1.5 self-start">
-          {(["all", "hot", "warm", "cold"] as const).map((chip) => {
-            const isActive = scoreFilter === chip;
-            const chipColors: Record<string, string> = { hot: "#22c55e", warm: "#f59e0b", cold: "#94a3b8" };
-            return (
-              <button
-                key={chip}
-                onClick={() => setScoreFilter(chip)}
-                className="px-2.5 py-1 text-[11px] font-medium rounded-full capitalize transition-all duration-200"
-                style={{
-                  backgroundColor: isActive
-                    ? withAlpha(chipColors[chip] || theme.text, 0.15)
-                    : withAlpha(theme.text, 0.05),
-                  color: isActive
-                    ? chipColors[chip] || theme.text
-                    : withAlpha(theme.text, 0.4),
-                  border: isActive ? `1px solid ${withAlpha(chipColors[chip] || theme.text, 0.3)}` : "1px solid transparent",
-                }}
-              >
-                {chip === "all" ? "All" : chip === "hot" ? "Hot 80+" : chip === "warm" ? "Warm 50-79" : "Cold <50"}
-              </button>
-            );
-          })}
-          <button
-            onClick={() => setSortBy(sortBy === "updated" ? "score" : "updated")}
-            className="px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-200 ml-1"
-            style={{
-              backgroundColor: withAlpha(theme.text, 0.05),
-              color: withAlpha(theme.text, 0.5),
-            }}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div
+            className="inline-flex rounded-lg p-0.5"
+            style={{ backgroundColor: withAlpha(theme.text, 0.05) }}
           >
-            Sort: {sortBy === "score" ? "Score" : "Recent"}
-          </button>
+            {types.map((type) => {
+              const isActive = typeFilter === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setTypeFilter(type)}
+                  className="px-3 py-1.5 text-[12px] font-medium rounded-md capitalize transition-all duration-200"
+                  style={{
+                    backgroundColor: isActive ? withAlpha(theme.text, 0.1) : "transparent",
+                    color: isActive ? theme.text : withAlpha(theme.text, 0.4),
+                  }}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
+          <div className="w-px h-5" style={{ backgroundColor: withAlpha(theme.text, 0.08) }} />
+          <div className="inline-flex items-center gap-1">
+            {(["all", "hot", "warm", "cold"] as const).map((chip) => {
+              const isActive = scoreFilter === chip;
+              const chipColors: Record<string, string> = { hot: "#22c55e", warm: "#f59e0b", cold: "#94a3b8" };
+              return (
+                <button
+                  key={chip}
+                  onClick={() => setScoreFilter(chip)}
+                  className="px-2.5 py-1 text-[11px] font-medium rounded-full capitalize transition-all duration-200"
+                  style={{
+                    backgroundColor: isActive
+                      ? withAlpha(chipColors[chip] || theme.text, 0.15)
+                      : "transparent",
+                    color: isActive
+                      ? chipColors[chip] || theme.text
+                      : withAlpha(theme.text, 0.35),
+                  }}
+                >
+                  {chip === "all" ? "All" : chip === "hot" ? "Hot" : chip === "warm" ? "Warm" : "Cold"}
+                </button>
+              );
+            })}
+          </div>
+          <div className="ml-auto">
+            <button
+              onClick={() => setSortBy(sortBy === "updated" ? "score" : "updated")}
+              className="px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-200"
+              style={{
+                color: withAlpha(theme.text, 0.4),
+              }}
+            >
+              Sort: {sortBy === "score" ? "Score" : "Recent"}
+            </button>
+          </div>
         </div>
       </div>
 
