@@ -24,6 +24,7 @@ import { getDefaultProvider, type LLMMessage } from "./llm";
 import type { ActionPlan } from "./actionSchema";
 import type { ExecutionResult } from "./runtime";
 import type { VerificationResult } from "./verifier";
+import { isAnalyticalQuery } from "./query-planner";
 
 // ============================================================================
 // Orchestrated LAM Run
@@ -147,6 +148,90 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
       verification_result: null,
       response: {
         message: `Got it — ${friendlyBiz}${friendlyLoc}! I've saved that to your profile. How can I help you today? I can run ads to generate leads, manage your contacts and deals, track tasks, and more.`,
+        follow_up_question: null,
+        requires_approval: false,
+        can_undo: false,
+      },
+    };
+  }
+
+  // ── PRE-CHECK: Analytical queries → query engine shortcut ──
+  // Route analytical questions directly to query.ask without the full planner
+  if (isAnalyticalQuery(input.message)) {
+    const { getRiskTier, requiresApproval: reqApproval } = await import("./actionSchema");
+
+    // Detect report type shortcuts
+    const lowerMsg = input.message.toLowerCase();
+    let actionType: "query.ask" | "query.report" | "query.compare" = "query.ask";
+    let payload: Record<string, unknown> = { question: input.message };
+
+    if (/\b(pipeline report|pipeline summary|pipeline breakdown)\b/i.test(lowerMsg)) {
+      actionType = "query.report";
+      payload = { reportType: "pipeline" };
+    } else if (/\b(activity report|activity summary|monthly summary)\b/i.test(lowerMsg)) {
+      actionType = "query.report";
+      payload = { reportType: "activity" };
+    } else if (/\b(contact breakdown|contacts? report|contacts? summary)\b/i.test(lowerMsg)) {
+      actionType = "query.report";
+      payload = { reportType: "contacts" };
+    } else if (/\bvs\.?\b|\bversus\b|\bcompare\b|\bcompared to\b/i.test(lowerMsg)) {
+      actionType = "query.compare";
+      payload = { question: input.message };
+    }
+
+    const queryPlan: ActionPlan = {
+      plan_id: randomUUID(),
+      intent: `Analytical query: ${input.message}`,
+      confidence: 0.9,
+      plan_steps: [{ step_number: 1, description: `Execute ${actionType}`, action_refs: [randomUUID()] }],
+      actions: [{
+        action_id: randomUUID(),
+        idempotency_key: `${input.user_id}:${actionType}:${Date.now()}`,
+        type: actionType,
+        risk_tier: getRiskTier(actionType),
+        requires_approval: reqApproval(actionType),
+        payload,
+        expected_outcome: { entity_type: "query_result", results_returned: true },
+      } as ActionPlan["actions"][0]],
+      verification_steps: [],
+      user_summary: `Running query: ${input.message}`,
+      follow_up_question: null,
+      requires_approval: false,
+      highest_risk_tier: 0,
+    };
+
+    // Record + execute + summarize (same flow as below, but skip planner LLM call)
+    const qRunId = await recordRun({
+      user_id: input.user_id,
+      message: input.message,
+      plan: queryPlan,
+    });
+
+    const qCtx: ExecutionContext = {
+      user_id: input.user_id,
+      run_id: qRunId,
+      dry_run: input.dry_run,
+    };
+
+    const qExec = await executePlan(queryPlan, qCtx);
+    const qVerify = await verify(queryPlan, qExec);
+    const qMessage = await summarizeResults(input.message, queryPlan, qExec);
+
+    await updateRun({
+      run_id: qRunId,
+      execution_result: qExec,
+      verification_result: qVerify,
+      status: qExec.status === "completed" ? "completed" : "failed",
+      user_summary: qMessage,
+    });
+
+    return {
+      run_id: qRunId,
+      plan: queryPlan,
+      execution_result: qExec,
+      verification_result: qVerify,
+      response: {
+        message: qMessage,
         follow_up_question: null,
         requires_approval: false,
         can_undo: false,
@@ -288,8 +373,12 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
           })();
 
           const imagePromise = (async () => {
-            if (!process.env.OPENAI_API_KEY) return;
+            if (!process.env.OPENAI_API_KEY) {
+              console.log("[AD PREVIEW] No OPENAI_API_KEY, skipping image generation");
+              return;
+            }
             try {
+              console.log("[AD PREVIEW] Generating image with DALL-E (isAdRequest path)...");
               const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
               const leadType = originalMessage.includes("seller") ? "lead_generation" :
                                originalMessage.includes("listing") ? "new_listing" : "lead_generation";
@@ -298,10 +387,12 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
                 city: previewCity,
                 businessType,
               });
+              console.log("[AD PREVIEW] Image prompt:", prompt.slice(0, 100));
               const result = await generateImage({ prompt, size: "1024x1024" });
               previewImageUrl = result.url;
-            } catch {
-              // Continue without image
+              console.log("[AD PREVIEW] Image generated:", result.url?.slice(0, 80));
+            } catch (imgErr) {
+              console.error("[AD PREVIEW] Image generation failed:", imgErr instanceof Error ? imgErr.message : imgErr);
             }
           })();
 
@@ -388,13 +479,22 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
       })();
 
       const adImagePromise = (async () => {
-        if (!process.env.OPENAI_API_KEY) return undefined;
+        if (!process.env.OPENAI_API_KEY) {
+          console.log("[AD PREVIEW] No OPENAI_API_KEY, skipping image generation");
+          return undefined;
+        }
         try {
+          console.log("[AD PREVIEW] Generating image with DALL-E...");
           const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
           const prompt = buildAdImagePrompt({ type: "lead_generation", city: adCity, businessType: adBiz });
+          console.log("[AD PREVIEW] Image prompt:", prompt.slice(0, 100));
           const result = await generateImage({ prompt, size: "1024x1024" });
+          console.log("[AD PREVIEW] Image generated:", result.url?.slice(0, 80));
           return result.url;
-        } catch { return undefined; }
+        } catch (err) {
+          console.error("[AD PREVIEW] Image generation failed:", err instanceof Error ? err.message : err);
+          return undefined;
+        }
       })();
 
       const [adCopy, adImageUrl] = await Promise.all([adCopyPromise, adImagePromise]);

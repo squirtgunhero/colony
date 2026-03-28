@@ -11,6 +11,7 @@ import {
   UserPlus,
   Upload,
   MessageCircle,
+  UserX,
 } from "lucide-react";
 
 interface Suggestion {
@@ -30,6 +31,7 @@ const ICON_MAP: Record<string, typeof Clock> = {
   overdue_task: AlertTriangle,
   stale_deal: TrendingUp,
   empty_calendar: CalendarPlus,
+  cold_contact: UserX,
 };
 
 const ONBOARDING_PROMPTS = [

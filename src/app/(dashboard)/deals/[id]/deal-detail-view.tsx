@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import { ActivityTimeline } from "@/components/activities/activity-timeline";
@@ -26,6 +27,9 @@ import {
   Send,
   ArrowRight,
 } from "lucide-react";
+import { usePresence } from "@/lib/realtime/presence";
+import { useRealtimeUpdates } from "@/lib/realtime/broadcast";
+import { PresenceAvatars } from "@/components/ui/presence-avatars";
 
 interface Activity {
   id: string;
@@ -66,6 +70,7 @@ interface DealDetailViewProps {
   properties: { id: string; address: string; city: string }[];
   stageHistory: { stage: string; date: string }[];
   contactScore?: RelationshipScoreResult | null;
+  currentUser?: { name: string; avatar: string | null };
 }
 
 const stageLabels: Record<string, string> = {
@@ -85,10 +90,23 @@ export function DealDetailView({
   properties,
   stageHistory,
   contactScore,
+  currentUser,
 }: DealDetailViewProps) {
   const { theme } = useColonyTheme();
+  const router = useRouter();
   const [quickNote, setQuickNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+
+  // Realtime presence
+  const { others } = usePresence("deal", deal.id, {
+    userName: currentUser?.name || "Unknown",
+    userAvatar: currentUser?.avatar,
+  });
+
+  // Auto-refresh when another user makes changes
+  useRealtimeUpdates("deal", deal.id, useCallback(() => {
+    router.refresh();
+  }, [router]));
 
   
   const dividerColor = withAlpha(theme.text, 0.06);
@@ -121,16 +139,20 @@ export function DealDetailView({
           <ArrowLeft className="h-4 w-4" />
           Deals
         </Link>
-        <DealDialog deal={deal} contacts={contacts} properties={properties}>
-          <button
-            className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-            style={{ color: theme.textMuted }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-        </DealDialog>
+        <div className="flex items-center gap-1">
+          <PresenceAvatars users={others} />
+          {others.length > 0 && <div className="w-px h-5 mx-1" style={{ backgroundColor: withAlpha(theme.text, 0.1) }} />}
+          <DealDialog deal={deal} contacts={contacts} properties={properties}>
+            <button
+              className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
+              style={{ color: theme.textMuted }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          </DealDialog>
+        </div>
       </div>
 
       {/* Hero section */}

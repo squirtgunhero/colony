@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
 import { DealDetailPage } from "./deal-detail-page";
-import { calculateRelationshipScore } from "@/lib/relationship-score";
+import { calculateRelationshipScoreLegacy as calculateRelationshipScore } from "@/lib/relationship-score";
 
 interface Props {
   params: Promise<{ id: string }>;

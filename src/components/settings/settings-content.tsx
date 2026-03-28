@@ -23,6 +23,8 @@ import {
   Trash2,
   Sparkles,
   Plug,
+  Zap,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -631,6 +633,60 @@ export function SettingsContent() {
               {calendarUrl}
             </code>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Attributes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            AI Attributes
+          </CardTitle>
+          <CardDescription>
+            Define AI-powered fields that automatically score and classify your contacts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" size="sm" onClick={() => router.push("/settings/ai-attributes")}>
+            Manage AI Attributes
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Workflows */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Workflows
+          </CardTitle>
+          <CardDescription>
+            Multi-step automations triggered by CRM events. Create workflows by chatting with Tara.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" size="sm" onClick={() => router.push("/settings/workflows")}>
+            Manage Workflows
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Email Sequences */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Email Sequences
+          </CardTitle>
+          <CardDescription>
+            Multi-step drip campaigns sent from your Gmail. Enroll contacts and track replies.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" size="sm" onClick={() => router.push("/sequences")}>
+            Manage Sequences
+          </Button>
         </CardContent>
       </Card>
 

@@ -26,7 +26,7 @@ export async function GET() {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-  const [staleContacts, staleDealsList, overdueTasks, thisWeekTasks] =
+  const [staleContacts, staleDealsList, overdueTasks, thisWeekTasks, coldContacts] =
     await Promise.all([
       // Contacts whose most recent activity is older than 7 days
       prisma.$queryRaw<{ id: string; name: string; days_ago: number }[]>`
@@ -76,6 +76,24 @@ export async function GET() {
           },
         },
       }),
+
+      // Cold contacts (relationship score < 40)
+      prisma.contact.findMany({
+        where: {
+          userId,
+          relationshipScore: { lt: 40, gt: 0 },
+          type: { in: ["lead", "client"] },
+        },
+        orderBy: { relationshipScore: "asc" },
+        select: {
+          id: true,
+          name: true,
+          relationshipScore: true,
+          lastExternalContact: true,
+          lastContactedAt: true,
+        },
+        take: 3,
+      }),
     ]);
 
   const suggestions: {
@@ -97,7 +115,23 @@ export async function GET() {
     });
   }
 
-  // Priority 2: Stale contacts needing follow-up
+  // Priority 2: Cold contacts based on relationship score
+  if (coldContacts.length > 0 && suggestions.length < 3) {
+    const c = coldContacts[0];
+    const lastDate = c.lastExternalContact || c.lastContactedAt;
+    const daysSince = lastDate
+      ? Math.floor((now.getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    const daysText = daysSince ? `${daysSince} days` : "a while";
+    suggestions.push({
+      id: `cold-${c.id}`,
+      type: "follow_up",
+      text: `${c.name} hasn't been contacted in ${daysText}. Send a check-in?`,
+      action: `Draft a follow-up message for ${c.name}`,
+    });
+  }
+
+  // Priority 3: Stale contacts needing follow-up
   if (staleContacts.length > 0 && suggestions.length < 3) {
     const c = staleContacts[0];
     const daysText =

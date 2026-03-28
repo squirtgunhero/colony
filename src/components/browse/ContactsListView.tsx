@@ -13,6 +13,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ActionButton } from "@/components/ui/action-button";
 import { EmptyState } from "@/components/ui/empty-state";
 
+interface AiAttrValue {
+  name: string;
+  slug: string;
+  value: string;
+  outputType: string;
+}
+
 interface Contact {
   id: string;
   name: string;
@@ -24,6 +31,9 @@ interface Contact {
   deals: Array<{ id: string }>;
   properties: Array<{ id: string; city?: string | null; state?: string | null }>;
   leadScore?: { score: number; grade: string } | null;
+  relationshipScore?: number | null;
+  avatarUrl?: string | null;
+  aiAttributes?: AiAttrValue[];
   _count: {
     activities: number;
     tasks: number;
@@ -38,6 +48,8 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
   const { theme } = useColonyTheme();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [scoreFilter, setScoreFilter] = useState<"all" | "hot" | "warm" | "cold">("all");
+  const [sortBy, setSortBy] = useState<"updated" | "score">("updated");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [contacts, setContacts] = useState(initialContacts);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -61,13 +73,24 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
     setContacts((prev) => prev.filter((c) => c.id !== contactId));
   }
 
-  const filteredContacts = contacts.filter((contact) => {
-    const matchesSearch =
-      contact.name.toLowerCase().includes(search.toLowerCase()) ||
-      (contact.email?.toLowerCase() || "").includes(search.toLowerCase());
-    const matchesType = typeFilter === "all" || contact.type === typeFilter;
-    return matchesSearch && matchesType;
-  });
+  const filteredContacts = contacts
+    .filter((contact) => {
+      const matchesSearch =
+        contact.name.toLowerCase().includes(search.toLowerCase()) ||
+        (contact.email?.toLowerCase() || "").includes(search.toLowerCase());
+      const matchesType = typeFilter === "all" || contact.type === typeFilter;
+      const score = contact.relationshipScore ?? 0;
+      const matchesScore =
+        scoreFilter === "all" ||
+        (scoreFilter === "hot" && score >= 80) ||
+        (scoreFilter === "warm" && score >= 50 && score < 80) ||
+        (scoreFilter === "cold" && score < 50);
+      return matchesSearch && matchesType && matchesScore;
+    })
+    .sort((a, b) => {
+      if (sortBy === "score") return (b.relationshipScore ?? 0) - (a.relationshipScore ?? 0);
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
 
   const types = ["all", ...new Set(contacts.map((c) => c.type))];
 
@@ -129,6 +152,41 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
             );
           })}
         </div>
+        {/* Score filter chips */}
+        <div className="inline-flex items-center gap-1.5 self-start">
+          {(["all", "hot", "warm", "cold"] as const).map((chip) => {
+            const isActive = scoreFilter === chip;
+            const chipColors: Record<string, string> = { hot: "#22c55e", warm: "#f59e0b", cold: "#94a3b8" };
+            return (
+              <button
+                key={chip}
+                onClick={() => setScoreFilter(chip)}
+                className="px-2.5 py-1 text-[11px] font-medium rounded-full capitalize transition-all duration-200"
+                style={{
+                  backgroundColor: isActive
+                    ? withAlpha(chipColors[chip] || theme.text, 0.15)
+                    : withAlpha(theme.text, 0.05),
+                  color: isActive
+                    ? chipColors[chip] || theme.text
+                    : withAlpha(theme.text, 0.4),
+                  border: isActive ? `1px solid ${withAlpha(chipColors[chip] || theme.text, 0.3)}` : "1px solid transparent",
+                }}
+              >
+                {chip === "all" ? "All" : chip === "hot" ? "Hot 80+" : chip === "warm" ? "Warm 50-79" : "Cold <50"}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setSortBy(sortBy === "updated" ? "score" : "updated")}
+            className="px-2.5 py-1 text-[11px] font-medium rounded-full transition-all duration-200 ml-1"
+            style={{
+              backgroundColor: withAlpha(theme.text, 0.05),
+              color: withAlpha(theme.text, 0.5),
+            }}
+          >
+            Sort: {sortBy === "score" ? "Score" : "Recent"}
+          </button>
+        </div>
       </div>
 
       <DuplicatesPanel />
@@ -152,20 +210,28 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
             >
               {/* Avatar */}
-              <div
-                className="flex items-center justify-center h-10 w-10 rounded-full font-semibold text-[13px] shrink-0"
-                style={{
-                  backgroundColor: withAlpha(theme.text, 0.07),
-                  color: withAlpha(theme.text, 0.5),
-                }}
-              >
-                {contact.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .slice(0, 2)}
-              </div>
+              {contact.avatarUrl ? (
+                <img
+                  src={contact.avatarUrl}
+                  alt={contact.name}
+                  className="h-10 w-10 rounded-full object-cover shrink-0"
+                />
+              ) : (
+                <div
+                  className="flex items-center justify-center h-10 w-10 rounded-full font-semibold text-[13px] shrink-0"
+                  style={{
+                    backgroundColor: withAlpha(theme.text, 0.07),
+                    color: withAlpha(theme.text, 0.5),
+                  }}
+                >
+                  {contact.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)}
+                </div>
+              )}
 
               {/* Info */}
               <div className="flex-1 min-w-0">
@@ -185,6 +251,41 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                   {contact.leadScore && (
                     <LeadScoreBadge score={contact.leadScore.score} grade={contact.leadScore.grade} compact />
                   )}
+                  {contact.relationshipScore != null && contact.relationshipScore > 0 && (
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                      style={{
+                        backgroundColor: withAlpha(
+                          contact.relationshipScore >= 80 ? "#22c55e" : contact.relationshipScore >= 50 ? "#f59e0b" : "#94a3b8",
+                          0.15
+                        ),
+                        color: contact.relationshipScore >= 80 ? "#22c55e" : contact.relationshipScore >= 50 ? "#f59e0b" : "#94a3b8",
+                      }}
+                    >
+                      {Math.round(contact.relationshipScore)}
+                    </span>
+                  )}
+                  {/* AI Attribute chips — show select/number types inline */}
+                  {contact.aiAttributes?.filter((a) => a.outputType === "select" || a.outputType === "number").map((attr) => {
+                    const val = attr.value.toLowerCase();
+                    const chipColor =
+                      attr.outputType === "select"
+                        ? (val === "hot" || val === "tier 1" ? "#22c55e" : val === "warm" || val === "tier 2" ? "#f59e0b" : "#64748b")
+                        : (parseFloat(attr.value) >= 8 ? "#22c55e" : parseFloat(attr.value) >= 5 ? "#f59e0b" : "#64748b");
+                    return (
+                      <span
+                        key={attr.slug}
+                        className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                        style={{
+                          backgroundColor: withAlpha(chipColor, 0.12),
+                          color: chipColor,
+                        }}
+                        title={attr.name}
+                      >
+                        {attr.value}
+                      </span>
+                    );
+                  })}
                 </div>
                 <div className="flex items-center gap-4 mt-0.5 text-[12px]" style={{ color: withAlpha(theme.text, 0.4) }}>
                   {contact.email && (

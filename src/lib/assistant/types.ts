@@ -24,6 +24,7 @@ export interface LamAction {
   action_id: string;
   risk_tier: 0 | 1 | 2;
   requires_approval: boolean;
+  payload?: Record<string, unknown>;
 }
 
 export interface LamExecutionResult {

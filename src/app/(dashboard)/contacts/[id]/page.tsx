@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ContactDetailView } from "./contact-detail-view";
-import { calculateRelationshipScore } from "@/lib/relationship-score";
+import { getScoreBreakdown } from "@/lib/relationship-score";
+import { requireUser } from "@/lib/supabase/auth";
 
 interface ContactPageProps {
   params: Promise<{ id: string }>;
@@ -34,6 +35,14 @@ async function getContact(id: string) {
           { dueDate: "asc" },
         ],
       },
+      emailInteractions: {
+        orderBy: { occurredAt: "desc" },
+        take: 50,
+      },
+      meetingInteractions: {
+        orderBy: { startTime: "desc" },
+        take: 50,
+      },
     },
   });
 
@@ -48,24 +57,49 @@ export default async function ContactPage({ params }: ContactPageProps) {
     notFound();
   }
 
-  // Compute relationship score
-  const lastActivity = contact.activities[0]?.createdAt ?? null;
-  const daysSinceLastActivity = lastActivity
-    ? Math.floor(
-        (Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24)
-      )
-    : null;
-  const hasActiveDeal = contact.deals.some((d) => d.stage !== "closed");
-  const hasOverdueTasks = contact.tasks.some(
-    (t) => !t.completed && t.dueDate && new Date(t.dueDate) < new Date()
-  );
+  // Use the new weighted score algorithm
+  const scoreBreakdown = await getScoreBreakdown(id);
 
-  const relationshipScore = calculateRelationshipScore({
-    daysSinceLastActivity,
-    totalActivities: contact.activities.length,
-    hasActiveDeal,
-    hasOverdueTasks,
+  const relationshipScore = {
+    score: scoreBreakdown.total,
+    label: scoreBreakdown.label,
+    color: scoreBreakdown.color,
+  };
+
+  // Determine last contacted date from all sources
+  const candidates: Date[] = [];
+  if (contact.activities[0]?.createdAt) candidates.push(new Date(contact.activities[0].createdAt));
+  if (contact.emailInteractions[0]?.occurredAt) candidates.push(new Date(contact.emailInteractions[0].occurredAt));
+  if (contact.meetingInteractions[0]?.startTime) candidates.push(new Date(contact.meetingInteractions[0].startTime));
+  if (contact.lastContactedAt) candidates.push(new Date(contact.lastContactedAt));
+
+  const lastContactedDate = candidates.length > 0
+    ? new Date(Math.max(...candidates.map((d) => d.getTime()))).toISOString()
+    : null;
+
+  // Fetch AI attribute values for this contact
+  const aiAttributeValues = await prisma.aiAttributeValue.findMany({
+    where: { entityId: id },
+    include: { attribute: { select: { name: true, slug: true, outputType: true, options: true } } },
+    orderBy: { computedAt: "desc" },
   });
+
+  const aiAttributes = aiAttributeValues.map((v) => ({
+    name: v.attribute.name,
+    slug: v.attribute.slug,
+    value: v.value,
+    confidence: v.confidence,
+    outputType: v.attribute.outputType,
+    options: v.attribute.options as string[] | null,
+    computedAt: v.computedAt.toISOString(),
+  }));
+
+  // Get current user for presence
+  const currentUser = await requireUser();
+  const currentUserMeta = {
+    name: currentUser.user_metadata?.full_name || currentUser.email || "You",
+    avatar: currentUser.user_metadata?.avatar_url || null,
+  };
 
   const serialized = JSON.parse(JSON.stringify(contact));
 
@@ -73,7 +107,9 @@ export default async function ContactPage({ params }: ContactPageProps) {
     <ContactDetailView
       contact={serialized}
       relationshipScore={relationshipScore}
-      lastContactedDate={lastActivity ? new Date(lastActivity).toISOString() : null}
+      lastContactedDate={lastContactedDate}
+      aiAttributes={aiAttributes}
+      currentUser={currentUserMeta}
     />
   );
 }

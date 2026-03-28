@@ -1150,6 +1150,94 @@ export const AutomationListActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Workflow Actions (Multi-step automations)
+// ============================================================================
+
+export const WorkflowCreatePayloadSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  trigger: z.object({
+    type: z.string(), // CrmEventType
+    entityType: z.string().optional(),
+    conditions: z.record(z.string(), z.unknown()).optional(),
+  }),
+  steps: z.array(z.object({
+    id: z.string(),
+    type: z.enum(["action", "condition", "delay", "ai"]),
+    actionType: z.string().optional(),
+    params: z.record(z.string(), z.unknown()).optional(),
+    field: z.string().optional(),
+    operator: z.enum(["eq", "neq", "gt", "lt", "gte", "lte", "contains"]).optional(),
+    value: z.unknown().optional(),
+    thenStep: z.string().optional(),
+    elseStep: z.string().optional(),
+    delayMinutes: z.number().optional(),
+    attributeSlug: z.string().optional(),
+  })),
+  status: z.enum(["draft", "active", "paused"]).optional(),
+});
+
+export const WorkflowCreateActionSchema = BaseActionSchema.extend({
+  type: z.literal("workflow.create"),
+  payload: WorkflowCreatePayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("workflow"), created: z.literal(true) }),
+});
+
+export const WorkflowListPayloadSchema = z.object({
+  status: z.string().optional(),
+});
+
+export const WorkflowListActionSchema = BaseActionSchema.extend({
+  type: z.literal("workflow.list"),
+  payload: WorkflowListPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("workflow"), results_returned: z.literal(true) }),
+});
+
+export const WorkflowPausePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine((d) => d.id || d.name, { message: "Either id or name required" });
+
+export const WorkflowPauseActionSchema = BaseActionSchema.extend({
+  type: z.literal("workflow.pause"),
+  payload: WorkflowPausePayloadSchema,
+  expected_outcome: z.object({ paused: z.literal(true) }),
+});
+
+export const WorkflowResumePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine((d) => d.id || d.name, { message: "Either id or name required" });
+
+export const WorkflowResumeActionSchema = BaseActionSchema.extend({
+  type: z.literal("workflow.resume"),
+  payload: WorkflowResumePayloadSchema,
+  expected_outcome: z.object({ resumed: z.literal(true) }),
+});
+
+export const WorkflowDeletePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine((d) => d.id || d.name, { message: "Either id or name required" });
+
+export const WorkflowDeleteActionSchema = BaseActionSchema.extend({
+  type: z.literal("workflow.delete"),
+  payload: WorkflowDeletePayloadSchema,
+  expected_outcome: z.object({ deleted: z.literal(true) }),
+});
+
+export const WorkflowGetStatusPayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine((d) => d.id || d.name, { message: "Either id or name required" });
+
+export const WorkflowGetStatusActionSchema = BaseActionSchema.extend({
+  type: z.literal("workflow.getStatus"),
+  payload: WorkflowGetStatusPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("workflow_status") }),
+});
+
+// ============================================================================
 // AI Email Draft Action (Tier 0 - read-only)
 // ============================================================================
 
@@ -1171,8 +1259,297 @@ export const EmailDraftActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Relationship Intelligence Actions
+// ============================================================================
+
+export const ContactGetRelationshipScorePayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+}).refine((d) => d.contactId || d.contactName, { message: "Either contactId or contactName required" });
+
+export const ContactGetRelationshipScoreActionSchema = BaseActionSchema.extend({
+  type: z.literal("contact.getRelationshipScore"),
+  payload: ContactGetRelationshipScorePayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("relationship_score") }),
+});
+
+export const ContactGetColdContactsPayloadSchema = z.object({
+  threshold: z.number().optional().default(40),
+  limit: z.number().optional().default(10),
+});
+
+export const ContactGetColdContactsActionSchema = BaseActionSchema.extend({
+  type: z.literal("contact.getColdContacts"),
+  payload: ContactGetColdContactsPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("contact_list") }),
+});
+
+export const ContactGetInteractionHistoryPayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+  limit: z.number().optional().default(20),
+}).refine((d) => d.contactId || d.contactName, { message: "Either contactId or contactName required" });
+
+export const ContactGetInteractionHistoryActionSchema = BaseActionSchema.extend({
+  type: z.literal("contact.getInteractionHistory"),
+  payload: ContactGetInteractionHistoryPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("interaction_history") }),
+});
+
+export const SyncTriggerEmailSyncPayloadSchema = z.object({});
+
+export const SyncTriggerEmailSyncActionSchema = BaseActionSchema.extend({
+  type: z.literal("sync.triggerEmailSync"),
+  payload: SyncTriggerEmailSyncPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("sync_result") }),
+});
+
+export const SyncGetSyncStatusPayloadSchema = z.object({});
+
+export const SyncGetSyncStatusActionSchema = BaseActionSchema.extend({
+  type: z.literal("sync.getSyncStatus"),
+  payload: SyncGetSyncStatusPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("sync_status") }),
+});
+
+// ============================================================================
+// Data Enrichment Actions
+// ============================================================================
+
+export const ContactEnrichPayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+}).refine((d) => d.contactId || d.contactName, { message: "Either contactId or contactName required" });
+
+export const ContactEnrichActionSchema = BaseActionSchema.extend({
+  type: z.literal("contact.enrich"),
+  payload: ContactEnrichPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("enrichment_result") }),
+});
+
+export const ContactEnrichAllPayloadSchema = z.object({});
+
+export const ContactEnrichAllActionSchema = BaseActionSchema.extend({
+  type: z.literal("contact.enrichAll"),
+  payload: ContactEnrichAllPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("enrichment_batch") }),
+});
+
+export const ContactGetEnrichedPayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+}).refine((d) => d.contactId || d.contactName, { message: "Either contactId or contactName required" });
+
+export const ContactGetEnrichedActionSchema = BaseActionSchema.extend({
+  type: z.literal("contact.getEnriched"),
+  payload: ContactGetEnrichedPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("enriched_profile") }),
+});
+
+// ============================================================================
+// AI Attribute Actions
+// ============================================================================
+
+export const AiComputeAttributePayloadSchema = z.object({
+  attributeId: z.string().optional(),
+  attributeSlug: z.string().optional(),
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+  entityId: z.string().optional(),
+});
+
+export const AiComputeAttributeActionSchema = BaseActionSchema.extend({
+  type: z.literal("ai.computeAttribute"),
+  payload: AiComputeAttributePayloadSchema,
+  expected_outcome: z.object({ computed: z.boolean() }),
+});
+
+export const AiCreateAttributePayloadSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().optional(),
+  entityType: z.enum(["contact", "deal", "property"]),
+  outputType: z.enum(["select", "number", "text", "boolean"]),
+  options: z.array(z.string()).optional(),
+  prompt: z.string().min(1),
+  contextFields: z.array(z.string()).optional(),
+  autoRun: z.boolean().optional(),
+});
+
+export const AiCreateAttributeActionSchema = BaseActionSchema.extend({
+  type: z.literal("ai.createAttribute"),
+  payload: AiCreateAttributePayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("ai_attribute"), created: z.literal(true) }),
+});
+
+export const AiGetAttributeValuePayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+  entityId: z.string().optional(),
+  attributeSlug: z.string().optional(),
+});
+
+export const AiGetAttributeValueActionSchema = BaseActionSchema.extend({
+  type: z.literal("ai.getAttributeValue"),
+  payload: AiGetAttributeValuePayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("ai_attribute_values") }),
+});
+
+export const AiSeedPresetsPayloadSchema = z.object({});
+
+export const AiSeedPresetsActionSchema = BaseActionSchema.extend({
+  type: z.literal("ai.seedPresets"),
+  payload: AiSeedPresetsPayloadSchema,
+  expected_outcome: z.object({ seeded: z.boolean() }),
+});
+
+// ============================================================================
 // Union Action Type
 // ============================================================================
+
+// ============================================================================
+// Email Sequence Actions
+// ============================================================================
+
+export const SequenceCreatePayloadSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  steps: z.array(z.object({
+    stepNumber: z.number().int().min(1),
+    subject: z.string(),
+    bodyTemplate: z.string(),
+    delayDays: z.number().int().min(0),
+    sendTime: z.string().optional(), // HH:MM
+  })),
+  status: z.enum(["draft", "active"]).optional(),
+});
+
+export const SequenceCreateActionSchema = BaseActionSchema.extend({
+  type: z.literal("sequence.create"),
+  payload: SequenceCreatePayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("sequence"), created: z.literal(true) }),
+});
+
+export const SequenceEnrollPayloadSchema = z.object({
+  sequenceId: z.string().optional(),
+  sequenceName: z.string().optional(),
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+  contactNames: z.array(z.string()).optional(), // Bulk enroll
+});
+
+export const SequenceEnrollActionSchema = BaseActionSchema.extend({
+  type: z.literal("sequence.enroll"),
+  payload: SequenceEnrollPayloadSchema,
+  expected_outcome: z.object({ enrolled: z.literal(true) }),
+});
+
+export const SequencePausePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine((d) => d.id || d.name, { message: "Either id or name required" });
+
+export const SequencePauseActionSchema = BaseActionSchema.extend({
+  type: z.literal("sequence.pause"),
+  payload: SequencePausePayloadSchema,
+  expected_outcome: z.object({ paused: z.literal(true) }),
+});
+
+export const SequenceResumePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine((d) => d.id || d.name, { message: "Either id or name required" });
+
+export const SequenceResumeActionSchema = BaseActionSchema.extend({
+  type: z.literal("sequence.resume"),
+  payload: SequenceResumePayloadSchema,
+  expected_outcome: z.object({ resumed: z.literal(true) }),
+});
+
+export const SequenceGetStatsPayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+}).refine((d) => d.id || d.name, { message: "Either id or name required" });
+
+export const SequenceGetStatsActionSchema = BaseActionSchema.extend({
+  type: z.literal("sequence.getStats"),
+  payload: SequenceGetStatsPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("sequence_stats") }),
+});
+
+// ============================================================================
+// Call Intelligence Actions (Tier 0 - read-only)
+// ============================================================================
+
+export const CallGetSummaryPayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+  callId: z.string().optional(),
+});
+
+export const CallGetSummaryActionSchema = BaseActionSchema.extend({
+  type: z.literal("call.getSummary"),
+  payload: CallGetSummaryPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("call_summary") }),
+});
+
+export const CallGetActionItemsPayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+  callId: z.string().optional(),
+});
+
+export const CallGetActionItemsActionSchema = BaseActionSchema.extend({
+  type: z.literal("call.getActionItems"),
+  payload: CallGetActionItemsPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("call_action_items") }),
+});
+
+export const CallListRecentPayloadSchema = z.object({
+  contactId: z.string().optional(),
+  contactName: z.string().optional(),
+  limit: z.number().int().min(1).max(20).optional(),
+});
+
+export const CallListRecentActionSchema = BaseActionSchema.extend({
+  type: z.literal("call.listRecent"),
+  payload: CallListRecentPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("call_list"), results_returned: z.literal(true) }),
+});
+
+// ============================================================================
+// Query Engine Actions (Tier 0 - read-only)
+// ============================================================================
+
+export const QueryAskPayloadSchema = z.object({
+  question: z.string().min(1),
+});
+
+export const QueryAskActionSchema = BaseActionSchema.extend({
+  type: z.literal("query.ask"),
+  payload: QueryAskPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("query_result"), results_returned: z.literal(true) }),
+});
+
+export const QueryReportPayloadSchema = z.object({
+  reportType: z.enum(["pipeline", "activity", "contacts"]),
+  dateRange: z.string().optional(),
+});
+
+export const QueryReportActionSchema = BaseActionSchema.extend({
+  type: z.literal("query.report"),
+  payload: QueryReportPayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("report"), results_returned: z.literal(true) }),
+});
+
+export const QueryComparePayloadSchema = z.object({
+  question: z.string().min(1),
+});
+
+export const QueryCompareActionSchema = BaseActionSchema.extend({
+  type: z.literal("query.compare"),
+  payload: QueryComparePayloadSchema,
+  expected_outcome: z.object({ entity_type: z.literal("comparison"), results_returned: z.literal(true) }),
+});
 
 export const ActionSchema = z.discriminatedUnion("type", [
   LeadCreateActionSchema,
@@ -1229,6 +1606,35 @@ export const ActionSchema = z.discriminatedUnion("type", [
   AutomationCreateActionSchema,
   AutomationListActionSchema,
   EmailDraftActionSchema,
+  ContactGetRelationshipScoreActionSchema,
+  ContactGetColdContactsActionSchema,
+  ContactGetInteractionHistoryActionSchema,
+  SyncTriggerEmailSyncActionSchema,
+  SyncGetSyncStatusActionSchema,
+  ContactEnrichActionSchema,
+  ContactEnrichAllActionSchema,
+  ContactGetEnrichedActionSchema,
+  AiComputeAttributeActionSchema,
+  AiCreateAttributeActionSchema,
+  AiGetAttributeValueActionSchema,
+  AiSeedPresetsActionSchema,
+  WorkflowCreateActionSchema,
+  WorkflowListActionSchema,
+  WorkflowPauseActionSchema,
+  WorkflowResumeActionSchema,
+  WorkflowDeleteActionSchema,
+  WorkflowGetStatusActionSchema,
+  SequenceCreateActionSchema,
+  SequenceEnrollActionSchema,
+  SequencePauseActionSchema,
+  SequenceResumeActionSchema,
+  SequenceGetStatsActionSchema,
+  CallGetSummaryActionSchema,
+  CallGetActionItemsActionSchema,
+  CallListRecentActionSchema,
+  QueryAskActionSchema,
+  QueryReportActionSchema,
+  QueryCompareActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -1289,6 +1695,17 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "docusign.check_status":
     case "automation.list":
     case "email.draft":
+    case "contact.getRelationshipScore":
+    case "contact.getColdContacts":
+    case "contact.getInteractionHistory":
+    case "sync.getSyncStatus":
+    case "contact.getEnriched":
+    case "ai.getAttributeValue":
+    case "workflow.list":
+    case "workflow.getStatus":
+    case "query.ask":
+    case "query.report":
+    case "query.compare":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
@@ -1314,6 +1731,16 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "savedSearch.update":
     case "deal.addMilestones":
     case "automation.create":
+    case "sync.triggerEmailSync":
+    case "contact.enrich":
+    case "contact.enrichAll":
+    case "ai.computeAttribute":
+    case "ai.createAttribute":
+    case "ai.seedPresets":
+    case "workflow.create":
+    case "workflow.pause":
+    case "workflow.resume":
+    case "workflow.delete":
       return 1;
     // Tier 2: Destructive bulk actions + external communications + spending money
     case "lead.deleteAll":
@@ -1469,6 +1896,64 @@ export function getActionDescription(action: Action): string {
       return `List saved searches${action.payload.contactName ? ` for ${action.payload.contactName}` : ""}`;
     case "deal.addMilestones":
       return `Add milestone tasks for deal${action.payload.dealTitle ? `: ${action.payload.dealTitle}` : ""}`;
+    case "contact.getRelationshipScore":
+      return `Get relationship score for ${action.payload.contactName || action.payload.contactId || "contact"}`;
+    case "contact.getColdContacts":
+      return `Find contacts with score below ${action.payload.threshold}`;
+    case "contact.getInteractionHistory":
+      return `Get interaction history for ${action.payload.contactName || action.payload.contactId || "contact"}`;
+    case "sync.triggerEmailSync":
+      return "Trigger email sync";
+    case "sync.getSyncStatus":
+      return "Check sync status";
+    case "contact.enrich":
+      return `Enrich ${action.payload.contactName || action.payload.contactId || "contact"}`;
+    case "contact.enrichAll":
+      return "Enrich all unenriched contacts";
+    case "contact.getEnriched":
+      return `Get enriched profile for ${action.payload.contactName || action.payload.contactId || "contact"}`;
+    case "ai.computeAttribute":
+      return `Compute AI attribute${action.payload.attributeSlug ? ` "${action.payload.attributeSlug}"` : "s"} for ${action.payload.contactName || action.payload.entityId || "entity"}`;
+    case "ai.createAttribute":
+      return `Create AI attribute: ${action.payload.name}`;
+    case "ai.getAttributeValue":
+      return `Get AI attribute values for ${action.payload.contactName || action.payload.entityId || "entity"}`;
+    case "ai.seedPresets":
+      return "Seed preset AI attributes";
+    case "workflow.create":
+      return `Create workflow: ${action.payload.name}`;
+    case "workflow.list":
+      return "List workflows";
+    case "workflow.pause":
+      return `Pause workflow${action.payload.name ? `: ${action.payload.name}` : ""}`;
+    case "workflow.resume":
+      return `Resume workflow${action.payload.name ? `: ${action.payload.name}` : ""}`;
+    case "workflow.delete":
+      return `Delete workflow${action.payload.name ? `: ${action.payload.name}` : ""}`;
+    case "workflow.getStatus":
+      return `Get workflow status${action.payload.name ? ` for ${action.payload.name}` : ""}`;
+    case "sequence.create":
+      return `Create email sequence: ${action.payload.name}`;
+    case "sequence.enroll":
+      return `Enroll ${action.payload.contactName || action.payload.contactNames?.join(", ") || "contact"} in sequence`;
+    case "sequence.pause":
+      return `Pause sequence${action.payload.name ? `: ${action.payload.name}` : ""}`;
+    case "sequence.resume":
+      return `Resume sequence${action.payload.name ? `: ${action.payload.name}` : ""}`;
+    case "sequence.getStats":
+      return `Get sequence stats${action.payload.name ? ` for ${action.payload.name}` : ""}`;
+    case "call.getSummary":
+      return `Get call summary${action.payload.contactName ? ` for ${action.payload.contactName}` : ""}`;
+    case "call.getActionItems":
+      return `Get call action items${action.payload.contactName ? ` for ${action.payload.contactName}` : ""}`;
+    case "call.listRecent":
+      return `List recent calls${action.payload.contactName ? ` for ${action.payload.contactName}` : ""}`;
+    case "query.ask":
+      return `Query: ${action.payload.question}`;
+    case "query.report":
+      return `Generate ${action.payload.reportType} report`;
+    case "query.compare":
+      return `Compare: ${action.payload.question}`;
     default:
       return "Unknown action";
   }

@@ -1,7 +1,9 @@
 "use client";
 
+import { useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import { DocumentList } from "@/components/documents/document-list";
@@ -21,10 +23,14 @@ import {
   Calendar,
   Building,
 } from "lucide-react";
+import { usePresence } from "@/lib/realtime/presence";
+import { useRealtimeUpdates } from "@/lib/realtime/broadcast";
+import { PresenceAvatars } from "@/components/ui/presence-avatars";
 
 interface PropertyDetailViewProps {
   property: any;
   contacts: any[];
+  currentUser?: { name: string; avatar: string | null };
 }
 
 const statusLabels: Record<string, string> = {
@@ -35,10 +41,22 @@ const statusLabels: Record<string, string> = {
   pre_listing: "Pre-Listing",
 };
 
-export function PropertyDetailView({ property, contacts }: PropertyDetailViewProps) {
+export function PropertyDetailView({ property, contacts, currentUser }: PropertyDetailViewProps) {
   const { theme } = useColonyTheme();
+  const router = useRouter();
 
-  
+  // Realtime presence
+  const { others } = usePresence("property", property.id, {
+    userName: currentUser?.name || "Unknown",
+    userAvatar: currentUser?.avatar,
+  });
+
+  // Auto-refresh when another user makes changes
+  useRealtimeUpdates("property", property.id, useCallback(() => {
+    router.refresh();
+  }, [router]));
+
+
   const dividerColor = withAlpha(theme.text, 0.06);
 
   return (
@@ -83,19 +101,23 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
                 </span>
               </div>
             </div>
-            <PropertyDialog property={property} contacts={contacts}>
-              <button
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
-                style={{
-                  backgroundColor: theme.bgGlow,
-                  color: theme.textMuted,
-                  boxShadow: "none",
-                }}
-              >
-                <Pencil className="h-4 w-4" style={{ color: theme.accent }} />
-                Edit
-              </button>
-            </PropertyDialog>
+            <div className="flex items-center gap-2">
+              <PresenceAvatars users={others} />
+              {others.length > 0 && <div className="w-px h-5" style={{ backgroundColor: withAlpha(theme.text, 0.1) }} />}
+              <PropertyDialog property={property} contacts={contacts}>
+                <button
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200"
+                  style={{
+                    backgroundColor: theme.bgGlow,
+                    color: theme.textMuted,
+                    boxShadow: "none",
+                  }}
+                >
+                  <Pencil className="h-4 w-4" style={{ color: theme.accent }} />
+                  Edit
+                </button>
+              </PropertyDialog>
+            </div>
           </div>
 
           {/* Property Stats */}

@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/supabase/auth";
+import { requireUserId, requireUser } from "@/lib/supabase/auth";
 import { DealDetailView } from "./deal-detail-view";
-import { calculateRelationshipScore } from "@/lib/relationship-score";
+import { calculateRelationshipScoreLegacy as calculateRelationshipScore } from "@/lib/relationship-score";
 
 interface DealPageProps {
   params: Promise<{ id: string }>;
@@ -116,6 +116,13 @@ export default async function DealPage({ params }: DealPageProps) {
     });
   }
 
+  // Get current user for presence
+  const currentUser = await requireUser();
+  const currentUserMeta = {
+    name: currentUser.user_metadata?.full_name || currentUser.email || "You",
+    avatar: currentUser.user_metadata?.avatar_url || null,
+  };
+
   const serialized = JSON.parse(JSON.stringify(deal));
 
   return (
@@ -125,6 +132,7 @@ export default async function DealPage({ params }: DealPageProps) {
       properties={properties}
       stageHistory={stageActivities}
       contactScore={contactScore}
+      currentUser={currentUserMeta}
     />
   );
 }

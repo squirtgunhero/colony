@@ -164,6 +164,15 @@ export async function syncEmailAccount(emailAccountId: string): Promise<number> 
           where: { id: thread.contactId },
           data: { lastContactedAt: parsed.date },
         }).catch(() => {});
+
+        // --- Sequence reply detection ---
+        if (!isOutbound) {
+          try {
+            await detectSequenceReply(thread.contactId, account.userId, parsed.subject);
+          } catch {
+            // Non-critical — don't break sync
+          }
+        }
       }
 
       synced++;
@@ -285,4 +294,55 @@ async function fetchAndParse(
     bodyHtml,
     date,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Sequence reply detection
+// When an inbound email arrives from a contact with an active enrollment,
+// mark the enrollment as "replied" and create a follow-up task.
+// ---------------------------------------------------------------------------
+
+async function detectSequenceReply(
+  contactId: string,
+  userId: string,
+  subject: string
+): Promise<void> {
+  const activeEnrollments = await prisma.sequenceEnrollment.findMany({
+    where: {
+      contactId,
+      status: "active",
+    },
+    include: {
+      sequence: { select: { name: true } },
+      contact: { select: { name: true } },
+    },
+  });
+
+  for (const enrollment of activeEnrollments) {
+    // Mark enrollment as replied
+    await prisma.sequenceEnrollment.update({
+      where: { id: enrollment.id },
+      data: { status: "replied", nextSendAt: null },
+    });
+
+    // Create replied event
+    await prisma.sequenceEvent.create({
+      data: {
+        enrollmentId: enrollment.id,
+        step: enrollment.currentStep,
+        type: "replied",
+        metadata: { subject },
+      },
+    });
+
+    // Create follow-up task
+    await prisma.task.create({
+      data: {
+        userId,
+        contactId,
+        title: `Reply from ${enrollment.contact.name} on "${enrollment.sequence.name}" — follow up`,
+        priority: "high",
+      },
+    });
+  }
 }

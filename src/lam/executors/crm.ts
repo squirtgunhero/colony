@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { ActionExecutor } from "../types";
 import { recordChange, getUserActiveTeamId } from "../helpers";
 import { evaluateAutomations } from "@/lib/automation-engine";
+import { eventBus } from "@/lib/events";
 import { scoreAllContacts, scoreContact } from "@/lib/lead-scoring";
 
 export const crmExecutors: Record<string, ActionExecutor> = {
@@ -86,12 +87,33 @@ export const crmExecutors: Record<string, ActionExecutor> = {
       console.error("[LAM Runtime] Failed to log activity for lead.create:", e);
     }
 
+    // Queue enrichment if contact has email
+    if (contact.email) {
+      prisma.enrichmentJob.create({
+        data: { contactId: contact.id },
+      }).catch((e) => console.error("[LAM Runtime] Failed to queue enrichment:", e));
+    }
+
+    // Trigger AI attributes computation (fire-and-forget)
+    import("@/lib/ai-attributes/engine").then(({ computeForEntity }) =>
+      computeForEntity(contact.id, "contact", ctx.user_id)
+    ).catch((e) => console.error("[LAM Runtime] Failed to compute AI attributes:", e));
+
     // Fire automation event
     evaluateAutomations({
       type: "new_lead_created",
       userId: ctx.user_id,
       contactId: contact.id,
       metadata: { source: contact.source, type: contact.type },
+    }).catch(() => {});
+
+    // Emit to workflow event bus
+    eventBus.emit({
+      type: "record.created",
+      entityType: "contact",
+      entityId: contact.id,
+      userId: ctx.user_id,
+      metadata: { source: contact.source, type: contact.type, name: contact.name },
     }).catch(() => {});
 
     return {
@@ -412,6 +434,16 @@ export const crmExecutors: Record<string, ActionExecutor> = {
       dealId: deal.id,
       contactId: deal.contactId ?? undefined,
       metadata: { fromStage: before.stage, toStage: deal.stage },
+    }).catch(() => {});
+
+    // Emit to workflow event bus
+    eventBus.emit({
+      type: "deal.stage_changed",
+      entityType: "deal",
+      entityId: deal.id,
+      userId: ctx.user_id,
+      changes: { stage: { from: before.stage, to: deal.stage } },
+      metadata: { contactId: deal.contactId },
     }).catch(() => {});
 
     return {

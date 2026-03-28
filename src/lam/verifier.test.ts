@@ -74,15 +74,15 @@ function makePlan(actions: ActionPlan["actions"]): ActionPlan {
 
 function makeResult(
   actionId: string,
-  status: "success" | "error" | "approval_required" = "success",
+  status: "success" | "failed" | "approval_required" = "success",
   entityId?: string
 ): ActionResult {
   return {
     action_id: actionId,
+    action_type: "test.action",
     status,
     entity_id: entityId,
-    message: status === "success" ? "Done" : "Failed",
-  } as ActionResult;
+  };
 }
 
 function makeExecutionResult(results: ActionResult[]): ExecutionResult {
@@ -90,10 +90,12 @@ function makeExecutionResult(results: ActionResult[]): ExecutionResult {
     run_id: "run-1",
     status: "completed",
     actions_executed: results.filter(r => r.status === "success").length,
-    actions_failed: results.filter(r => r.status === "error").length,
+    actions_skipped: results.filter(r => r.status === "skipped").length,
+    actions_failed: results.filter(r => r.status === "failed").length,
     actions_pending_approval: results.filter(r => r.status === "approval_required").length,
     results,
-  } as ExecutionResult;
+    user_summary: "Test execution",
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -171,7 +173,7 @@ describe("Verifier", () => {
       const action = makeAction("lead.create", { name: "Test" });
       const plan = makePlan([action]);
       const execResult = makeExecutionResult([
-        makeResult("action-1", "error"),
+        makeResult("action-1", "failed"),
       ]);
 
       const result = await verify(plan, execResult);
@@ -359,7 +361,7 @@ describe("Verifier", () => {
       const action = makeAction("crm.search", { entity: "contact", query: "test" });
       const plan = makePlan([action]);
       const execResult = makeExecutionResult([
-        makeResult("action-1", "error"),
+        makeResult("action-1", "failed"),
       ]);
 
       const result = await verify(plan, execResult);

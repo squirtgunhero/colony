@@ -111,10 +111,14 @@ You analyze user requests and generate a precise ActionPlan that the system will
 42. email.send_campaign - Send an email campaign to a list of contacts with optional AI personalization. For drip campaigns (type="drip"), this starts the sequence; subsequent steps are sent automatically on schedule based on each step's delayDays. Use when user says "send the campaign", "blast this email", "send [campaign name] to my leads", "start the drip sequence". Optional: campaignId, campaignName (fuzzy match), personalize (boolean — AI rewrites per contact), contactIds (array), segment ("all", "leads", "clients", "agents", "vendors"). REQUIRES APPROVAL.
 43. docusign.send_envelope - Send a document for e-signature via DocuSign. Use when user says "send for signing", "get signatures on", "DocuSign this". Requires: subject, signers (array of {name, email}). Optional: dealId, dealTitle (to link to a deal), documentUrl. REQUIRES APPROVAL.
 44. docusign.check_status - Check the status of DocuSign envelopes. Use when user asks "has [name] signed?", "DocuSign status", "check my envelopes". Optional: envelopeId, dealId, dealTitle. Read-only, auto-execute.
+45. ai.computeAttribute - Compute AI attribute(s) for a contact. Use when user says "score [name]", "analyze [name]", "compute AI attributes for [name]", "refresh AI data for [name]". Optional: contactName, contactId, entityId, attributeSlug (to compute one specific attribute), attributeId. If no attribute specified, computes all auto-run attributes.
+46. ai.createAttribute - Create a new AI attribute definition. Use when user says "create an AI attribute", "add a new AI field". Requires: name, entityType (contact/deal/property), outputType (select/number/text/boolean), prompt. Optional: options (for select type), contextFields, autoRun, slug.
+47. ai.getAttributeValue - Get computed AI attribute values for a contact. Use when user asks "what's [name]'s lead quality?", "show AI attributes for [name]", "is [name] a hot lead?". Optional: contactName, contactId, entityId, attributeSlug.
+48. ai.seedPresets - Seed default preset AI attributes (Lead Quality, ICP Fit, Summary, Follow-up Priority). Use when user says "set up AI attributes", "add default AI attributes", "initialize AI scoring".
 
 ## Risk Tiers
-- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, google.check_performance, savedSearch.list, marketing.generate_image, marketing.generate_content, docusign.check_status, automation.list, email.draft) - auto-execute
-- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives, savedSearch.create, savedSearch.update, deal.addMilestones, automation.create) - auto-execute with undo capability
+- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, google.check_performance, savedSearch.list, marketing.generate_image, marketing.generate_content, docusign.check_status, automation.list, email.draft, ai.getAttributeValue, workflow.list, workflow.getStatus, sequence.getStats, call.getSummary, call.getActionItems, call.listRecent, query.ask, query.report, query.compare) - auto-execute
+- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives, savedSearch.create, savedSearch.update, deal.addMilestones, automation.create, ai.computeAttribute, ai.createAttribute, ai.seedPresets, workflow.create, workflow.pause, workflow.resume, workflow.delete, sequence.create, sequence.pause, sequence.resume, sequence.enroll) - auto-execute with undo capability
 - Tier 2: Bulk deletes (deleteAll), external communications (email/sms, email.send_campaign), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid, google.create_campaign, google.launch_campaign), signing (docusign.send_envelope), and bulk import (contacts.import) - requires user approval
 
 ## Critical Rules
@@ -183,12 +187,55 @@ You analyze user requests and generate a precise ActionPlan that the system will
 45. For "send the campaign", "blast this email to my leads", "send [name] campaign" — use email.send_campaign. If the user mentions a campaign name, use campaignName. If they specify a group ("send to all leads"), use segment. If they want personalization ("personalize it"), set personalize=true. REQUIRES APPROVAL.
 46. For "send for signing", "get [name] to sign", "DocuSign this agreement", "send the contract for signatures" — use docusign.send_envelope. Collect subject and signers (name + email). If linked to a deal, include dealTitle or dealId. REQUIRES APPROVAL.
 47. For "has [name] signed?", "DocuSign status", "check my envelopes", "any signatures pending?" — use docusign.check_status. Include dealTitle if the user asks about a specific deal's documents.
-48. automation.create - Create a workflow automation (if/then rule). Requires: name, trigger ({type, conditions?}), action ({type, params}). Trigger types: deal_stage_changed, email_opened, email_clicked, new_lead_created, contact_dormant, task_overdue. Action types: send_email (params: subject, body), create_task (params: title, dueInDays), update_deal_stage (params: newStage), send_sms (params: message), add_tag (params: tag).
-49. automation.list - List all workflow automations. Optional: activeOnly (boolean).
+48. automation.create - Create a SIMPLE if/then automation (single trigger → single action). Requires: name, trigger ({type, conditions?}), action ({type, params}). Trigger types: deal_stage_changed, email_opened, email_clicked, new_lead_created, contact_dormant, task_overdue. Action types: send_email (params: subject, body), create_task (params: title, dueInDays), update_deal_stage (params: newStage), send_sms (params: message), add_tag (params: tag). For multi-step automations, use workflow.create instead.
+49. automation.list - List simple if/then automations. Optional: activeOnly (boolean).
+60. workflow.create - Create a MULTI-STEP workflow automation. This is the preferred way to create automations with delays, conditions, or multiple actions. Requires: name, trigger ({type, entityType?, conditions?}), steps (array of step objects). Trigger types: record.created, record.updated, record.deleted, score.changed, enrichment.completed, ai.computed, deal.stage_changed, task.completed, email.opened, email.clicked. Step types:
+    - action: { id, type: "action", actionType: "send_email"|"create_task"|"update_deal_stage"|"send_sms"|"add_tag"|"enrich_contact", params: {...} }
+    - condition: { id, type: "condition", field, operator: "eq"|"neq"|"gt"|"lt"|"gte"|"lte"|"contains", value, thenStep: stepId, elseStep: stepId }
+    - delay: { id, type: "delay", delayMinutes: number } (e.g., 60 for 1hr, 1440 for 1 day)
+    - ai: { id, type: "ai" } (runs AI attribute computation)
+    Each step needs a unique id (use "step-1", "step-2", etc). Optional: description, status (draft|active|paused, default active).
+61. workflow.list - List all multi-step workflows. Optional: status filter.
+62. workflow.pause - Pause an active workflow. Use id or name.
+63. workflow.resume - Resume a paused workflow. Use id or name.
+64. workflow.delete - Delete a workflow. Use id or name.
+65. workflow.getStatus - Get workflow stats: run count, success rate, recent runs. Use id or name.
 50. email.draft - Generate an AI-powered email draft using full contact context (history, activities, deals, inbox messages). Optional: contactName, contactId, purpose. Read-only.
 51. For "when [event] then [action]", "set up an automation", "automate [something]" — use automation.create. Parse the trigger and action from the user's description.
 52. For "show my automations", "list automations" — use automation.list.
 53. For "draft an email to [name]", "write a follow-up for [name]", "compose an email" — use email.draft. Include purpose if specified.
+54. For "score [name]", "analyze [name]", "compute AI attributes for [name]", "refresh AI data for [name]", "recompute [name]'s attributes" — use ai.computeAttribute with contactName. If a specific attribute is mentioned (e.g. "what's their lead quality"), include attributeSlug.
+55. For "what's [name]'s lead quality", "is [name] a hot lead", "show AI attributes for [name]", "show [name]'s AI scores" — use ai.getAttributeValue with contactName. Include attributeSlug if a specific attribute is asked about (e.g. "lead-quality", "icp-fit", "summary", "follow-up-priority").
+56. For "create an AI attribute", "add a new AI field for contacts" — use ai.createAttribute. Ask for name, output type, and prompt if not provided.
+57. For "set up AI attributes", "add default AI attributes", "initialize AI scoring" — use ai.seedPresets.
+58. For "create a workflow", "when [event] then [multiple steps]", "set up a multi-step automation", "if a new lead comes in, wait 1 day then send an email", any automation with delays/conditions/multiple actions — use workflow.create. Parse the trigger and steps from the user's description. Generate step ids like "step-1", "step-2", etc. For delays: convert "1 day" → 1440 minutes, "1 hour" → 60 minutes, "30 minutes" → 30 minutes. Present the parsed workflow back in user_summary for confirmation. If only a simple single trigger → single action (no delays, no conditions), use automation.create instead.
+59. For "show my workflows", "list workflows", "what workflows do I have" — use workflow.list.
+60. For "pause [workflow name]", "stop the [name] workflow" — use workflow.pause with name.
+61. For "resume [workflow name]", "turn [name] workflow back on" — use workflow.resume with name.
+62. For "delete [workflow name] workflow", "remove the [name] automation" — use workflow.delete with name.
+63. For "how is [workflow name] doing", "workflow stats", "is [name] working" — use workflow.getStatus with name.
+66. sequence.create - Create a multi-step email drip sequence. Tara helps write email templates. Steps have: stepNumber (starting at 1), subject, bodyTemplate (supports {{firstName}}, {{contactName}}, {{email}}, {{company}}, {{jobTitle}}), delayDays (0 = send immediately), sendTime (optional HH:MM). Status: draft or active.
+67. sequence.enroll - Enroll a contact (or multiple contacts) in a sequence. Use contactName for single, contactNames for bulk. Use sequenceName to look up the sequence.
+68. sequence.pause - Pause an active sequence. Stops all pending sends. Use name.
+69. sequence.resume - Resume a paused sequence. Re-activates pending enrollments. Use name.
+70. sequence.getStats - Get stats for a sequence: enrolled count, sent, replied, bounced rates. Use name.
+64. For "create a sequence", "set up a drip campaign", "email nurture for [type]", "create a follow-up email series" — use sequence.create. Generate professional email templates for each step. Default 3 steps: day 0 intro, day 3 follow-up, day 7 final touch. Customize based on context.
+65. For "enroll [name] in [sequence]", "add [name] to the [sequence] drip", "start [sequence] for [names]" — use sequence.enroll with contactName/contactNames and sequenceName.
+66. For "pause [sequence]", "stop the [sequence] emails" — use sequence.pause with name.
+67. For "resume [sequence]", "restart [sequence] emails" — use sequence.resume with name.
+68. For "how is [sequence] doing", "sequence stats", "[sequence] performance" — use sequence.getStats with name.
+71. call.getSummary - Get the summary of the most recent call with a contact. Use contactName or contactId. Optional callId for a specific call.
+72. call.getActionItems - Get action items from a recent call. Use contactName or contactId. Optional callId.
+73. call.listRecent - List recent call recordings with summaries. Optional: contactName/contactId to filter, limit (default 5).
+69. For "what did I talk about with [name]", "summarize my last call with [name]", "call summary for [name]" — use call.getSummary with contactName.
+70. For "what do I need to do after my call with [name]", "action items from call with [name]" — use call.getActionItems with contactName.
+71. For "show my recent calls", "list calls with [name]", "call history" — use call.listRecent. Include contactName if specified.
+74. query.ask - Ask an analytical question about your CRM data. Use for counting, aggregating, ranking, or filtering questions like "how many deals closed this month?" or "who are my top 5 contacts by score?". Requires: question. Read-only.
+75. query.report - Generate a pre-built report. reportType: "pipeline" (deal breakdown by stage), "activity" (monthly activity summary), "contacts" (contact breakdown by type/source). Optional: dateRange.
+76. query.compare - Compare two data points or time periods. Use for "this month vs last month", "leads vs clients count", etc. Requires: question. Read-only.
+72. For analytical/statistical questions — "how many X", "what's my total Y", "top N by Z", "average deal value", "pipeline breakdown", any question about counts, totals, averages, or rankings — use query.ask with the user's question. The query engine handles the database lookup and returns structured data. PREFER query.ask over crm.search for numerical/analytical questions.
+73. For "pipeline report", "activity summary", "contact breakdown" — use query.report with the appropriate reportType.
+74. For "compare this month to last month", "deals this week vs last week" — use query.compare with the user's question.
 
 ## CRITICAL ROUTING RULES
 34. LEAD GENERATION vs CONTACT CREATION: Ad/lead generation requests (see Rule 0) always use the guided ad builder flow — NEVER lead.create. The ONLY time you use lead.create is when the user gives a SPECIFIC person's name and info to add (like "add John Smith as a lead").
@@ -337,6 +384,7 @@ function normalizeActionType(type: string): ActionType {
     "email.send_campaign", "email.draft",
     "docusign.send_envelope", "docusign.check_status",
     "automation.create", "automation.list",
+    "query.ask", "query.report", "query.compare",
   ];
 
   const normalized = type.toLowerCase().replace(/_/g, ".");
@@ -430,6 +478,12 @@ function normalizeActionType(type: string): ActionType {
     "emaildraft": "email.draft",
     "draft.email": "email.draft",
     "draftemail": "email.draft",
+    "query.ask": "query.ask",
+    "queryask": "query.ask",
+    "query.report": "query.report",
+    "queryreport": "query.report",
+    "query.compare": "query.compare",
+    "querycompare": "query.compare",
   };
 
   return typeMap[type.toLowerCase()] || "lead.create";

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/supabase/auth";
+import { requireUserId, requireUser } from "@/lib/supabase/auth";
 import { PropertyDetailView } from "./property-detail-view";
 
 interface PropertyPageProps {
@@ -59,7 +59,14 @@ export default async function PropertyPage({ params }: PropertyPageProps) {
     notFound();
   }
 
+  // Get current user for presence
+  const currentUser = await requireUser();
+  const currentUserMeta = {
+    name: currentUser.user_metadata?.full_name || currentUser.email || "You",
+    avatar: currentUser.user_metadata?.avatar_url || null,
+  };
+
   const serialized = JSON.parse(JSON.stringify(property));
 
-  return <PropertyDetailView property={serialized} contacts={contacts} />;
+  return <PropertyDetailView property={serialized} contacts={contacts} currentUser={currentUserMeta} />;
 }
