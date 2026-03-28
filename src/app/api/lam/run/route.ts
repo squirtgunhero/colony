@@ -174,12 +174,29 @@ export async function POST(request: NextRequest) {
       plan: {
         intent: result.plan.intent,
         confidence: result.plan.confidence,
-        actions: result.plan.actions.map((a) => ({
-          type: a.type,
-          action_id: a.action_id,
-          risk_tier: a.risk_tier,
-          requires_approval: a.requires_approval,
-        })),
+        actions: result.plan.actions.map((a) => {
+          const base: Record<string, unknown> = {
+            type: a.type,
+            action_id: a.action_id,
+            risk_tier: a.risk_tier,
+            requires_approval: a.requires_approval,
+          };
+          // Include ad preview data for campaign actions so the UI can render it
+          if (a.type === "ads.create_campaign") {
+            const p = a.payload as Record<string, unknown>;
+            base.payload = {
+              ad_headline: p.ad_headline,
+              ad_body: p.ad_body,
+              ad_description: p.ad_description,
+              preview_image_url: p.preview_image_url,
+              daily_budget: p.daily_budget,
+              target_city: p.target_city,
+              service_area: p.service_area,
+              objective: p.objective,
+            };
+          }
+          return base;
+        }),
         user_summary: result.plan.user_summary,
         follow_up_question: result.plan.follow_up_question,
         action_cards: actionCards.length > 0 ? actionCards : undefined,
