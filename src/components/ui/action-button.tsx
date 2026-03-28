@@ -27,13 +27,15 @@ export function ActionButton({
 }: ActionButtonProps) {
   const { theme } = useColonyTheme();
 
-  const sizeClasses = size === "sm" ? "h-8 px-3 text-[12px] gap-1.5" : "h-9 px-4 text-[13px] gap-2";
+  const sizeClasses = size === "sm"
+    ? "h-8 px-3.5 text-[12px] gap-1.5 rounded-lg"
+    : "h-9 px-4 text-[13px] gap-2 rounded-xl";
 
   const getStyles = (): React.CSSProperties => {
     if (disabled) {
       return {
-        backgroundColor: withAlpha(theme.text, 0.05),
-        color: withAlpha(theme.text, 0.25),
+        backgroundColor: withAlpha(theme.text, 0.04),
+        color: withAlpha(theme.text, 0.2),
         cursor: "not-allowed",
       };
     }
@@ -47,7 +49,6 @@ export function ActionButton({
         return {
           backgroundColor: withAlpha(theme.text, 0.06),
           color: withAlpha(theme.text, 0.7),
-          border: `1px solid ${withAlpha(theme.text, 0.08)}`,
         };
       case "ghost":
         return {
@@ -62,11 +63,11 @@ export function ActionButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center rounded-lg font-medium transition-all duration-150 hover:opacity-90 active:scale-[0.98] ${sizeClasses} ${className}`}
+      className={`inline-flex items-center justify-center font-medium transition-all duration-150 active:scale-[0.97] ${sizeClasses} ${className}`}
       style={getStyles()}
       aria-label={label}
     >
-      {Icon && <Icon className={size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"} />}
+      {Icon && <Icon className={size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"} strokeWidth={1.5} />}
       {label}
     </button>
   );

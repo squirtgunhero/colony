@@ -50,8 +50,9 @@ export default function NotificationsPage() {
 
   const hasUnread = notifications.some((n) => !n.read);
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
-  const neumorphicPressed = `inset 3px 3px 6px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(255,255,255,0.04)`;
+  
+  const neumorphicPressed = "none";
+  const neumorphicRaised = "none";
 
   const handleMarkAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -141,7 +142,7 @@ export default function NotificationsPage() {
                     backgroundColor: notification.read
                       ? theme.bgGlow
                       : withAlpha(theme.accent, 0.06),
-                    boxShadow: neumorphicRaised,
+                    boxShadow: "none",
                   }}
                 >
                   <div

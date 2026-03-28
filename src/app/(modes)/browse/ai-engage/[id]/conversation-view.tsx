@@ -122,7 +122,7 @@ export function AIConversationView({ engagement }: Props) {
             <Link
               href={`/browse/contacts/${engagement.contact.id}`}
               className="text-[22px] font-semibold hover:underline"
-              style={{ fontFamily: "'Spectral', serif", color: theme.text }}
+              style={{ fontFamily: "'Manrope', var(--font-inter), sans-serif", color: theme.text }}
             >
               {engagement.contact.name}
             </Link>

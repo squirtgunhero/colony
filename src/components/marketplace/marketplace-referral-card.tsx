@@ -106,8 +106,7 @@ export function MarketplaceReferralCard({
   onClaim,
 }: MarketplaceReferralCardProps) {
   const theme = BRAND;
-  const neumorphicRaised =
-    "4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)";
+  const neumorphicRaised = "none";
   const CategoryIcon = CATEGORY_ICONS[referral.category] ?? MoreHorizontal;
 
   return (
@@ -117,14 +116,14 @@ export function MarketplaceReferralCard({
           className="relative p-5 rounded-xl transition-all duration-200 h-full"
           style={{
             backgroundColor: theme.bgGlow,
-            boxShadow: neumorphicRaised,
+            boxShadow: "none",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.boxShadow = `2px 2px 4px rgba(0,0,0,0.3), -2px -2px 4px rgba(255,255,255,0.03), 0 0 12px ${withAlpha(theme.accent, 0.1)}`;
             e.currentTarget.style.transform = "translateY(-2px)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = neumorphicRaised;
+            e.currentTarget.style.boxShadow = "none";
             e.currentTarget.style.transform = "translateY(0)";
           }}
         >

@@ -48,7 +48,7 @@ export function DealsPageClient({
   const [view, setView] = useState<"board" | "list">("board");
   const { theme } = useColonyTheme();
 
-  const neumorphicRaised = `3px 3px 6px rgba(0,0,0,0.35), -3px -3px 6px rgba(255,255,255,0.03)`;
+  
 
   return (
     <div className="p-6 space-y-6">

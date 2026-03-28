@@ -13,18 +13,16 @@ function Card({ className, interactive = false, selected = false, style, ...prop
       data-slot="card"
       className={cn(
         "bg-card text-card-foreground rounded-2xl",
-        "border",
         interactive && [
-          "transition-all duration-200 ease-out cursor-pointer",
-          "hover:translate-y-[-2px]",
+          "transition-colors duration-200 cursor-pointer",
+          "hover:bg-card/80",
         ],
         selected && [
-          "ring-2 ring-primary/20 border-primary/20",
+          "ring-2 ring-primary/20",
         ],
         className
       )}
       style={{
-        borderColor: "var(--border)",
         boxShadow: "var(--shadow-sm)",
         ...style,
       }}

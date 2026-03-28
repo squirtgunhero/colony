@@ -42,7 +42,7 @@ export function ForecastBar() {
 
   if (!forecast || forecast.dealCount === 0) return null;
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
 
   const metrics = [
     { icon: DollarSign, label: "Pipeline", value: formatValue(forecast.totalPipeline) },
@@ -59,7 +59,7 @@ export function ForecastBar() {
           <div
             key={label}
             className="rounded-xl p-3"
-            style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+            style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
           >
             <div className="flex items-center gap-2 mb-1">
               <Icon className="h-3.5 w-3.5" style={{ color: theme.accent }} />
@@ -78,7 +78,7 @@ export function ForecastBar() {
       {forecast.byStage.length > 0 && (
         <div
           className="rounded-xl p-4"
-          style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+          style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
         >
           <h3 className="text-xs font-semibold mb-3" style={{ color: theme.textMuted }}>
             Pipeline by Stage

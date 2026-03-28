@@ -26,14 +26,14 @@ export function DocumentUploader({ propertyId, dealId, onUploadComplete }: Docum
   const { theme } = useColonyTheme();
   const [isUploading, setIsUploading] = useState(false);
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
 
   return (
     <div
       className="rounded-xl p-6"
       style={{
         backgroundColor: theme.bgGlow,
-        boxShadow: neumorphicRaised,
+        boxShadow: "none",
       }}
     >
       <h3

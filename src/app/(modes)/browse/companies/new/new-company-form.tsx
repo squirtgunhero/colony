@@ -42,7 +42,7 @@ export function NewCompanyForm() {
     zipCode: "",
   });
 
-  const neumorphicRecessed = `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`;
+  
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,7 +69,7 @@ export function NewCompanyForm() {
 
       <h1
         className="text-[28px] leading-tight font-semibold tracking-[-0.01em] mb-6"
-        style={{ color: theme.text, fontFamily: "'Spectral', serif" }}
+        style={{ color: theme.text, fontFamily: "'Manrope', var(--font-inter), sans-serif" }}
       >
         New Company
       </h1>
@@ -87,7 +87,7 @@ export function NewCompanyForm() {
               className="w-full h-10 px-3 rounded-xl text-sm outline-none transition-all"
               style={{
                 backgroundColor: "rgba(255,255,255,0.03)",
-                boxShadow: neumorphicRecessed,
+                boxShadow: "none",
                 border: `1px solid ${withAlpha(theme.text, 0.06)}`,
                 color: theme.text,
                 caretColor: theme.accent,

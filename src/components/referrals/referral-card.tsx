@@ -64,7 +64,7 @@ function formatCurrency(value: number, currency: string = "USD"): string {
 export function ReferralCard({ referral }: ReferralCardProps) {
   const { theme } = useColonyTheme();
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
   const dividerColor = withAlpha(theme.text, 0.06);
 
   return (
@@ -73,13 +73,13 @@ export function ReferralCard({ referral }: ReferralCardProps) {
         className="relative p-5 rounded-xl transition-all duration-200 group"
         style={{
           backgroundColor: theme.bgGlow,
-          boxShadow: neumorphicRaised,
+          boxShadow: "none",
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.boxShadow = `2px 2px 4px rgba(0,0,0,0.3), -2px -2px 4px rgba(255,255,255,0.03), 0 0 12px ${withAlpha(theme.accent, 0.1)}`;
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = neumorphicRaised;
+          e.currentTarget.style.boxShadow = "none";
         }}
       >
         {/* Header */}

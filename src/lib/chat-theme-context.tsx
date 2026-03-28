@@ -1,9 +1,10 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { useTheme } from "@/components/theme-provider";
 import {
   type ColonyTheme,
-  getTheme,
+  getThemeForMode,
   getStoredThemeId,
   storeThemeId,
   DEFAULT_THEME_ID,
@@ -19,6 +20,7 @@ const ColonyThemeContext = createContext<ColonyThemeContextValue | null>(null);
 
 export function ColonyThemeProvider({ children }: { children: ReactNode }) {
   const [themeId, setThemeIdState] = useState(DEFAULT_THEME_ID);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     setThemeIdState(getStoredThemeId());
@@ -34,7 +36,8 @@ export function ColonyThemeProvider({ children }: { children: ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  const theme = getTheme(themeId);
+  const isDark = resolvedTheme === "dark";
+  const theme = getThemeForMode(isDark);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -57,28 +60,35 @@ export function ColonyThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--popover", theme.cardBg);
     root.style.setProperty("--popover-foreground", theme.text);
     root.style.setProperty("--primary", theme.accent);
-    root.style.setProperty("--primary-foreground", theme.bg);
+    root.style.setProperty("--primary-foreground", isDark ? theme.bg : "#ffffff");
     root.style.setProperty("--muted", theme.surface);
     root.style.setProperty("--muted-foreground", theme.textMuted);
     root.style.setProperty("--accent", theme.accentSoft);
     root.style.setProperty("--accent-foreground", theme.accent);
-    root.style.setProperty("--border", theme.accentSoft);
-    root.style.setProperty("--input", theme.accentSoft);
+    root.style.setProperty("--border", isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)");
+    root.style.setProperty("--input", isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)");
     root.style.setProperty("--ring", theme.accent);
     root.style.setProperty("--secondary", theme.surface);
     root.style.setProperty("--secondary-foreground", theme.text);
     root.style.setProperty("--sidebar", theme.sidebarBg);
     root.style.setProperty("--sidebar-foreground", theme.textMuted);
     root.style.setProperty("--sidebar-primary", theme.accent);
-    root.style.setProperty("--sidebar-primary-foreground", theme.bg);
+    root.style.setProperty("--sidebar-primary-foreground", isDark ? theme.bg : "#ffffff");
     root.style.setProperty("--sidebar-accent", theme.accentSoft);
     root.style.setProperty("--sidebar-accent-foreground", theme.text);
-    root.style.setProperty("--sidebar-border", theme.accentSoft);
+    root.style.setProperty("--sidebar-border", isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)");
     root.style.setProperty("--sidebar-ring", theme.accent);
 
-    root.style.setProperty("--shadow-sm", `4px 4px 10px rgba(0,0,0,0.3), -4px -4px 10px rgba(255,255,255,0.03)`);
-    root.style.setProperty("--shadow-md", `6px 6px 16px rgba(0,0,0,0.4), -6px -6px 16px rgba(255,255,255,0.03)`);
-  }, [theme]);
+    if (isDark) {
+      root.style.setProperty("--shadow-sm", "0 1px 3px rgba(0,0,0,0.2)");
+      root.style.setProperty("--shadow-md", "0 4px 12px rgba(0,0,0,0.3)");
+      root.style.setProperty("--shadow-lg", "0 8px 24px rgba(0,0,0,0.4)");
+    } else {
+      root.style.setProperty("--shadow-sm", "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)");
+      root.style.setProperty("--shadow-md", "0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03)");
+      root.style.setProperty("--shadow-lg", "0 8px 24px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.03)");
+    }
+  }, [theme, isDark]);
 
   return (
     <ColonyThemeContext.Provider value={{ theme, themeId, setThemeById }}>

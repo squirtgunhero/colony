@@ -11,11 +11,6 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
-  Home,
-  DollarSign,
-  MapPin,
-  BedDouble,
-  Search,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { ActionButton } from "@/components/ui/action-button";
@@ -67,12 +62,10 @@ function formatPrice(n: number): string {
 
 export function ListingAlertsDashboard({ alerts, contacts, availableCities, totalListed }: Props) {
   const { theme } = useColonyTheme();
-  const borderColor = withAlpha(theme.text, 0.06);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
 
-  // Form
   const [contactId, setContactId] = useState("");
   const [alertName, setAlertName] = useState("");
   const [channel, setChannel] = useState("email");
@@ -83,12 +76,11 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
   const [minBedrooms, setMinBedrooms] = useState("");
   const [minBathrooms, setMinBathrooms] = useState("");
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     backgroundColor: withAlpha(theme.text, 0.04),
-    border: `1px solid ${borderColor}`,
     color: theme.text,
   };
-  const labelStyle = { color: withAlpha(theme.text, 0.5) };
+  const labelStyle: React.CSSProperties = { color: withAlpha(theme.text, 0.45) };
 
   const handleCreate = () => {
     if (!contactId || !alertName.trim()) return;
@@ -145,7 +137,7 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto space-y-6">
       <PageHeader
         title="Listing Alerts"
         subtitle={`Automatically notify contacts when properties match their criteria${totalListed > 0 ? ` \u00b7 ${totalListed} active listing${totalListed !== 1 ? "s" : ""}` : ""}`}
@@ -162,17 +154,19 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
 
       {/* Create form */}
       {showCreate && (
-        <div className="rounded-xl p-5 space-y-4" style={{ backgroundColor: withAlpha(theme.text, 0.02), border: `1px solid ${borderColor}` }}>
-          <h3 className="text-[15px] font-medium" style={{ color: theme.text }}>Create Listing Alert</h3>
+        <div
+          className="rounded-2xl p-5 space-y-4"
+          style={{ backgroundColor: withAlpha(theme.text, 0.03) }}
+        >
+          <h3 className="text-[15px] font-semibold" style={{ color: theme.text }}>Create Listing Alert</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Contact */}
             <div>
-              <label className="text-[11px] uppercase tracking-wider block mb-1.5" style={labelStyle}>Contact</label>
+              <label className="text-[11px] font-medium uppercase tracking-[0.06em] block mb-1.5" style={labelStyle}>Contact</label>
               <select
                 value={contactId}
                 onChange={(e) => setContactId(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg text-[13px] outline-none"
+                className="w-full h-10 px-3.5 rounded-xl text-[13px] outline-none"
                 style={inputStyle}
               >
                 <option value="" style={{ backgroundColor: theme.bg }}>Select contact...</option>
@@ -184,32 +178,33 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
               </select>
             </div>
 
-            {/* Name */}
             <div>
-              <label className="text-[11px] uppercase tracking-wider block mb-1.5" style={labelStyle}>Alert Name</label>
+              <label className="text-[11px] font-medium uppercase tracking-[0.06em] block mb-1.5" style={labelStyle}>Alert Name</label>
               <input
                 type="text"
                 value={alertName}
                 onChange={(e) => setAlertName(e.target.value)}
                 placeholder="e.g. 3BR homes under $500k"
-                className="w-full h-9 px-3 rounded-lg text-[13px] outline-none"
+                className="w-full h-10 px-3.5 rounded-xl text-[13px] outline-none"
                 style={inputStyle}
               />
             </div>
 
-            {/* Channel */}
+            {/* Channel — segmented control */}
             <div>
-              <label className="text-[11px] uppercase tracking-wider block mb-1.5" style={labelStyle}>Notify Via</label>
-              <div className="flex gap-1.5">
+              <label className="text-[11px] font-medium uppercase tracking-[0.06em] block mb-1.5" style={labelStyle}>Notify Via</label>
+              <div
+                className="inline-flex rounded-xl p-1 w-full"
+                style={{ backgroundColor: withAlpha(theme.text, 0.05) }}
+              >
                 {["email", "sms", "both"].map((ch) => (
                   <button
                     key={ch}
                     onClick={() => setChannel(ch)}
-                    className="flex-1 h-9 rounded-lg text-[12px] font-medium capitalize transition-all"
+                    className="flex-1 h-8 rounded-lg text-[12px] font-medium capitalize transition-all duration-200"
                     style={{
-                      backgroundColor: channel === ch ? withAlpha(theme.accent, 0.15) : withAlpha(theme.text, 0.04),
-                      color: channel === ch ? theme.accent : withAlpha(theme.text, 0.5),
-                      border: `1px solid ${channel === ch ? withAlpha(theme.accent, 0.3) : borderColor}`,
+                      backgroundColor: channel === ch ? withAlpha(theme.text, 0.1) : "transparent",
+                      color: channel === ch ? theme.text : withAlpha(theme.text, 0.4),
                     }}
                   >
                     {ch}
@@ -218,19 +213,21 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
               </div>
             </div>
 
-            {/* Frequency */}
+            {/* Frequency — segmented control */}
             <div>
-              <label className="text-[11px] uppercase tracking-wider block mb-1.5" style={labelStyle}>Frequency</label>
-              <div className="flex gap-1.5">
+              <label className="text-[11px] font-medium uppercase tracking-[0.06em] block mb-1.5" style={labelStyle}>Frequency</label>
+              <div
+                className="inline-flex rounded-xl p-1 w-full"
+                style={{ backgroundColor: withAlpha(theme.text, 0.05) }}
+              >
                 {["instant", "daily", "weekly"].map((f) => (
                   <button
                     key={f}
                     onClick={() => setFrequency(f)}
-                    className="flex-1 h-9 rounded-lg text-[12px] font-medium capitalize transition-all"
+                    className="flex-1 h-8 rounded-lg text-[12px] font-medium capitalize transition-all duration-200"
                     style={{
-                      backgroundColor: frequency === f ? withAlpha(theme.accent, 0.15) : withAlpha(theme.text, 0.04),
-                      color: frequency === f ? theme.accent : withAlpha(theme.text, 0.5),
-                      border: `1px solid ${frequency === f ? withAlpha(theme.accent, 0.3) : borderColor}`,
+                      backgroundColor: frequency === f ? withAlpha(theme.text, 0.1) : "transparent",
+                      color: frequency === f ? theme.text : withAlpha(theme.text, 0.4),
                     }}
                   >
                     {f}
@@ -242,14 +239,14 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
 
           {/* Price range */}
           <div>
-            <label className="text-[11px] uppercase tracking-wider block mb-1.5" style={labelStyle}>Price Range</label>
+            <label className="text-[11px] font-medium uppercase tracking-[0.06em] block mb-1.5" style={labelStyle}>Price Range</label>
             <div className="flex gap-2 items-center">
               <input
                 type="number"
                 value={minPrice}
                 onChange={(e) => setMinPrice(e.target.value)}
                 placeholder="Min"
-                className="flex-1 h-9 px-3 rounded-lg text-[13px] outline-none"
+                className="flex-1 h-10 px-3.5 rounded-xl text-[13px] outline-none"
                 style={inputStyle}
               />
               <span className="text-[12px]" style={{ color: withAlpha(theme.text, 0.3) }}>to</span>
@@ -258,7 +255,7 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
                 placeholder="Max"
-                className="flex-1 h-9 px-3 rounded-lg text-[13px] outline-none"
+                className="flex-1 h-10 px-3.5 rounded-xl text-[13px] outline-none"
                 style={inputStyle}
               />
             </div>
@@ -267,11 +264,11 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
           {/* Bedrooms / Bathrooms */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] uppercase tracking-wider block mb-1.5" style={labelStyle}>Min Bedrooms</label>
+              <label className="text-[11px] font-medium uppercase tracking-[0.06em] block mb-1.5" style={labelStyle}>Min Bedrooms</label>
               <select
                 value={minBedrooms}
                 onChange={(e) => setMinBedrooms(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg text-[13px] outline-none"
+                className="w-full h-10 px-3.5 rounded-xl text-[13px] outline-none"
                 style={inputStyle}
               >
                 <option value="" style={{ backgroundColor: theme.bg }}>Any</option>
@@ -281,11 +278,11 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
               </select>
             </div>
             <div>
-              <label className="text-[11px] uppercase tracking-wider block mb-1.5" style={labelStyle}>Min Bathrooms</label>
+              <label className="text-[11px] font-medium uppercase tracking-[0.06em] block mb-1.5" style={labelStyle}>Min Bathrooms</label>
               <select
                 value={minBathrooms}
                 onChange={(e) => setMinBathrooms(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg text-[13px] outline-none"
+                className="w-full h-10 px-3.5 rounded-xl text-[13px] outline-none"
                 style={inputStyle}
               >
                 <option value="" style={{ backgroundColor: theme.bg }}>Any</option>
@@ -299,7 +296,7 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
           {/* Cities */}
           {availableCities.length > 0 && (
             <div>
-              <label className="text-[11px] uppercase tracking-wider block mb-1.5" style={labelStyle}>
+              <label className="text-[11px] font-medium uppercase tracking-[0.06em] block mb-1.5" style={labelStyle}>
                 Cities ({selectedCities.length} selected)
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -309,11 +306,10 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
                     <button
                       key={city}
                       onClick={() => toggleCity(city)}
-                      className="h-7 px-3 rounded-full text-[11px] font-medium transition-all"
+                      className="h-7 px-3 rounded-full text-[11px] font-medium transition-all duration-200"
                       style={{
-                        backgroundColor: selected ? withAlpha(theme.accent, 0.15) : withAlpha(theme.text, 0.04),
-                        color: selected ? theme.accent : withAlpha(theme.text, 0.5),
-                        border: `1px solid ${selected ? withAlpha(theme.accent, 0.3) : borderColor}`,
+                        backgroundColor: selected ? withAlpha(theme.accent, 0.12) : withAlpha(theme.text, 0.05),
+                        color: selected ? theme.accent : withAlpha(theme.text, 0.45),
                       }}
                     >
                       {city}
@@ -324,22 +320,25 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setShowCreate(false)} className="h-9 px-4 rounded-lg text-[13px] font-medium" style={{ color: withAlpha(theme.text, 0.5) }}>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              onClick={() => setShowCreate(false)}
+              className="h-9 px-4 rounded-xl text-[13px] font-medium transition-opacity hover:opacity-70"
+              style={{ color: withAlpha(theme.text, 0.5) }}
+            >
               Cancel
             </button>
             <button
               onClick={handleCreate}
               disabled={isPending || !contactId || !alertName.trim()}
-              className="flex items-center gap-2 h-9 px-5 rounded-lg text-[13px] font-medium transition-all"
+              className="flex items-center gap-2 h-9 px-5 rounded-xl text-[13px] font-medium transition-all active:scale-[0.97]"
               style={{
                 backgroundColor: theme.accent,
                 color: theme.bg,
-                opacity: (!contactId || !alertName.trim()) ? 0.5 : 1,
+                opacity: (!contactId || !alertName.trim()) ? 0.4 : 1,
               }}
             >
-              <Bell className="h-3.5 w-3.5" />
+              <Bell className="h-3.5 w-3.5" strokeWidth={1.5} />
               {isPending ? "Creating..." : "Create Alert"}
             </button>
           </div>
@@ -348,27 +347,20 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
 
       {/* Alerts list */}
       {alerts.length === 0 && !showCreate ? (
-        <div
-          className="rounded-xl p-10 text-center"
-          style={{ backgroundColor: withAlpha(theme.text, 0.02), border: `1px solid ${borderColor}` }}
-        >
-          <Bell className="h-8 w-8 mx-auto mb-3" style={{ color: withAlpha(theme.text, 0.2) }} />
-          <p className="text-[14px] font-medium mb-1" style={{ color: theme.text }}>
-            No listing alerts yet
-          </p>
-          <p className="text-[12px]" style={{ color: withAlpha(theme.text, 0.4) }}>
-            Create alerts to automatically notify contacts when new listings match their criteria
-          </p>
-        </div>
+        <EmptyState
+          icon={Bell}
+          title="No listing alerts yet"
+          description="Create alerts to automatically notify contacts when new listings match their criteria."
+        />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {alerts.map((alert) => {
             const criteria: string[] = [];
             if (alert.cities.length > 0) criteria.push(alert.cities.join(", "));
             if (alert.minPrice || alert.maxPrice) {
               const min = alert.minPrice ? formatPrice(alert.minPrice) : "";
               const max = alert.maxPrice ? formatPrice(alert.maxPrice) : "";
-              criteria.push(min && max ? `${min}–${max}` : min ? `${min}+` : `Up to ${max}`);
+              criteria.push(min && max ? `${min}\u2013${max}` : min ? `${min}+` : `Up to ${max}`);
             }
             if (alert.minBedrooms) criteria.push(`${alert.minBedrooms}+ BR`);
             if (alert.minBathrooms) criteria.push(`${alert.minBathrooms}+ BA`);
@@ -376,32 +368,33 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
             return (
               <div
                 key={alert.id}
-                className="rounded-xl p-4 transition-colors"
+                className="rounded-2xl p-4 transition-colors"
                 style={{
-                  border: `1px solid ${borderColor}`,
+                  backgroundColor: withAlpha(theme.text, 0.02),
                   opacity: alert.isActive ? 1 : 0.5,
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = withAlpha(theme.text, 0.04)}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = withAlpha(theme.text, 0.02)}
               >
                 <div className="flex items-start gap-4">
-                  <div
-                    className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: withAlpha(alert.isActive ? theme.accent : theme.text, 0.1) }}
-                  >
-                    <Bell className="h-4 w-4" style={{ color: alert.isActive ? theme.accent : withAlpha(theme.text, 0.4) }} />
-                  </div>
+                  <Bell
+                    className="h-4 w-4 mt-0.5 shrink-0"
+                    style={{ color: alert.isActive ? theme.accent : withAlpha(theme.text, 0.3) }}
+                    strokeWidth={1.5}
+                  />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-[14px] font-medium" style={{ color: theme.text }}>{alert.name}</p>
                       <span
-                        className="text-[10px] px-2 py-0.5 rounded-full capitalize"
-                        style={{ backgroundColor: withAlpha(theme.text, 0.06), color: withAlpha(theme.text, 0.5) }}
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full capitalize"
+                        style={{ backgroundColor: withAlpha(theme.text, 0.05), color: withAlpha(theme.text, 0.45) }}
                       >
                         {alert.frequency}
                       </span>
                       <span
-                        className="text-[10px] px-2 py-0.5 rounded-full uppercase"
-                        style={{ backgroundColor: withAlpha(theme.text, 0.06), color: withAlpha(theme.text, 0.5) }}
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full uppercase"
+                        style={{ backgroundColor: withAlpha(theme.text, 0.05), color: withAlpha(theme.text, 0.45) }}
                       >
                         {alert.channel}
                       </span>
@@ -431,27 +424,26 @@ export function ListingAlertsDashboard({ alerts, contacts, availableCities, tota
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => toggleActive(alert.id, alert.isActive)}
                       disabled={isPending}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
+                      className="h-8 w-8 flex items-center justify-center rounded-lg transition-opacity hover:opacity-70"
                       title={alert.isActive ? "Pause" : "Activate"}
                     >
                       {alert.isActive ? (
-                        <ToggleRight className="h-5 w-5" style={{ color: "#22c55e" }} />
+                        <ToggleRight className="h-5 w-5" style={{ color: "#30d158" }} />
                       ) : (
-                        <ToggleLeft className="h-5 w-5" style={{ color: withAlpha(theme.text, 0.3) }} />
+                        <ToggleLeft className="h-5 w-5" style={{ color: withAlpha(theme.text, 0.25) }} />
                       )}
                     </button>
                     <button
                       onClick={() => deleteAlert(alert.id)}
                       disabled={isPending}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-                      style={{ color: withAlpha(theme.text, 0.3) }}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+                      style={{ color: withAlpha(theme.text, 0.25) }}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                     </button>
                   </div>
                 </div>

@@ -87,7 +87,7 @@ export function CompanyDetailView({ company: initialCompany }: CompanyDetailView
   });
   const [showMenu, setShowMenu] = useState(false);
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
 
   async function handleSave() {
     await updateCompany(company.id, editData);
@@ -132,7 +132,7 @@ export function CompanyDetailView({ company: initialCompany }: CompanyDetailView
           <div>
             <h1
               className="text-2xl font-semibold"
-              style={{ color: theme.text, fontFamily: "'Spectral', serif" }}
+              style={{ color: theme.text, fontFamily: "'Manrope', var(--font-inter), sans-serif" }}
             >
               {company.name}
             </h1>
@@ -194,7 +194,7 @@ export function CompanyDetailView({ company: initialCompany }: CompanyDetailView
       {isEditing && (
         <div
           className="rounded-2xl p-6 mb-8 space-y-4"
-          style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+          style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
         >
           <div className="grid grid-cols-2 gap-4">
             {(
@@ -270,7 +270,7 @@ export function CompanyDetailView({ company: initialCompany }: CompanyDetailView
         {/* Info card */}
         <div
           className="rounded-2xl p-5 space-y-4"
-          style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+          style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
         >
           <h2 className="text-sm font-semibold" style={{ color: theme.text }}>
             Details
@@ -330,7 +330,7 @@ export function CompanyDetailView({ company: initialCompany }: CompanyDetailView
         {/* Contacts */}
         <div
           className="rounded-2xl p-5"
-          style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+          style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: theme.text }}>
@@ -375,7 +375,7 @@ export function CompanyDetailView({ company: initialCompany }: CompanyDetailView
         {/* Deals */}
         <div
           className="rounded-2xl p-5"
-          style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+          style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: theme.text }}>

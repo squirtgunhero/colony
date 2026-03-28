@@ -13,7 +13,6 @@ import {
   BotMessageSquare,
   Mic,
   CalendarCheck,
-  Loader2,
   PhoneCall,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -71,43 +70,39 @@ function formatTime(date: string): string {
 }
 
 const outcomeColors: Record<string, string> = {
-  connected: "#22c55e",
-  interested: "#22c55e",
-  left_voicemail: "#eab308",
-  callback_requested: "#3b82f6",
-  no_answer: "#6b7280",
-  busy: "#6b7280",
-  not_interested: "#ef4444",
-  wrong_number: "#ef4444",
+  connected: "#30d158",
+  interested: "#30d158",
+  left_voicemail: "#ff9f0a",
+  callback_requested: "#64d2ff",
+  no_answer: "#98989d",
+  busy: "#98989d",
+  not_interested: "#ff453a",
+  wrong_number: "#ff453a",
 };
 
 export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
   const { theme } = useColonyTheme();
-  const borderColor = withAlpha(theme.text, 0.06);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto space-y-6">
       <PageHeader
         title="Power Dialer"
         subtitle="Call through your leads and let Voice AI qualify and set appointments"
         icon={Phone}
         actions={
-          <div className="flex items-center gap-2">
-            <ActionButton label="New Call List" icon={Plus} onClick={() => window.location.href = "/browse/dialer/lists"} />
-          </div>
+          <ActionButton label="New Call List" icon={Plus} onClick={() => window.location.href = "/browse/dialer/lists"} />
         }
       />
 
-      {/* Stats */}
       <StatGrid columns={4}>
         <StatCard label="Calls Today" value={todayStats.totalCalls} icon={Phone} />
-        <StatCard label="Connected" value={todayStats.connectedCalls} icon={CheckCircle} color="#22c55e" />
+        <StatCard label="Connected" value={todayStats.connectedCalls} icon={CheckCircle} color="#30d158" />
         <StatCard label="Talk Time" value={formatDuration(todayStats.totalDuration)} icon={Clock} />
-        <StatCard label="AI Calls" value={todayStats.voiceAICalls} icon={BotMessageSquare} color="#8b5cf6" />
+        <StatCard label="AI Calls" value={todayStats.voiceAICalls} icon={BotMessageSquare} color="#bf5af2" />
       </StatGrid>
 
-      {/* Voice AI Quick Launch */}
-      <VoiceAIPanel borderColor={borderColor} />
+      {/* Voice AI Panel */}
+      <VoiceAIPanel />
 
       {/* Call Lists */}
       <SectionCard
@@ -115,7 +110,7 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
         actions={
           <Link
             href="/browse/dialer/lists"
-            className="text-[12px] transition-colors hover:opacity-80"
+            className="text-[12px] font-medium transition-opacity hover:opacity-70"
             style={{ color: withAlpha(theme.text, 0.4) }}
           >
             Manage
@@ -126,7 +121,7 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
           <EmptyState
             icon={ListChecks}
             title="No call lists yet"
-            description="Create a call list to start power dialing through your contacts efficiently."
+            description="Create a call list to start power dialing through your contacts."
             action={
               <ActionButton
                 label="Create Call List"
@@ -137,7 +132,7 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
             }
           />
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {callLists.map((list) => {
               const progress = list.totalEntries > 0
                 ? Math.round((list.completedEntries / list.totalEntries) * 100)
@@ -146,18 +141,16 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
                 <Link
                   key={list.id}
                   href={`/browse/dialer/lists/${list.id}`}
-                  className="flex items-center gap-4 rounded-xl p-4 transition-all duration-150 hover:translate-y-[-1px]"
-                  style={{
-                    border: `1px solid ${borderColor}`,
-                    backgroundColor: withAlpha(theme.text, 0.015),
-                  }}
+                  className="flex items-center gap-4 rounded-xl p-3.5 transition-colors"
+                  style={{ backgroundColor: "transparent" }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = withAlpha(theme.text, 0.03)}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                 >
-                  <div
-                    className="flex items-center justify-center h-9 w-9 rounded-lg shrink-0"
-                    style={{ backgroundColor: withAlpha(theme.accent, 0.08) }}
-                  >
-                    <ListChecks className="h-4 w-4" style={{ color: theme.accent }} />
-                  </div>
+                  <ListChecks
+                    className="h-4 w-4 shrink-0"
+                    style={{ color: withAlpha(theme.text, 0.3) }}
+                    strokeWidth={1.5}
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-medium truncate" style={{ color: theme.text }}>
                       {list.name}
@@ -166,16 +159,16 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
                       {list.completedEntries} / {list.totalEntries} called
                     </p>
                   </div>
-                  <div className="w-28 shrink-0">
+                  <div className="w-24 shrink-0">
                     <div
-                      className="h-1.5 rounded-full overflow-hidden"
-                      style={{ backgroundColor: withAlpha(theme.text, 0.08) }}
+                      className="h-1 rounded-full overflow-hidden"
+                      style={{ backgroundColor: withAlpha(theme.text, 0.06) }}
                     >
                       <div
                         className="h-full rounded-full transition-all duration-300"
                         style={{
                           width: `${progress}%`,
-                          backgroundColor: progress === 100 ? "#22c55e" : theme.accent,
+                          backgroundColor: progress === 100 ? "#30d158" : theme.accent,
                         }}
                       />
                     </div>
@@ -196,7 +189,7 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
         actions={
           <Link
             href="/browse/dialer/history"
-            className="text-[12px]"
+            className="text-[12px] font-medium"
             style={{ color: withAlpha(theme.text, 0.4) }}
           >
             View all
@@ -209,7 +202,7 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
             <EmptyState
               icon={Phone}
               title="No calls yet"
-              description="Use the dialer button or Voice AI to make your first call."
+              description="Use the dialer or Voice AI to make your first call."
             />
           </div>
         ) : (
@@ -217,17 +210,19 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
             {recentCalls.map((call, i) => (
               <div
                 key={call.id}
-                className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-white/[0.02]"
+                className="flex items-center gap-3 px-5 py-3 transition-colors"
                 style={{
-                  borderBottom: i < recentCalls.length - 1 ? `1px solid ${borderColor}` : undefined,
+                  borderBottom: i < recentCalls.length - 1 ? `0.5px solid ${withAlpha(theme.text, 0.05)}` : undefined,
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = withAlpha(theme.text, 0.02)}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
               >
                 <div
                   className="h-2 w-2 rounded-full shrink-0"
                   style={{
                     backgroundColor: call.outcome
-                      ? outcomeColors[call.outcome] || "#6b7280"
-                      : "#6b7280",
+                      ? outcomeColors[call.outcome] || "#98989d"
+                      : "#98989d",
                   }}
                 />
                 <div className="flex-1 min-w-0">
@@ -237,19 +232,17 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
                     </p>
                     {call.isVoiceAI && (
                       <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
-                        style={{ backgroundColor: withAlpha("#8b5cf6", 0.15), color: "#a78bfa" }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium"
+                        style={{ backgroundColor: withAlpha("#bf5af2", 0.12), color: "#bf5af2" }}
                       >
-                        <BotMessageSquare className="h-3 w-3" />
                         AI
                       </span>
                     )}
                     {call.appointmentSet && (
                       <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
-                        style={{ backgroundColor: withAlpha("#22c55e", 0.15), color: "#4ade80" }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium"
+                        style={{ backgroundColor: withAlpha("#30d158", 0.12), color: "#30d158" }}
                       >
-                        <CalendarCheck className="h-3 w-3" />
                         Appt
                       </span>
                     )}
@@ -279,11 +272,8 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
   );
 }
 
-/** Voice AI quick-launch panel */
-function VoiceAIPanel({ borderColor }: { borderColor: string }) {
+function VoiceAIPanel() {
   const { theme } = useColonyTheme();
-  const [isLaunching, setIsLaunching] = useState(false);
-  const [contactSearch, setContactSearch] = useState("");
   const [objective, setObjective] = useState<"qualify" | "appointment" | "followup">("qualify");
 
   const objectives = [
@@ -296,50 +286,52 @@ function VoiceAIPanel({ borderColor }: { borderColor: string }) {
     <div
       className="rounded-2xl overflow-hidden"
       style={{
-        background: `linear-gradient(135deg, ${withAlpha("#8b5cf6", 0.08)} 0%, ${withAlpha(theme.accent, 0.06)} 100%)`,
-        border: `1px solid ${withAlpha("#8b5cf6", 0.15)}`,
+        backgroundColor: withAlpha(theme.text, 0.03),
       }}
     >
-      <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${withAlpha("#8b5cf6", 0.1)}` }}>
-        <div
-          className="flex items-center justify-center h-9 w-9 rounded-xl"
-          style={{ backgroundColor: withAlpha("#8b5cf6", 0.15) }}
-        >
-          <BotMessageSquare className="h-[18px] w-[18px]" style={{ color: "#a78bfa" }} />
-        </div>
+      <div
+        className="px-5 py-4 flex items-center gap-3"
+        style={{ borderBottom: `0.5px solid ${withAlpha(theme.text, 0.05)}` }}
+      >
+        <BotMessageSquare
+          className="h-5 w-5"
+          style={{ color: "#bf5af2" }}
+          strokeWidth={1.5}
+        />
         <div>
           <h3 className="text-[15px] font-semibold" style={{ color: theme.text }}>
             Voice AI
           </h3>
           <p className="text-[12px]" style={{ color: withAlpha(theme.text, 0.4) }}>
-            AI-powered calls that qualify leads and set appointments automatically
+            AI-powered calls that qualify leads and set appointments
           </p>
         </div>
       </div>
       <div className="px-5 py-4 space-y-4">
-        {/* Objective selector */}
-        <div className="flex gap-2">
+        {/* Segmented control for objectives */}
+        <div
+          className="inline-flex rounded-xl p-1"
+          style={{ backgroundColor: withAlpha(theme.text, 0.05) }}
+        >
           {objectives.map((obj) => {
             const active = objective === obj.id;
             return (
               <button
                 key={obj.id}
                 onClick={() => setObjective(obj.id)}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium transition-all duration-150"
+                className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-medium transition-all duration-200"
                 style={{
-                  backgroundColor: active ? withAlpha("#8b5cf6", 0.2) : withAlpha(theme.text, 0.04),
-                  color: active ? "#c4b5fd" : withAlpha(theme.text, 0.5),
-                  border: `1px solid ${active ? withAlpha("#8b5cf6", 0.3) : "transparent"}`,
+                  backgroundColor: active ? withAlpha(theme.text, 0.1) : "transparent",
+                  color: active ? theme.text : withAlpha(theme.text, 0.45),
                 }}
               >
-                <obj.icon className="h-3.5 w-3.5" />
+                <obj.icon className="h-3.5 w-3.5" strokeWidth={1.5} />
                 {obj.label}
               </button>
             );
           })}
         </div>
 
-        {/* Quick note */}
         <p className="text-[12px] leading-relaxed" style={{ color: withAlpha(theme.text, 0.35) }}>
           Tara will call contacts on your behalf, qualify their interest level, and attempt to schedule appointments.
           Conversations are recorded and transcribed.

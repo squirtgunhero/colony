@@ -171,7 +171,7 @@ export function ContactDetailView({
     .toUpperCase();
 
   const dividerColor = withAlpha(theme.text, 0.06);
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
   const neumorphicPressed = `inset 3px 3px 6px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(255,255,255,0.04)`;
 
   return (
@@ -277,7 +277,7 @@ export function ContactDetailView({
                 className="text-[32px] leading-tight font-semibold tracking-[-0.01em]"
                 style={{
                   color: theme.text,
-                  fontFamily: "'Spectral', serif",
+                  fontFamily: "'Manrope', var(--font-inter), sans-serif",
                 }}
               >
                 {contact.name}
@@ -368,23 +368,23 @@ export function ContactDetailView({
       <div className="max-w-5xl mx-auto px-6 pb-8">
         <div className="flex items-center gap-3 overflow-x-auto pb-1 -mb-1">
           <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
-            <ActionButton theme={theme} icon={<Phone className="h-4 w-4" />} label="Call" raised={neumorphicRaised} pressed={neumorphicPressed} />
+            <ActionButton theme={theme} icon={<Phone className="h-4 w-4" />} label="Call" raised={"none"} pressed={"none"} />
           </ActivityDialog>
           {contact.email && (
             <SendEmailDialog contactEmail={contact.email} contactId={contact.id} contactName={contact.name}>
-              <ActionButton theme={theme} icon={<Mail className="h-4 w-4" />} label="Email" raised={neumorphicRaised} pressed={neumorphicPressed} />
+              <ActionButton theme={theme} icon={<Mail className="h-4 w-4" />} label="Email" raised={"none"} pressed={"none"} />
             </SendEmailDialog>
           )}
           <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="meeting">
-            <ActionButton theme={theme} icon={<Users className="h-4 w-4" />} label="Meeting" raised={neumorphicRaised} pressed={neumorphicPressed} />
+            <ActionButton theme={theme} icon={<Users className="h-4 w-4" />} label="Meeting" raised={"none"} pressed={"none"} />
           </ActivityDialog>
           <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="note">
-            <ActionButton theme={theme} icon={<FileText className="h-4 w-4" />} label="Note" raised={neumorphicRaised} pressed={neumorphicPressed} />
+            <ActionButton theme={theme} icon={<FileText className="h-4 w-4" />} label="Note" raised={"none"} pressed={"none"} />
           </ActivityDialog>
           <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
-            <ActionButton theme={theme} icon={<MessageSquare className="h-4 w-4" />} label="Text" raised={neumorphicRaised} pressed={neumorphicPressed} />
+            <ActionButton theme={theme} icon={<MessageSquare className="h-4 w-4" />} label="Text" raised={"none"} pressed={"none"} />
           </ActivityDialog>
-          <ActionButton theme={theme} icon={<CheckSquare className="h-4 w-4" />} label="Task" raised={neumorphicRaised} pressed={neumorphicPressed} />
+          <ActionButton theme={theme} icon={<CheckSquare className="h-4 w-4" />} label="Task" raised={"none"} pressed={"none"} />
         </div>
       </div>
 

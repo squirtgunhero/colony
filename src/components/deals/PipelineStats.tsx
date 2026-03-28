@@ -50,14 +50,14 @@ export function PipelineStats({ deals }: PipelineStatsProps) {
     { label: "Conversion Rate", value: `${conversionRate}%` },
   ];
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
 
   return (
     <div
       className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-xl mt-6"
       style={{
         backgroundColor: theme.bgGlow,
-        boxShadow: neumorphicRaised,
+        boxShadow: "none",
       }}
     >
       {stats.map((stat) => (

@@ -16,36 +16,38 @@ export default function DashboardError({
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-6">
       <div
-        className="flex items-center justify-center h-14 w-14 rounded-2xl mb-5"
+        className="flex items-center justify-center h-12 w-12 rounded-full mb-4"
         style={{
-          backgroundColor: withAlpha("#ef4444", 0.1),
-          border: `1px solid ${withAlpha("#ef4444", 0.15)}`,
+          backgroundColor: withAlpha("#ff453a", 0.08),
         }}
       >
-        <AlertTriangle className="h-6 w-6" style={{ color: "#f87171" }} />
+        <AlertTriangle
+          className="h-5 w-5"
+          style={{ color: "#ff453a" }}
+          strokeWidth={1.5}
+        />
       </div>
       <h2
-        className="text-[18px] font-semibold mb-2"
+        className="text-[18px] font-semibold mb-2 tracking-[-0.01em]"
         style={{ color: theme.text }}
       >
         Something went wrong
       </h2>
       <p
-        className="text-[13px] text-center max-w-md mb-6"
-        style={{ color: withAlpha(theme.text, 0.5) }}
+        className="text-[13px] text-center max-w-md mb-6 leading-relaxed"
+        style={{ color: withAlpha(theme.text, 0.45) }}
       >
         {error.message || "An unexpected error occurred. Please try again."}
       </p>
       <button
         onClick={reset}
-        className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-[13px] font-medium transition-all duration-150 hover:opacity-90 active:scale-[0.98]"
+        className="inline-flex items-center gap-2 h-9 px-4 rounded-xl text-[13px] font-medium transition-all duration-200 active:scale-[0.97]"
         style={{
           backgroundColor: withAlpha(theme.text, 0.06),
-          color: withAlpha(theme.text, 0.7),
-          border: `1px solid ${withAlpha(theme.text, 0.08)}`,
+          color: withAlpha(theme.text, 0.6),
         }}
       >
-        <RefreshCw className="h-4 w-4" />
+        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
         Try again
       </button>
     </div>

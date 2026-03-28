@@ -58,8 +58,8 @@ export function ReferralFilters() {
         : "all"
   );
 
-  const neumorphicRaised = `3px 3px 6px rgba(0,0,0,0.4), -3px -3px 6px rgba(255,255,255,0.04)`;
-  const neumorphicRecessed = `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`;
+  
+  
   const dividerColor = withAlpha(theme.text, 0.06);
 
   const updateFilters = (updates: Record<string, string | null>) => {
@@ -122,7 +122,7 @@ export function ReferralFilters() {
             className="w-full h-10 pl-9 pr-9 rounded-xl text-sm outline-none transition-all"
             style={{
               backgroundColor: "rgba(255,255,255,0.03)",
-              boxShadow: neumorphicRecessed,
+              boxShadow: "none",
               border: `1px solid ${dividerColor}`,
               color: theme.text,
               caretColor: theme.accent,
@@ -149,7 +149,7 @@ export function ReferralFilters() {
           style={{
             backgroundColor: theme.bgGlow,
             color: theme.textMuted,
-            boxShadow: neumorphicRaised,
+            boxShadow: "none",
           }}
           onClick={handleSearch}
         >

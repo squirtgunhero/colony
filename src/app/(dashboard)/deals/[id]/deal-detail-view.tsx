@@ -90,7 +90,7 @@ export function DealDetailView({
   const [quickNote, setQuickNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
   const dividerColor = withAlpha(theme.text, 0.06);
   const currentStageIndex = STAGES.indexOf(deal.stage);
 
@@ -150,7 +150,7 @@ export function DealDetailView({
             <div className="flex items-center gap-3 flex-wrap">
               <h1
                 className="text-[28px] leading-tight font-semibold tracking-[-0.01em]"
-                style={{ color: theme.text, fontFamily: "'Spectral', serif" }}
+                style={{ color: theme.text, fontFamily: "'Manrope', var(--font-inter), sans-serif" }}
               >
                 {deal.title}
               </h1>
@@ -404,7 +404,7 @@ export function DealDetailView({
             {deal.contact && (
               <div
                 className="p-4 rounded-xl"
-                style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+                style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
               >
                 <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: theme.textMuted }}>
                   Contact
@@ -435,7 +435,7 @@ export function DealDetailView({
             {deal.property && (
               <div
                 className="p-4 rounded-xl"
-                style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+                style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
               >
                 <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: theme.textMuted }}>
                   Property
@@ -455,7 +455,7 @@ export function DealDetailView({
             {deal.tasks.length > 0 && (
               <div
                 className="p-4 rounded-xl"
-                style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+                style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
               >
                 <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: theme.textMuted }}>
                   Open Tasks
@@ -481,7 +481,7 @@ export function DealDetailView({
             {/* Deal Details */}
             <div
               className="p-4 rounded-xl"
-              style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+              style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
             >
               <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: theme.textMuted }}>
                 Details

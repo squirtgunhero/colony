@@ -14,24 +14,25 @@ interface SectionCardProps {
 
 export function SectionCard({ title, subtitle, actions, children, noPadding, className = "" }: SectionCardProps) {
   const { theme } = useColonyTheme();
-  const borderColor = withAlpha(theme.text, 0.06);
 
   return (
     <div
       className={`rounded-2xl overflow-hidden ${className}`}
       style={{
-        backgroundColor: withAlpha(theme.text, 0.02),
-        border: `1px solid ${borderColor}`,
+        backgroundColor: withAlpha(theme.text, 0.03),
       }}
     >
       {(title || actions) && (
         <div
           className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: `1px solid ${borderColor}` }}
+          style={{ borderBottom: `1px solid ${withAlpha(theme.text, 0.05)}` }}
         >
           <div>
             {title && (
-              <h2 className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: theme.text }}>
+              <h2
+                className="text-[15px] font-semibold tracking-[-0.01em]"
+                style={{ color: theme.text }}
+              >
                 {title}
               </h2>
             )}

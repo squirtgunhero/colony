@@ -71,11 +71,8 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
 
   const types = ["all", ...new Set(contacts.map((c) => c.type))];
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
-  const neumorphicRecessed = `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`;
-
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto space-y-6">
       <PageHeader
         title="People"
         subtitle={`${filteredContacts.length} contact${filteredContacts.length !== 1 ? "s" : ""}`}
@@ -93,35 +90,38 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
-            style={{ color: theme.textMuted }}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4"
+            style={{ color: withAlpha(theme.text, 0.25) }}
+            strokeWidth={1.5}
           />
           <input
             placeholder="Search contacts..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-10 pl-9 pr-3 rounded-xl text-sm outline-none transition-all focus:ring-1"
+            className="w-full h-10 pl-10 pr-3 rounded-xl text-[13px] outline-none transition-all"
             style={{
-              backgroundColor: withAlpha(theme.text, 0.03),
-              border: `1px solid ${withAlpha(theme.text, 0.06)}`,
+              backgroundColor: withAlpha(theme.text, 0.05),
               color: theme.text,
               caretColor: theme.accent,
             }}
             aria-label="Search contacts"
           />
         </div>
-        <div className="flex gap-2">
+        {/* Segmented filter */}
+        <div
+          className="inline-flex rounded-xl p-1 self-start"
+          style={{ backgroundColor: withAlpha(theme.text, 0.05) }}
+        >
           {types.map((type) => {
             const isActive = typeFilter === type;
             return (
               <button
                 key={type}
                 onClick={() => setTypeFilter(type)}
-                className="px-3 py-1.5 text-[12px] font-medium rounded-lg capitalize transition-all duration-150"
+                className="px-3 py-1.5 text-[12px] font-medium rounded-lg capitalize transition-all duration-200"
                 style={{
-                  backgroundColor: isActive ? withAlpha(theme.accent, 0.12) : "transparent",
-                  color: isActive ? theme.accent : withAlpha(theme.text, 0.45),
-                  border: isActive ? `1px solid ${withAlpha(theme.accent, 0.2)}` : "1px solid transparent",
+                  backgroundColor: isActive ? withAlpha(theme.text, 0.1) : "transparent",
+                  color: isActive ? theme.text : withAlpha(theme.text, 0.4),
                 }}
               >
                 {type}
@@ -131,39 +131,32 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
         </div>
       </div>
 
-      {/* Duplicates warning */}
       <DuplicatesPanel />
 
       {/* List */}
-      <div className="space-y-2">
-        {filteredContacts.length === 0 ? (
-          <div className="text-center py-12">
-            <User className="h-12 w-12 mx-auto mb-4" style={{ color: theme.accent, opacity: 0.4 }} />
-            <p style={{ color: theme.textMuted }}>No contacts found</p>
-          </div>
-        ) : (
-          filteredContacts.map((contact) => (
+      {filteredContacts.length === 0 ? (
+        <EmptyState
+          icon={User}
+          title="No contacts found"
+          description="Try adjusting your search or filters."
+        />
+      ) : (
+        <div className="space-y-0.5">
+          {filteredContacts.map((contact) => (
             <Link
               key={contact.id}
               href={`/contacts/${contact.id}`}
-              className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200 group"
-              style={{
-                backgroundColor: theme.bgGlow,
-                boxShadow: neumorphicRaised,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = `2px 2px 4px rgba(0,0,0,0.3), -2px -2px 4px rgba(255,255,255,0.03), 0 0 12px ${withAlpha(theme.accent, 0.1)}`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = neumorphicRaised;
-              }}
+              className="flex items-center gap-4 p-4 rounded-2xl transition-colors group"
+              style={{ backgroundColor: "transparent" }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = withAlpha(theme.text, 0.03)}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
             >
               {/* Avatar */}
               <div
-                className="flex items-center justify-center h-12 w-12 rounded-full font-medium shrink-0"
+                className="flex items-center justify-center h-10 w-10 rounded-full font-semibold text-[13px] shrink-0"
                 style={{
-                  background: `linear-gradient(135deg, ${withAlpha(theme.accent, 0.2)}, ${withAlpha(theme.accent, 0.08)})`,
-                  color: theme.accent,
+                  backgroundColor: withAlpha(theme.text, 0.07),
+                  color: withAlpha(theme.text, 0.5),
                 }}
               >
                 {contact.name
@@ -177,14 +170,14 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium truncate" style={{ color: theme.text }}>
+                  <h3 className="text-[14px] font-medium truncate" style={{ color: theme.text }}>
                     {contact.name}
                   </h3>
                   <span
                     className="text-[10px] px-2 py-0.5 rounded-full capitalize font-medium"
                     style={{
-                      backgroundColor: withAlpha(theme.accent, 0.15),
-                      color: theme.accent,
+                      backgroundColor: withAlpha(theme.text, 0.06),
+                      color: withAlpha(theme.text, 0.5),
                     }}
                   >
                     {contact.type}
@@ -193,16 +186,16 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                     <LeadScoreBadge score={contact.leadScore.score} grade={contact.leadScore.grade} compact />
                   )}
                 </div>
-                <div className="flex items-center gap-4 mt-1 text-sm" style={{ color: theme.textMuted }}>
+                <div className="flex items-center gap-4 mt-0.5 text-[12px]" style={{ color: withAlpha(theme.text, 0.4) }}>
                   {contact.email && (
                     <span className="flex items-center gap-1 truncate">
-                      <Mail className="h-3 w-3" />
+                      <Mail className="h-3 w-3" strokeWidth={1.5} />
                       {contact.email}
                     </span>
                   )}
                   {contact.phone && (
                     <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
+                      <Phone className="h-3 w-3" strokeWidth={1.5} />
                       {contact.phone}
                     </span>
                   )}
@@ -211,21 +204,23 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                     const loc = prop ? [prop.city, prop.state].filter(Boolean).join(", ") : null;
                     return loc ? (
                       <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
+                        <MapPin className="h-3 w-3" strokeWidth={1.5} />
                         {loc}
                       </span>
                     ) : null;
                   })()}
                   {!contact.email && !contact.phone && (
-                    <span className="italic opacity-50 text-xs">No contact info</span>
+                    <span className="italic text-[11px]" style={{ color: withAlpha(theme.text, 0.25) }}>
+                      No contact info
+                    </span>
                   )}
                 </div>
               </div>
 
               {/* Meta */}
               <div
-                className="hidden sm:flex items-center gap-4 text-xs"
-                style={{ color: theme.textMuted }}
+                className="hidden sm:flex items-center gap-4 text-[11px]"
+                style={{ color: withAlpha(theme.text, 0.35) }}
               >
                 {contact.deals.length > 0 && (
                   <span>
@@ -239,14 +234,14 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
               <div className="relative">
                 <button
                   className="h-8 w-8 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ color: theme.textMuted }}
+                  style={{ color: withAlpha(theme.text, 0.35) }}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     setOpenMenuId(openMenuId === contact.id ? null : contact.id);
                   }}
                 >
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} />
                 </button>
 
                 {openMenuId === contact.id && (
@@ -254,9 +249,9 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                     ref={menuRef}
                     className="absolute right-0 top-full mt-1 z-50 rounded-xl py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-150"
                     style={{
-                      backgroundColor: theme.bgGlow,
-                      border: `1px solid ${withAlpha(theme.text, 0.1)}`,
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                      backgroundColor: theme.bg,
+                      boxShadow: "var(--shadow-lg)",
+                      border: `0.5px solid ${withAlpha(theme.text, 0.08)}`,
                     }}
                   >
                     <button
@@ -265,25 +260,21 @@ export function ContactsListView({ contacts: initialContacts }: ContactsListView
                         e.stopPropagation();
                         handleDelete(contact.id, contact.name);
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors"
-                      style={{ color: "#ef4444" }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = withAlpha("#ef4444", 0.1);
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-left transition-colors rounded-lg"
+                      style={{ color: "#ff453a" }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = withAlpha("#ff453a", 0.08)}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                       Delete
                     </button>
                   </div>
                 )}
               </div>
             </Link>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -56,7 +56,7 @@ export function DocumentList({ documents, title = "Documents" }: DocumentListPro
   const { theme } = useColonyTheme();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
   const dividerColor = withAlpha(theme.text, 0.06);
 
   const handleDelete = async (id: string) => {
@@ -74,7 +74,7 @@ export function DocumentList({ documents, title = "Documents" }: DocumentListPro
         className="rounded-xl p-6"
         style={{
           backgroundColor: theme.bgGlow,
-          boxShadow: neumorphicRaised,
+          boxShadow: "none",
         }}
       >
         <h3
@@ -102,7 +102,7 @@ export function DocumentList({ documents, title = "Documents" }: DocumentListPro
       className="rounded-xl p-6"
       style={{
         backgroundColor: theme.bgGlow,
-        boxShadow: neumorphicRaised,
+        boxShadow: "none",
       }}
     >
       <h3

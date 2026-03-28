@@ -42,8 +42,8 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
 
   const statuses = ["all", ...new Set(properties.map((p) => p.status))];
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
-  const neumorphicRecessed = `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`;
+  
+  
   const dividerColor = withAlpha(theme.text, 0.06);
 
   return (
@@ -53,7 +53,7 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
         <div>
           <h1
             className="text-[28px] leading-tight font-semibold tracking-[-0.01em]"
-            style={{ color: theme.text, fontFamily: "'Spectral', serif" }}
+            style={{ color: theme.text, fontFamily: "'Manrope', var(--font-inter), sans-serif" }}
           >
             Properties
           </h1>
@@ -70,7 +70,7 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
           style={{
             backgroundColor: theme.accent,
             color: theme.bg,
-            boxShadow: neumorphicRaised,
+            boxShadow: "none",
           }}
         >
           Add Property
@@ -91,7 +91,7 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
             className="w-full h-10 pl-9 pr-3 rounded-xl text-sm outline-none transition-all"
             style={{
               backgroundColor: "rgba(255,255,255,0.03)",
-              boxShadow: neumorphicRecessed,
+              boxShadow: "none",
               border: `1px solid ${dividerColor}`,
               color: theme.text,
               caretColor: theme.accent,
@@ -110,7 +110,7 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
                 style={{
                   backgroundColor: isActive ? withAlpha(theme.accent, 0.15) : "transparent",
                   color: isActive ? theme.accent : theme.textMuted,
-                  boxShadow: isActive ? neumorphicRaised : "none",
+                  boxShadow: isActive ? "none" : "none",
                 }}
               >
                 {(status ?? "").replace("_", " ")}
@@ -135,13 +135,13 @@ export function PropertiesListView({ properties }: PropertiesListViewProps) {
               className="flex flex-col p-4 rounded-xl transition-all duration-200 group"
               style={{
                 backgroundColor: theme.bgGlow,
-                boxShadow: neumorphicRaised,
+                boxShadow: "none",
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.boxShadow = `2px 2px 4px rgba(0,0,0,0.3), -2px -2px 4px rgba(255,255,255,0.03), 0 0 12px ${withAlpha(theme.accent, 0.1)}`;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = neumorphicRaised;
+                e.currentTarget.style.boxShadow = "none";
               }}
             >
               {/* Header */}

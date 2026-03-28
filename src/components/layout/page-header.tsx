@@ -22,7 +22,7 @@ export function PageHeader({ title, description, children }: PageHeaderProps) {
           className="text-[28px] leading-tight font-semibold tracking-[-0.01em]"
           style={{
             color: theme.text,
-            fontFamily: "'Spectral', serif",
+            fontFamily: "'Manrope', var(--font-inter), sans-serif",
           }}
         >
           {title}

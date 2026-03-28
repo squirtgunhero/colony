@@ -35,6 +35,7 @@ export function withAlpha(hex: string, alpha: number): string {
 interface ThemeInput {
   id: string;
   name: string;
+  isDark: boolean;
   bg: string;
   bgGlow: string;
   accent: string;
@@ -42,37 +43,56 @@ interface ThemeInput {
 }
 
 function buildTheme(input: ThemeInput): ColonyTheme {
-  const { accent, text, bg, bgGlow } = input;
+  const { accent, text, bg, bgGlow, isDark } = input;
   const { r: br, g: bg2, b: bb } = hexToRgb(bg);
-  const sidebarBg = `rgb(${Math.max(br - 5, 0)}, ${Math.max(bg2 - 5, 0)}, ${Math.max(bb - 5, 0)})`;
+
+  const sidebarBg = isDark
+    ? `rgb(${Math.max(br - 5, 0)}, ${Math.max(bg2 - 5, 0)}, ${Math.max(bb - 5, 0)})`
+    : `rgb(${Math.max(br - 3, 0)}, ${Math.max(bg2 - 3, 0)}, ${Math.max(bb - 3, 0)})`;
+
   return {
     ...input,
-    isDark: true,
     sidebarBg,
     cardBg: bgGlow,
     inputBg: bgGlow,
-    surface: withAlpha(accent, 0.08),
-    textMuted: withAlpha(text, 0.50),
-    textSoft: withAlpha(text, 0.70),
-    accentSoft: withAlpha(accent, 0.15),
-    accentGlow: withAlpha(accent, 0.12),
-    userBubble: withAlpha(accent, 0.12),
+    surface: withAlpha(accent, isDark ? 0.08 : 0.06),
+    textMuted: withAlpha(text, isDark ? 0.50 : 0.45),
+    textSoft: withAlpha(text, isDark ? 0.70 : 0.65),
+    accentSoft: withAlpha(accent, isDark ? 0.15 : 0.10),
+    accentGlow: withAlpha(accent, isDark ? 0.12 : 0.08),
+    userBubble: withAlpha(accent, isDark ? 0.12 : 0.08),
   };
 }
 
-export const COLONY_THEME: ColonyTheme = buildTheme({
-  id: "colony", name: "Colony",
-  bg: "#151518", bgGlow: "#1E1E22", accent: "#C8A864", text: "#F5F0E6",
+export const COLONY_DARK: ColonyTheme = buildTheme({
+  id: "colony-dark", name: "Colony Dark", isDark: true,
+  bg: "#000000", bgGlow: "#1c1c1e", accent: "#B8A080", text: "#F5F5F7",
 });
 
-export const THEMES: ColonyTheme[] = [COLONY_THEME];
+export const COLONY_LIGHT: ColonyTheme = buildTheme({
+  id: "colony-light", name: "Colony Light", isDark: false,
+  bg: "#F5F5F7", bgGlow: "#FFFFFF", accent: "#9A8568", text: "#1D1D1F",
+});
 
-export const THEME_MAP = new Map([["colony", COLONY_THEME]]);
+/** @deprecated Use COLONY_DARK instead */
+export const COLONY_THEME = COLONY_DARK;
+
+export const THEMES: ColonyTheme[] = [COLONY_DARK, COLONY_LIGHT];
+
+export const THEME_MAP = new Map<string, ColonyTheme>([
+  ["colony", COLONY_DARK],
+  ["colony-dark", COLONY_DARK],
+  ["colony-light", COLONY_LIGHT],
+]);
 
 export const DEFAULT_THEME_ID = "colony";
 
+export function getThemeForMode(isDark: boolean): ColonyTheme {
+  return isDark ? COLONY_DARK : COLONY_LIGHT;
+}
+
 export function getTheme(_id: string): ColonyTheme {
-  return COLONY_THEME;
+  return COLONY_DARK;
 }
 
 const STORAGE_KEY = "colony-chat-theme";

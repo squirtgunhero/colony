@@ -60,12 +60,12 @@ export function DuplicatesPanel() {
 
   if (loading || duplicates.length === 0) return null;
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
 
   return (
     <div
       className="rounded-xl mb-4"
-      style={{ backgroundColor: withAlpha("#f59e0b", 0.06), boxShadow: neumorphicRaised }}
+      style={{ backgroundColor: withAlpha("#f59e0b", 0.06), boxShadow: "none" }}
     >
       <button
         onClick={() => setExpanded(!expanded)}

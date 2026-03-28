@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 
 const marketingTabs = [
   { label: "Campaigns", href: "/marketing/campaigns" },
+  { label: "Sites", href: "/marketing/sites" },
   { label: "Content", href: "/marketing/content" },
   { label: "Email", href: "/marketing/email" },
   { label: "Calendar", href: "/marketing/calendar" },
@@ -122,7 +123,7 @@ export function MarketingTopNav() {
                   >
                     <span
                       className="text-[13px] font-medium tracking-wide"
-                      style={{ fontFamily: "'Spectral', serif", color: theme.accent }}
+                      style={{ fontFamily: "'Manrope', var(--font-inter), sans-serif", color: theme.accent }}
                     >
                       Tara
                     </span>

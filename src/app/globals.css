@@ -5,16 +5,16 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================
-   COLONY DESIGN SYSTEM - Premium Tokens
-   "Quiet Luxury" - Feel it before you notice it
+   COLONY DESIGN SYSTEM — Apple-Inspired
+   Clean · Minimal · Spacious
    ============================================ */
 
 @theme inline {
-  /* Typography */
+  /* Typography — clean sans-serif stack */
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-display: 'Manrope', var(--font-inter), sans-serif;
-  
+
   /* Colors mapped to CSS vars */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -34,19 +34,19 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  
-  /* Semantic colors - Muted, sophisticated (never pure) */
+
+  /* Semantic colors */
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
-  
-  /* Chart palette - sophisticated neutrals + single accent */
+
+  /* Chart palette */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  
+
   /* Sidebar */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -56,142 +56,141 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  
-  /* Radius scale */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+
+  /* Radius — generous, Apple-like */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
   --radius-full: 9999px;
-  
-  /* Premium transition */
-  --transition-fast: 150ms ease-out;
-  --transition-base: 200ms ease-out;
-  --transition-slow: 300ms ease-out;
+
+  /* Transitions — smooth, Apple-like spring */
+  --transition-fast: 150ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-base: 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-slow: 350ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 /* ============================================
-   LIGHT THEME - Quiet Luxury
-   Warm off-white bg, true white cards, depth through layers
+   LIGHT THEME
    ============================================ */
 :root {
-  --radius: 12px;
-  
-  /* Surfaces - Layered neutrals for depth */
-  --background: #f8f8f6;      /* Warm off-white */
-  --foreground: #1a1a1a;      /* Soft black */
-  --card: #ffffff;            /* True white */
-  --card-foreground: #1a1a1a;
+  --radius: 14px;
+
+  /* Surfaces — layered grays like Apple */
+  --background: #f5f5f7;          /* Apple system gray background */
+  --foreground: #1d1d1f;          /* Apple primary text */
+  --card: #ffffff;
+  --card-foreground: #1d1d1f;
   --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
-  
-  /* Primary - Warm amber, precise accent only */
-  --primary: #c2410c;         /* Deeper, richer amber */
-  --primary-foreground: #ffffff;
-  
-  /* Secondary - Warm neutral */
-  --secondary: #f5f5f3;
-  --secondary-foreground: #1a1a1a;
-  
-  /* Muted - Subtle warm gray */
-  --muted: #f5f5f3;
-  --muted-foreground: #6b6b6b;
-  
-  /* Accent - Very subtle warm tint */
-  --accent: #fef7ed;
-  --accent-foreground: #9a3412;
-  
-  /* Semantic - Muted, sophisticated (never pure) */
-  --destructive: #b91c1c;     /* Muted red */
-  --success: #3d7a4a;         /* Sage green */
-  --warning: #b45309;         /* Soft amber */
-  --info: #4a6fa5;            /* Slate blue */
-  
-  /* Borders & inputs - Hairline */
-  --border: rgba(0, 0, 0, 0.08);
-  --input: rgba(0, 0, 0, 0.08);
-  --ring: #c2410c;
-  
-  /* Elevation shadows */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 12px 20px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.04);
-  
-  /* Chart colors - Sophisticated palette */
-  --chart-1: #1a1a1a;         /* Primary data */
-  --chart-2: #525252;         /* Secondary */
-  --chart-3: #a1a1a1;         /* Tertiary */
-  --chart-4: #c2410c;         /* Accent highlight */
-  --chart-5: #ea580c;         /* Accent secondary */
-  
-  /* Sidebar - Deep charcoal */
-  --sidebar: #111111;
-  --sidebar-foreground: #a1a1a1;
-  --sidebar-primary: #ea580c;
+  --popover-foreground: #1d1d1f;
+
+  /* Primary — warm champagne accent */
+  --primary: #B8A080;
+  --primary-foreground: #1d1d1f;
+
+  /* Secondary — subtle gray fill */
+  --secondary: #f0f0f2;
+  --secondary-foreground: #1d1d1f;
+
+  /* Muted — system gray */
+  --muted: #f0f0f2;
+  --muted-foreground: #86868b;    /* Apple secondary text */
+
+  /* Accent */
+  --accent: #f5f0ea;
+  --accent-foreground: #7a6a52;
+
+  /* Semantic — muted, sophisticated */
+  --destructive: #b91c1c;
+  --success: #34a853;
+  --warning: #b45309;
+  --info: #4a6fa5;
+
+  /* Borders — barely there */
+  --border: rgba(0, 0, 0, 0.06);
+  --input: rgba(0, 0, 0, 0.06);
+  --ring: #B8A080;
+
+  /* Shadows — soft, Apple-like depth */
+  --shadow-xs: 0 0.5px 1px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.03);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.04);
+
+  /* Chart */
+  --chart-1: #1d1d1f;
+  --chart-2: #525252;
+  --chart-3: #a1a1a1;
+  --chart-4: #c2410c;
+  --chart-5: #ea580c;
+
+  /* Sidebar */
+  --sidebar: #f0f0f2;
+  --sidebar-foreground: #86868b;
+  --sidebar-primary: #9A8568;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1f1f1f;
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #2a2a2a;
-  --sidebar-ring: #ea580c;
+  --sidebar-accent: #e5e5ea;
+  --sidebar-accent-foreground: #1d1d1f;
+  --sidebar-border: rgba(0, 0, 0, 0.06);
+  --sidebar-ring: #9A8568;
 }
 
 /* ============================================
-   DARK THEME - Designed, Not Inverted
+   DARK THEME — True Dark, Not Inverted
    ============================================ */
 .dark {
-  --background: #0c0c0c;
-  --foreground: #f5f5f5;
-  --card: #161616;
-  --card-foreground: #f5f5f5;
-  --popover: #161616;
-  --popover-foreground: #f5f5f5;
-  
-  --primary: #ea580c;
-  --primary-foreground: #ffffff;
-  
-  --secondary: #1f1f1f;
-  --secondary-foreground: #f5f5f5;
-  
-  --muted: #1f1f1f;
-  --muted-foreground: #8a8a8a;
-  
-  --accent: #271a0f;
-  --accent-foreground: #fb923c;
-  
-  /* Semantic - Muted for dark */
+  --background: #000000;           /* True black like Apple dark mode */
+  --foreground: #f5f5f7;           /* Apple primary text (dark) */
+  --card: #1c1c1e;                 /* Apple secondary grouped bg */
+  --card-foreground: #f5f5f7;
+  --popover: #1c1c1e;
+  --popover-foreground: #f5f5f7;
+
+  --primary: #B8A080;
+  --primary-foreground: #1c1c1e;
+
+  --secondary: #2c2c2e;            /* Apple tertiary fill */
+  --secondary-foreground: #f5f5f7;
+
+  --muted: #2c2c2e;
+  --muted-foreground: #98989d;     /* Apple secondary text (dark) */
+
+  --accent: #1e1a16;
+  --accent-foreground: #c9b89a;
+
+  /* Semantic */
   --destructive: #dc2626;
-  --success: #4ade80;
-  --warning: #fb923c;
-  --info: #60a5fa;
-  
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: #ea580c;
-  
-  /* Elevation shadows for dark */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.03);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
-  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  --shadow-hover: 0 12px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  
-  --chart-1: #f5f5f5;
+  --success: #30d158;              /* Apple green */
+  --warning: #ff9f0a;              /* Apple orange */
+  --info: #64d2ff;                 /* Apple cyan */
+
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.06);
+  --ring: #B8A080;
+
+  /* Shadows for dark — very subtle */
+  --shadow-xs: 0 0.5px 1px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  --chart-1: #f5f5f7;
   --chart-2: #a1a1a1;
   --chart-3: #525252;
   --chart-4: #ea580c;
   --chart-5: #fb923c;
-  
-  --sidebar: #0c0c0c;
-  --sidebar-foreground: #8a8a8a;
-  --sidebar-primary: #ea580c;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1f1f1f;
-  --sidebar-accent-foreground: #f5f5f5;
-  --sidebar-border: #2a2a2a;
-  --sidebar-ring: #ea580c;
+
+  --sidebar: #000000;
+  --sidebar-foreground: #98989d;
+  --sidebar-primary: #B8A080;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1c1c1e;
+  --sidebar-accent-foreground: #f5f5f7;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #B8A080;
 }
 
 /* ============================================
@@ -201,32 +200,29 @@
   * {
     @apply border-border;
   }
-  
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
-  
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
-  
-  /* Premium focus states */
+
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-  
-  /* Smooth scrolling */
+
   @media (prefers-reduced-motion: no-preference) {
     html {
       scroll-behavior: smooth;
     }
   }
-  
-  /* Selection color */
+
   ::selection {
     background: rgba(194, 65, 12, 0.15);
     color: inherit;
@@ -234,49 +230,41 @@
 }
 
 /* ============================================
-   PREMIUM COMPONENT UTILITIES
-   "Quiet Luxury" - Hairline borders + soft shadows
+   ELEVATION — Minimal, shadow-based depth
+   No borders, just subtle shadows
    ============================================ */
 
-/* 3-Tier Elevation System (flat, raised, floating) */
 .elevation-flat {
   box-shadow: none;
-  border: 1px solid var(--border);
 }
 
 .elevation-raised {
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
 }
 
 .elevation-floating {
   box-shadow: var(--shadow-md);
-  border: 1px solid var(--border);
 }
 
-/* Interactive card - Premium hover */
+/* Interactive surface — subtle background shift on hover */
 .card-interactive {
-  transition: all 200ms ease-out;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
+  transition: background-color 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .card-interactive:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-hover);
-  border-color: rgba(0, 0, 0, 0.12);
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .dark .card-interactive:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.03);
 }
 
-/* Selected state - Thin accent ring, not filled */
+/* Selected state */
 .card-selected {
-  box-shadow: 0 0 0 2px var(--primary), var(--shadow-sm);
+  box-shadow: inset 0 0 0 2px var(--primary);
 }
 
-/* Focus ring utility */
+/* Focus ring */
 .focus-ring {
   @apply outline-none ring-offset-2 ring-offset-background;
 }
@@ -285,14 +273,14 @@
   @apply ring-2 ring-ring;
 }
 
-/* Status badges - Muted, sophisticated */
+/* Status badges — pill-shaped, muted fills */
 .status-badge {
-  @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium;
 }
 
 .status-success {
-  background: rgba(61, 122, 74, 0.1);
-  color: #3d7a4a;
+  background: rgba(52, 168, 83, 0.1);
+  color: #34a853;
 }
 
 .status-warning {
@@ -306,133 +294,96 @@
 }
 
 .status-neutral {
-  background: rgba(107, 107, 107, 0.1);
-  color: #6b6b6b;
+  background: rgba(134, 134, 139, 0.08);
+  color: #86868b;
 }
 
 .dark .status-success {
-  background: rgba(74, 222, 128, 0.1);
-  color: #4ade80;
+  background: rgba(48, 209, 88, 0.12);
+  color: #30d158;
 }
 
 .dark .status-warning {
-  background: rgba(251, 146, 60, 0.1);
-  color: #fb923c;
+  background: rgba(255, 159, 10, 0.12);
+  color: #ff9f0a;
 }
 
 .dark .status-info {
-  background: rgba(96, 165, 250, 0.1);
-  color: #60a5fa;
+  background: rgba(100, 210, 255, 0.12);
+  color: #64d2ff;
 }
 
 .dark .status-neutral {
-  background: rgba(138, 138, 138, 0.1);
-  color: #8a8a8a;
+  background: rgba(152, 152, 157, 0.1);
+  color: #98989d;
 }
 
 /* ============================================
-   SPACING SYSTEM - 8pt Grid
+   SPACING — 8pt grid
    ============================================ */
 
-/* Section spacing - strict 8pt multiples */
 .section-gap {
-  @apply space-y-8; /* 32px */
+  @apply space-y-8;
 }
 
 .section-gap-lg {
-  @apply space-y-10; /* 40px */
+  @apply space-y-10;
 }
 
 .section-gap-sm {
-  @apply space-y-4; /* 16px */
+  @apply space-y-4;
 }
 
-/* Page container */
 .page-container {
-  @apply px-8 py-8; /* 32px */
-}
-
-@media (max-width: 640px) {
-  .page-container {
-    @apply px-4 py-6;
-  }
+  @apply px-6 py-6 sm:px-8 sm:py-8;
 }
 
 /* ============================================
-   DASHBOARD GRID SYSTEM
-   Primary (60%) + Secondary (40%) + Inspector
+   DASHBOARD GRID
    ============================================ */
 
 .dashboard-grid {
   display: grid;
-  gap: 24px; /* 3 × 8pt */
+  gap: 20px;
   grid-template-columns: 1fr;
 }
 
 @media (min-width: 1024px) {
   .dashboard-grid {
-    grid-template-columns: 1.5fr 1fr; /* 60/40 split */
-    gap: 32px;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 24px;
   }
 }
 
 @media (min-width: 1536px) {
   .dashboard-grid {
-    gap: 40px;
+    gap: 32px;
   }
 }
 
-/* Full-bleed row for hero metrics */
 .grid-full-bleed {
   grid-column: 1 / -1;
 }
 
-/* Composite surface - groups related cards */
+/* Composite surface */
 .composite-surface {
   @apply bg-card rounded-2xl p-6;
-  border: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow-sm);
 }
 
-/* Inspector panel - floating drawer */
+/* Inspector drawer */
 .inspector-drawer {
   @apply fixed top-14 right-0 bottom-0 w-[360px] bg-card;
-  border-left: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.04);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.06);
   z-index: 40;
 }
 
 .dark .inspector-drawer {
-  border-left-color: rgba(255, 255, 255, 0.06);
-  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.3);
-}
-
-/* Ambient selection glow - experimental signature */
-@keyframes ambient-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(194, 65, 12, 0);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgba(194, 65, 12, 0.08);
-  }
-}
-
-.ambient-selected {
-  animation: ambient-pulse 3s ease-in-out infinite;
-  box-shadow: 
-    inset 0 0 0 2px rgba(194, 65, 12, 0.15),
-    0 4px 12px rgba(194, 65, 12, 0.08);
-}
-
-.dark .ambient-selected {
-  box-shadow: 
-    inset 0 0 0 2px rgba(234, 88, 12, 0.2),
-    0 4px 12px rgba(234, 88, 12, 0.1);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================
-   TYPOGRAPHY - Strict Type Scale (8pt baseline)
-   Major Third ratio: 1.25
+   TYPOGRAPHY — Clean Sans-Serif Scale
    ============================================ */
 
 .text-display {
@@ -470,10 +421,10 @@
 }
 
 .text-overline {
-  @apply text-[10px] leading-[16px] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+  @apply text-[11px] leading-[16px] font-medium uppercase tracking-[0.06em] text-muted-foreground;
 }
 
-/* Accent numerals - Beautiful numbers for prices */
+/* Numeric display */
 .font-numeric {
   font-family: 'Manrope', var(--font-inter), sans-serif;
   font-variant-numeric: tabular-nums;
@@ -481,7 +432,6 @@
   letter-spacing: -0.02em;
 }
 
-/* Metric display - Hero numbers */
 .metric-hero {
   font-family: 'Manrope', var(--font-inter), sans-serif;
   @apply text-[40px] leading-[48px] font-bold tracking-[-0.03em];
@@ -501,7 +451,7 @@
 }
 
 .metric-label {
-  @apply text-[10px] leading-[16px] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
+  @apply text-[11px] leading-[16px] font-medium uppercase tracking-[0.06em] text-muted-foreground;
 }
 
 .metric-delta {
@@ -517,30 +467,20 @@
 }
 
 /* ============================================
-   MICRO-INTERACTIONS
-   150-220ms ease-out, no bounce
+   MICRO-INTERACTIONS — Subtle, Apple-like
    ============================================ */
 
 .transition-premium {
-  transition: all 200ms ease-out;
+  transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .transition-fast {
-  transition: all 150ms ease-out;
+  transition: all 150ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* Button hover lift */
-.btn-lift:hover {
-  transform: translateY(-1px);
-}
-
-.btn-lift:active {
-  transform: translateY(0);
-}
-
-/* Icon container */
+/* Icon container — minimal */
 .icon-container {
-  @apply flex items-center justify-center rounded-lg;
+  @apply flex items-center justify-center rounded-xl;
   @apply bg-muted/50;
 }
 
@@ -553,7 +493,7 @@
 }
 
 /* ============================================
-   SKELETON LOADING - Ultra-soft shimmer
+   SKELETON LOADING
    ============================================ */
 
 @keyframes shimmer {
@@ -566,11 +506,11 @@
 }
 
 .skeleton {
-  @apply rounded-md;
+  @apply rounded-xl;
   background: linear-gradient(
     90deg,
     var(--muted) 0%,
-    rgba(0, 0, 0, 0.03) 50%,
+    rgba(0, 0, 0, 0.02) 50%,
     var(--muted) 100%
   );
   background-size: 200% 100%;
@@ -581,19 +521,19 @@
   background: linear-gradient(
     90deg,
     var(--muted) 0%,
-    rgba(255, 255, 255, 0.03) 50%,
+    rgba(255, 255, 255, 0.02) 50%,
     var(--muted) 100%
   );
   background-size: 200% 100%;
 }
 
 /* ============================================
-   DATA DENSITY - Reveal on hover
+   DATA DENSITY — Reveal on hover
    ============================================ */
 
 .reveal-on-hover {
   opacity: 0;
-  transition: opacity 200ms ease-out;
+  transition: opacity 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .group:hover .reveal-on-hover,
@@ -602,7 +542,7 @@
 }
 
 /* ============================================
-   DIVIDERS - Subtle section breaks
+   DIVIDERS
    ============================================ */
 
 .divider {
@@ -616,7 +556,7 @@
 }
 
 /* ============================================
-   LOGIN PAGE - Fade in animation
+   LOGIN PAGE
    ============================================ */
 
 @keyframes fadeInUp {
@@ -630,7 +570,6 @@
   }
 }
 
-/* Login page floating orb animations - visible, hypnotic motion */
 @keyframes float1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
   25% { transform: translate(60px, -40px) scale(1.08); }
@@ -660,7 +599,7 @@
 }
 
 /* ============================================
-   COLONY CHAT — Her-inspired ambient animations
+   COLONY CHAT — Ambient animations
    ============================================ */
 
 @keyframes colonyBgShift {
@@ -698,7 +637,7 @@
 @keyframes dashboardFadeIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -707,12 +646,28 @@
 }
 
 .dash-fade-in {
-  animation: dashboardFadeIn 0.4s ease-out both;
+  animation: dashboardFadeIn 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) both;
 }
 
 .dash-fade-in-1 { animation-delay: 0ms; }
-.dash-fade-in-2 { animation-delay: 100ms; }
-.dash-fade-in-3 { animation-delay: 200ms; }
-.dash-fade-in-4 { animation-delay: 300ms; }
-.dash-fade-in-5 { animation-delay: 400ms; }
-.dash-fade-in-6 { animation-delay: 500ms; }
+.dash-fade-in-2 { animation-delay: 60ms; }
+.dash-fade-in-3 { animation-delay: 120ms; }
+.dash-fade-in-4 { animation-delay: 180ms; }
+.dash-fade-in-5 { animation-delay: 240ms; }
+.dash-fade-in-6 { animation-delay: 300ms; }
+
+/* ============================================
+   AMBIENT PULSE — subtle selection glow
+   ============================================ */
+@keyframes ambient-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(194, 65, 12, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(194, 65, 12, 0.06);
+  }
+}
+
+.ambient-selected {
+  animation: ambient-pulse 3s ease-in-out infinite;
+}

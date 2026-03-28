@@ -9,7 +9,6 @@ import {
   MessageCircle,
   UserCheck,
   TrendingUp,
-  UserX,
   Zap,
   Pause,
   Play,
@@ -58,12 +57,12 @@ interface Props {
 }
 
 const statusColors: Record<string, string> = {
-  active: "#22c55e",
-  paused: "#eab308",
-  qualified: "#3b82f6",
-  converted: "#8b5cf6",
-  unresponsive: "#6b7280",
-  opted_out: "#ef4444",
+  active: "#30d158",
+  paused: "#ff9f0a",
+  qualified: "#64d2ff",
+  converted: "#bf5af2",
+  unresponsive: "#98989d",
+  opted_out: "#ff453a",
 };
 
 const statusLabels: Record<string, string> = {
@@ -96,7 +95,6 @@ type FilterStatus = "all" | "active" | "qualified" | "converted" | "unresponsive
 
 export function AIEngageDashboard({ engagements, stats }: Props) {
   const { theme } = useColonyTheme();
-  const borderColor = withAlpha(theme.text, 0.06);
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [isPending, startTransition] = useTransition();
   const [actioningId, setActioningId] = useState<string | null>(null);
@@ -115,8 +113,10 @@ export function AIEngageDashboard({ engagements, stats }: Props) {
     });
   };
 
+  const filters: FilterStatus[] = ["all", "active", "qualified", "converted", "unresponsive", "paused"];
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 sm:p-8 max-w-5xl mx-auto space-y-6">
       <PageHeader
         title="AI Lead Engagement"
         subtitle="Tara autonomously nurtures and qualifies your leads 24/7"
@@ -130,29 +130,29 @@ export function AIEngageDashboard({ engagements, stats }: Props) {
         }
       />
 
-      {/* Stats */}
       <StatGrid columns={4}>
-        <StatCard label="Active" value={stats.active} icon={Zap} color="#22c55e" />
-        <StatCard label="Qualified" value={stats.qualified} icon={UserCheck} color="#3b82f6" />
-        <StatCard label="Converted" value={stats.converted} icon={TrendingUp} color="#8b5cf6" />
+        <StatCard label="Active" value={stats.active} icon={Zap} color="#30d158" />
+        <StatCard label="Qualified" value={stats.qualified} icon={UserCheck} color="#64d2ff" />
+        <StatCard label="Converted" value={stats.converted} icon={TrendingUp} color="#bf5af2" />
         <StatCard label="Messages Sent" value={stats.totalMessages} icon={MessageCircle} />
       </StatGrid>
 
-      {/* Filter tabs */}
-      <div className="flex gap-1" style={{ borderBottom: `1px solid ${borderColor}` }}>
-        {(["all", "active", "qualified", "converted", "unresponsive", "paused"] as FilterStatus[]).map((f) => (
+      {/* Segmented filter */}
+      <div
+        className="inline-flex rounded-xl p-1"
+        style={{ backgroundColor: withAlpha(theme.text, 0.05) }}
+      >
+        {filters.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className="px-3 py-2 text-[12px] font-medium capitalize relative transition-colors"
+            className="px-3.5 py-1.5 text-[12px] font-medium capitalize rounded-lg transition-all duration-200"
             style={{
-              color: filter === f ? theme.accent : withAlpha(theme.text, 0.4),
+              backgroundColor: filter === f ? withAlpha(theme.text, 0.1) : "transparent",
+              color: filter === f ? theme.text : withAlpha(theme.text, 0.4),
             }}
           >
             {f}
-            {filter === f && (
-              <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ backgroundColor: theme.accent }} />
-            )}
           </button>
         ))}
       </div>
@@ -175,23 +175,25 @@ export function AIEngageDashboard({ engagements, stats }: Props) {
           }
         />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {filtered.map((eng) => {
             const lastMsg = eng.messages[0];
             const hasReplied = !!eng.lastReplyAt;
             return (
               <div
                 key={eng.id}
-                className="rounded-xl p-4 transition-colors hover:bg-white/[0.02]"
-                style={{ border: `1px solid ${borderColor}` }}
+                className="rounded-2xl p-4 transition-colors"
+                style={{ backgroundColor: withAlpha(theme.text, 0.02) }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = withAlpha(theme.text, 0.04)}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = withAlpha(theme.text, 0.02)}
               >
                 <div className="flex items-start gap-4">
                   {/* Avatar */}
                   <div
-                    className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-medium shrink-0"
+                    className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0"
                     style={{
-                      background: `linear-gradient(135deg, ${withAlpha(theme.accent, 0.2)}, ${withAlpha(theme.accent, 0.08)})`,
-                      color: theme.accent,
+                      backgroundColor: withAlpha(theme.text, 0.08),
+                      color: withAlpha(theme.text, 0.5),
                     }}
                   >
                     {eng.contact.name.charAt(0).toUpperCase()}
@@ -210,25 +212,25 @@ export function AIEngageDashboard({ engagements, stats }: Props) {
                       <span
                         className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
                         style={{
-                          backgroundColor: withAlpha(statusColors[eng.status] || "#6b7280", 0.15),
-                          color: statusColors[eng.status] || "#6b7280",
+                          backgroundColor: withAlpha(statusColors[eng.status] || "#98989d", 0.12),
+                          color: statusColors[eng.status] || "#98989d",
                         }}
                       >
                         {statusLabels[eng.status] || eng.status}
                       </span>
                       <span
-                        className="text-[10px] px-2 py-0.5 rounded-full"
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full"
                         style={{
-                          backgroundColor: withAlpha(theme.text, 0.06),
-                          color: withAlpha(theme.text, 0.5),
+                          backgroundColor: withAlpha(theme.text, 0.05),
+                          color: withAlpha(theme.text, 0.45),
                         }}
                       >
                         {objectiveLabels[eng.aiObjective] || eng.aiObjective}
                       </span>
                       {hasReplied && (
                         <span
-                          className="text-[10px] px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: withAlpha("#22c55e", 0.15), color: "#22c55e" }}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: withAlpha("#30d158", 0.12), color: "#30d158" }}
                         >
                           Responded
                         </span>
@@ -242,11 +244,10 @@ export function AIEngageDashboard({ engagements, stats }: Props) {
                       {eng.lastMessageAt && <span>{timeAgo(eng.lastMessageAt)}</span>}
                     </div>
 
-                    {/* Last message preview */}
                     {lastMsg && (
                       <p
                         className="text-[12px] mt-2 line-clamp-1"
-                        style={{ color: withAlpha(theme.text, 0.5) }}
+                        style={{ color: withAlpha(theme.text, 0.45) }}
                       >
                         {lastMsg.role === "assistant" ? "Tara: " : `${eng.contact.name.split(" ")[0]}: `}
                         {lastMsg.content}
@@ -255,35 +256,35 @@ export function AIEngageDashboard({ engagements, stats }: Props) {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     {eng.status === "active" ? (
                       <button
                         onClick={() => handleStatusChange(eng.id, "paused")}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
+                        className="h-8 w-8 flex items-center justify-center rounded-lg transition-opacity hover:opacity-70"
                         style={{ color: withAlpha(theme.text, 0.3) }}
                         title="Pause"
                         disabled={isPending && actioningId === eng.id}
                       >
-                        <Pause className="h-3.5 w-3.5" />
+                        <Pause className="h-3.5 w-3.5" strokeWidth={1.5} />
                       </button>
                     ) : eng.status === "paused" ? (
                       <button
                         onClick={() => handleStatusChange(eng.id, "active")}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-                        style={{ color: "#22c55e" }}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+                        style={{ color: "#30d158" }}
                         title="Resume"
                         disabled={isPending && actioningId === eng.id}
                       >
-                        <Play className="h-3.5 w-3.5" />
+                        <Play className="h-3.5 w-3.5" strokeWidth={1.5} />
                       </button>
                     ) : null}
                     <Link
                       href={`/browse/ai-engage/${eng.id}`}
-                      className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
+                      className="h-8 w-8 flex items-center justify-center rounded-lg transition-opacity hover:opacity-70"
                       style={{ color: withAlpha(theme.text, 0.3) }}
                       title="View conversation"
                     >
-                      <Eye className="h-3.5 w-3.5" />
+                      <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
                     </Link>
                   </div>
                 </div>

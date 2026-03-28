@@ -38,7 +38,7 @@ const statusLabels: Record<string, string> = {
 export function PropertyDetailView({ property, contacts }: PropertyDetailViewProps) {
   const { theme } = useColonyTheme();
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
   const dividerColor = withAlpha(theme.text, 0.06);
 
   return (
@@ -60,7 +60,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
               <div className="flex items-center gap-3 flex-wrap">
                 <h1
                   className="text-[28px] leading-tight font-semibold tracking-[-0.01em]"
-                  style={{ color: theme.text, fontFamily: "'Spectral', serif" }}
+                  style={{ color: theme.text, fontFamily: "'Manrope', var(--font-inter), sans-serif" }}
                 >
                   {property.address}
                 </h1>
@@ -89,7 +89,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
                 style={{
                   backgroundColor: theme.bgGlow,
                   color: theme.textMuted,
-                  boxShadow: neumorphicRaised,
+                  boxShadow: "none",
                 }}
               >
                 <Pencil className="h-4 w-4" style={{ color: theme.accent }} />
@@ -182,7 +182,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
             {/* Property Image */}
             {property.imageUrl && (
               <div className="relative aspect-video w-full overflow-hidden rounded-xl"
-                style={{ boxShadow: neumorphicRaised }}
+                style={{ boxShadow: "none" }}
               >
                 <Image
                   src={property.imageUrl}
@@ -199,7 +199,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
                 className="rounded-xl p-6"
                 style={{
                   backgroundColor: theme.bgGlow,
-                  boxShadow: neumorphicRaised,
+                  boxShadow: "none",
                 }}
               >
                 <h3 className="text-lg font-semibold mb-3" style={{ color: theme.text }}>
@@ -229,7 +229,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
                 className="rounded-xl p-5"
                 style={{
                   backgroundColor: theme.bgGlow,
-                  boxShadow: neumorphicRaised,
+                  boxShadow: "none",
                 }}
               >
                 <h3
@@ -277,7 +277,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
               className="rounded-xl p-5"
               style={{
                 backgroundColor: theme.bgGlow,
-                boxShadow: neumorphicRaised,
+                boxShadow: "none",
               }}
             >
               <h3
@@ -335,7 +335,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
                 className="rounded-xl p-5"
                 style={{
                   backgroundColor: theme.bgGlow,
-                  boxShadow: neumorphicRaised,
+                  boxShadow: "none",
                 }}
               >
                 <h3
@@ -370,7 +370,7 @@ export function PropertyDetailView({ property, contacts }: PropertyDetailViewPro
               className="rounded-xl p-5"
               style={{
                 backgroundColor: theme.bgGlow,
-                boxShadow: neumorphicRaised,
+                boxShadow: "none",
               }}
             >
               <h3

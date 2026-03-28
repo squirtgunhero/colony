@@ -77,6 +77,7 @@ export class AnthropicProvider implements LLMProvider {
       body: JSON.stringify({
         model: this.model,
         max_tokens: options?.maxTokens ?? 4096,
+        ...(options?.temperature !== undefined && { temperature: options.temperature }),
         system: systemMessage?.content,
         messages: nonSystemMessages.map((m) => ({
           role: m.role,

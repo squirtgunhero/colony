@@ -153,7 +153,7 @@ export function DealDetailPage({ deal, contacts, properties, stageHistory, conta
             <div className="flex items-center gap-3 flex-wrap">
               <h1
                 className="text-[26px] leading-tight font-semibold tracking-[-0.01em]"
-                style={{ color: theme.text, fontFamily: "'Spectral', serif" }}
+                style={{ color: theme.text, fontFamily: "'Manrope', var(--font-inter), sans-serif" }}
               >
                 {deal.title}
               </h1>

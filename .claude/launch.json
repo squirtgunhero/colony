@@ -1,0 +1,41 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Colony Next.js Dev",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["-c", "export PATH=/Users/michaelehrlich/.nvm/versions/node/v22.20.0/bin:$PATH && node node_modules/.bin/next dev"],
+      "port": 3000
+    },
+    {
+      "name": "Prisma Studio",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "db:studio"],
+      "port": 5555
+    },
+    {
+      "name": "PostgreSQL (Docker)",
+      "runtimeExecutable": "docker-compose",
+      "runtimeArgs": ["up", "postgres"],
+      "port": 5432
+    },
+    {
+      "name": "Redis (Docker)",
+      "runtimeExecutable": "docker-compose",
+      "runtimeArgs": ["up", "redis"],
+      "port": 6379
+    },
+    {
+      "name": "Vitest UI",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test:ui"],
+      "port": 51204
+    },
+    {
+      "name": "Playwright UI",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test:e2e:ui"],
+      "port": 8080
+    }
+  ]
+}

@@ -73,7 +73,7 @@ export function UserMenu({ size = "md" }: UserMenuProps) {
       .slice(0, 2)
       .toUpperCase() || "U";
 
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
 
   return (
     <div className="relative" data-user-menu>
@@ -100,7 +100,7 @@ export function UserMenu({ size = "md" }: UserMenuProps) {
           className="absolute right-0 top-full mt-2 w-56 rounded-xl py-1 z-50"
           style={{
             backgroundColor: theme.bgGlow,
-            boxShadow: neumorphicRaised,
+            boxShadow: "none",
             border: `1px solid ${withAlpha(theme.text, 0.06)}`,
           }}
         >

@@ -97,8 +97,8 @@ export function InboxFilters({
   const activeChannel = filters.channel || "all";
   const activeChannelConfig = channelFilters.find((c) => c.id === activeChannel);
 
-  const neumorphicRaised = `3px 3px 6px rgba(0,0,0,0.4), -3px -3px 6px rgba(255,255,255,0.04)`;
-  const neumorphicRecessed = `inset 3px 3px 6px rgba(0,0,0,0.3), inset -3px -3px 6px rgba(255,255,255,0.02)`;
+  
+  
   const dividerColor = withAlpha(theme.text, 0.06);
 
   return (
@@ -116,7 +116,7 @@ export function InboxFilters({
           className="w-full h-9 pl-9 pr-3 rounded-xl text-sm outline-none transition-all"
           style={{
             backgroundColor: "rgba(255,255,255,0.03)",
-            boxShadow: neumorphicRecessed,
+            boxShadow: "none",
             border: `1px solid ${dividerColor}`,
             color: theme.text,
             caretColor: theme.accent,
@@ -167,7 +167,7 @@ export function InboxFilters({
             style={{
               backgroundColor: theme.bgGlow,
               color: theme.textMuted,
-              boxShadow: neumorphicRaised,
+              boxShadow: "none",
             }}
             onClick={() => setChannelOpen(!channelOpen)}
           >
@@ -179,7 +179,7 @@ export function InboxFilters({
               className="absolute left-0 top-full mt-2 w-40 rounded-xl py-1 z-50"
               style={{
                 backgroundColor: theme.bgGlow,
-                boxShadow: neumorphicRaised,
+                boxShadow: "none",
                 border: `1px solid ${dividerColor}`,
               }}
             >
@@ -219,7 +219,7 @@ export function InboxFilters({
           style={{
             backgroundColor: filters.unreadOnly ? withAlpha(theme.accent, 0.15) : theme.bgGlow,
             color: filters.unreadOnly ? theme.accent : theme.textMuted,
-            boxShadow: neumorphicRaised,
+            boxShadow: "none",
           }}
           onClick={handleUnreadToggle}
         >

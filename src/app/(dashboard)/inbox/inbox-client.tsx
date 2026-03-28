@@ -249,7 +249,7 @@ export function InboxClient({
 
 function EmptyInboxState() {
   const { theme } = useColonyTheme();
-  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -270,7 +270,7 @@ function EmptyInboxState() {
         style={{
           backgroundColor: theme.accent,
           color: theme.bg,
-          boxShadow: neumorphicRaised,
+          boxShadow: "none",
         }}
       >
         <Plus className="h-4 w-4" />

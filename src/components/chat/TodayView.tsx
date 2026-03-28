@@ -122,7 +122,7 @@ export function TodayView() {
     );
   }
 
-  const neumorphicRaised = `3px 3px 6px rgba(0,0,0,0.35), -3px -3px 6px rgba(255,255,255,0.03)`;
+  const neumorphicRaised = "none";
 
   const agendaItems = data.agenda ?? [];
   const visibleAgenda = showAllAgenda ? agendaItems : agendaItems.slice(0, 5);
@@ -214,7 +214,7 @@ export function TodayView() {
             <div
               key={change.id}
               className="px-4 py-3 rounded-xl text-sm"
-              style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+              style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
             >
               <p style={{ color: theme.text }}>{change.title}</p>
               {change.deal && (
@@ -243,7 +243,7 @@ export function TodayView() {
             <div
               key={act.id}
               className="px-4 py-3 rounded-xl text-sm"
-              style={{ backgroundColor: theme.bgGlow, boxShadow: neumorphicRaised }}
+              style={{ backgroundColor: theme.bgGlow, boxShadow: "none" }}
             >
               <p style={{ color: theme.text }}>{act.title}</p>
               {act.contact && (

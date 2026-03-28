@@ -79,14 +79,12 @@ export function ModeSidebar() {
   };
 
   const taraActive = isActive("/chat");
-  const borderColor = withAlpha(theme.text, 0.06);
 
   return (
     <aside
       className="fixed left-0 top-0 z-50 hidden md:flex h-screen w-[208px] flex-col"
       style={{
         backgroundColor: theme.sidebarBg,
-        borderRight: `1px solid ${borderColor}`,
         fontFamily: "var(--font-dm-sans), sans-serif",
       }}
       role="navigation"
@@ -96,8 +94,7 @@ export function ModeSidebar() {
       {/* Logo */}
       <Link
         href="/chat"
-        className="flex h-13 items-center gap-2.5 px-4 transition-opacity hover:opacity-80"
-        style={{ borderBottom: `1px solid ${borderColor}` }}
+        className="flex h-14 items-center gap-2.5 px-5 transition-opacity hover:opacity-80"
         title="Return to Tara"
         aria-label="Colony — Return to Tara"
       >
@@ -112,7 +109,7 @@ export function ModeSidebar() {
         </div>
         <span
           className="text-[11px] font-light tracking-[0.2em] uppercase"
-          style={{ color: withAlpha(theme.text, 0.3) }}
+          style={{ color: withAlpha(theme.text, 0.25) }}
         >
           Colony
         </span>
@@ -120,14 +117,17 @@ export function ModeSidebar() {
 
       {/* Team Switcher */}
       {mounted && (
-        <div className="py-2 px-2.5" style={{ borderBottom: `1px solid ${borderColor}` }}>
+        <div
+          className="py-2 px-3"
+          style={{ borderBottom: `1px solid ${withAlpha(theme.text, 0.05)}` }}
+        >
           <TeamSwitcher expanded />
         </div>
       )}
 
       {/* Navigation */}
       <nav
-        className="flex-1 flex flex-col px-2.5 pt-3 gap-0.5 overflow-y-auto scrollbar-none"
+        className="flex-1 flex flex-col px-3 pt-3 gap-0.5 overflow-y-auto scrollbar-none"
         suppressHydrationWarning
       >
         {navItems.map((item) => {
@@ -137,39 +137,36 @@ export function ModeSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className="group flex items-center gap-2.5 rounded-lg h-9 px-3 relative transition-all duration-150"
+              className="group flex items-center gap-2.5 rounded-xl h-9 px-3 relative transition-all duration-150"
               style={{
-                backgroundColor: active ? withAlpha(theme.accent, 0.08) : "transparent",
+                backgroundColor: active ? withAlpha(theme.text, 0.08) : "transparent",
               }}
               aria-current={active ? "page" : undefined}
               suppressHydrationWarning
             >
-              {active && (
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
-                  style={{ backgroundColor: theme.accent }}
-                />
-              )}
               <IconComponent
                 className="h-[16px] w-[16px] shrink-0 transition-colors duration-150"
                 style={{
-                  color: active ? theme.accent : withAlpha(theme.text, 0.35),
-                  strokeWidth: active ? 2.2 : 1.8,
+                  color: active ? theme.text : withAlpha(theme.text, 0.35),
+                  strokeWidth: 1.5,
                 }}
               />
               <span
                 className="text-[13px] tracking-[-0.01em] transition-colors duration-150"
                 style={{
-                  color: active ? theme.text : withAlpha(theme.text, 0.55),
-                  fontWeight: active ? 600 : 450,
+                  color: active ? theme.text : withAlpha(theme.text, 0.5),
+                  fontWeight: active ? 600 : 400,
                 }}
               >
                 {item.label}
               </span>
               {item.badge != null && item.badge > 0 && (
                 <span
-                  className="ml-auto flex items-center justify-center h-[18px] min-w-[18px] px-1 rounded-full text-[10px] font-bold"
-                  style={{ backgroundColor: withAlpha(theme.accent, 0.2), color: theme.accent }}
+                  className="ml-auto flex items-center justify-center h-[18px] min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold"
+                  style={{
+                    backgroundColor: withAlpha(theme.accent, 0.15),
+                    color: theme.accent,
+                  }}
                   aria-label={`${item.badge} unread`}
                 >
                   {item.badge > 99 ? "99+" : item.badge}
@@ -182,8 +179,8 @@ export function ModeSidebar() {
 
       {/* Bottom: Settings + Tara + User */}
       <div
-        className="flex flex-col gap-1.5 py-3 px-2.5"
-        style={{ borderTop: `1px solid ${borderColor}` }}
+        className="flex flex-col gap-1 py-3 px-3"
+        style={{ borderTop: `1px solid ${withAlpha(theme.text, 0.05)}` }}
         suppressHydrationWarning
       >
         {(() => {
@@ -191,30 +188,24 @@ export function ModeSidebar() {
           return (
             <Link
               href="/settings"
-              className="flex items-center gap-2.5 rounded-lg h-9 px-3 relative transition-all duration-150"
+              className="flex items-center gap-2.5 rounded-xl h-9 px-3 relative transition-all duration-150"
               style={{
-                backgroundColor: settingsActive ? withAlpha(theme.accent, 0.08) : "transparent",
+                backgroundColor: settingsActive ? withAlpha(theme.text, 0.08) : "transparent",
               }}
               aria-current={settingsActive ? "page" : undefined}
             >
-              {settingsActive && (
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
-                  style={{ backgroundColor: theme.accent }}
-                />
-              )}
               <Settings
                 className="h-[16px] w-[16px] shrink-0 transition-colors duration-150"
                 style={{
-                  color: settingsActive ? theme.accent : withAlpha(theme.text, 0.35),
-                  strokeWidth: settingsActive ? 2.2 : 1.8,
+                  color: settingsActive ? theme.text : withAlpha(theme.text, 0.35),
+                  strokeWidth: 1.5,
                 }}
               />
               <span
                 className="text-[13px] tracking-[-0.01em]"
                 style={{
-                  color: settingsActive ? theme.text : withAlpha(theme.text, 0.55),
-                  fontWeight: settingsActive ? 600 : 450,
+                  color: settingsActive ? theme.text : withAlpha(theme.text, 0.5),
+                  fontWeight: settingsActive ? 600 : 400,
                 }}
               >
                 Settings
@@ -224,8 +215,8 @@ export function ModeSidebar() {
         })()}
 
         <div
-          className="flex items-center gap-2 mt-1.5 pt-2.5 px-0.5"
-          style={{ borderTop: `1px solid ${borderColor}` }}
+          className="flex items-center gap-2 mt-1 pt-2.5 px-0.5"
+          style={{ borderTop: `1px solid ${withAlpha(theme.text, 0.05)}` }}
           suppressHydrationWarning
         >
           {/* Tara pill */}
@@ -234,18 +225,16 @@ export function ModeSidebar() {
             className="flex items-center gap-1.5 h-9 px-4 rounded-full transition-all duration-200"
             style={{
               backgroundColor: taraActive
-                ? withAlpha(theme.accent, 0.15)
+                ? withAlpha(theme.accent, 0.12)
                 : withAlpha(theme.text, 0.05),
-              border: `1px solid ${taraActive ? withAlpha(theme.accent, 0.3) : withAlpha(theme.text, 0.08)}`,
             }}
             title="Talk to Tara"
             aria-label="Open Tara AI assistant"
           >
             <span
-              className="text-[13px] font-medium tracking-wide"
+              className="text-[13px] font-medium"
               style={{
-                fontFamily: "'Spectral', serif",
-                color: taraActive ? theme.accent : withAlpha(theme.text, 0.55),
+                color: taraActive ? theme.accent : withAlpha(theme.text, 0.5),
               }}
             >
               Tara
