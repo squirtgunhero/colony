@@ -327,51 +327,28 @@ export function ChatMessageBubble({
         </div>
       )}
 
-      {/* Smart Chips for follow-up questions about ads */}
-      {lamResponse?.response?.follow_up_question && (() => {
-        const fq = lamResponse.response.follow_up_question.toLowerCase();
-        const isBudget = fq.includes("budget") || fq.includes("daily budget") || fq.includes("spend");
-        const isLeadType = fq.includes("seller") || fq.includes("buyer") || fq.includes("type of lead") || fq.includes("kind of lead") || fq.includes("lead type");
-        const isAdCopy = fq.includes("headline") || fq.includes("ad copy") || fq.includes("copy") || fq.includes("text should") || fq.includes("what should the ad say");
-        const isImage = fq.includes("image") || fq.includes("photo") || fq.includes("picture") || fq.includes("creative");
-        const isTargeting = fq.includes("target") || fq.includes("location") || fq.includes("city") || fq.includes("where") || fq.includes("audience") || fq.includes("radius") || fq.includes("area") || fq.includes("service area");
-        const isSkippable = fq.includes("just do it") || fq.includes("auto");
-        const chips = isBudget
-          ? ["$10/day", "$15/day", "$25/day", "Custom"]
-          : isLeadType
-            ? ["Seller leads", "Buyer leads", "Both"]
-            : isTargeting
-              ? ["Use my service area", "I\u2019ll type a city"]
-              : isAdCopy
-                ? ["Write it for me", "I\u2019ll write my own"]
-                : isImage
-                  ? ["Use my listing photos", "Home valuation graphic", "Modern home with pool", "Luxury property at sunset"]
-                  : isSkippable
-                    ? ["Just do it", "Let me customize"]
-                    : null;
-        if (!chips) return null;
-        return (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {chips.map((chip) => (
-              <button
-                key={chip}
-                onClick={() => { setInput(chip); sendToLam(chip); }}
-                className="text-[13px] font-medium transition-all duration-150 hover:brightness-110 active:scale-[0.97]"
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 24,
-                  backgroundColor: theme.accentGlow,
-                  border: `1px solid ${theme.accentSoft}`,
-                  color: theme.accent,
-                  fontFamily: "var(--font-dm-sans), sans-serif",
-                }}
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-        );
-      })()}
+      {/* Response option chips — provided by the LLM */}
+      {lamResponse?.response?.response_options && lamResponse.response.response_options.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {lamResponse.response.response_options.map((chip) => (
+            <button
+              key={chip}
+              onClick={() => { setInput(chip); sendToLam(chip); }}
+              className="text-[13px] font-medium transition-all duration-150 hover:brightness-110 active:scale-[0.97]"
+              style={{
+                padding: "8px 16px",
+                borderRadius: 24,
+                backgroundColor: theme.accentGlow,
+                border: `1px solid ${theme.accentSoft}`,
+                color: theme.accent,
+                fontFamily: "var(--font-dm-sans), sans-serif",
+              }}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Follow-up Suggestions */}
       {message.followups && message.followups.length > 0 && (

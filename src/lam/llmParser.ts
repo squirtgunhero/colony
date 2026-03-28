@@ -50,6 +50,7 @@ export const LenientActionPlanSchema = z.object({
   verification_steps: z.array(LenientVerificationStepSchema).optional(),
   user_summary: z.string(),
   follow_up_question: z.string().nullable().optional(),
+  response_options: z.array(z.string()).nullable().optional(),
   requires_approval: z.boolean().optional(),
   highest_risk_tier: z.union([z.number(), z.string()]).optional(),
 });
@@ -134,6 +135,7 @@ export function normalizeLLMResponse(
     verification_steps: verificationSteps,
     user_summary: raw.user_summary,
     follow_up_question: raw.follow_up_question || null,
+    response_options: raw.response_options || null,
     requires_approval: needsApproval,
     highest_risk_tier: highestRiskTier,
   };

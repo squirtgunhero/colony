@@ -1666,6 +1666,7 @@ export const ActionPlanSchema = z.object({
   verification_steps: z.array(VerificationStepSchema),
   user_summary: z.string(),
   follow_up_question: z.string().nullable(),
+  response_options: z.array(z.string()).nullable().optional(),
   requires_approval: z.boolean(),
   highest_risk_tier: RiskTier,
 });

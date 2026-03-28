@@ -52,6 +52,7 @@ export interface LamPlan {
   actions: LamAction[];
   user_summary: string;
   follow_up_question: string | null;
+  response_options?: string[] | null;
   action_cards?: Array<{ type: string; data: Record<string, unknown> }>;
 }
 
@@ -64,6 +65,7 @@ export interface LamResponse {
   response: {
     message: string;
     follow_up_question: string | null;
+    response_options?: string[] | null;
     requires_approval: boolean;
     can_undo: boolean;
   };

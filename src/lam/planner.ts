@@ -287,9 +287,17 @@ Return a JSON object matching this schema:
   ],
   "user_summary": "<plain language summary for user>",
   "follow_up_question": "<question if info needed, or null>",
+  "response_options": ["<clickable option 1>", "<option 2>", ...] or null,
   "requires_approval": <true if any action is Tier 2>,
   "highest_risk_tier": <max risk tier of all actions>
-}`;
+}
+
+IMPORTANT — response_options: Whenever you ask the user a question (via follow_up_question or in user_summary), ALWAYS include a response_options array with 2-5 short clickable answers the user is most likely to pick. Keep labels concise (2-5 words). The user can always type their own answer instead. Examples:
+- "What kind of leads?" → response_options: ["Seller leads", "Buyer leads", "Both"]
+- "What daily budget?" → response_options: ["$10/day", "$15/day", "$25/day", "$50/day"]
+- "Should I write the copy?" → response_options: ["Write it for me", "I'll write my own"]
+- "Which contact?" → response_options: null (too many possibilities, let them type)
+Only set null when the answer space is too open-ended for reasonable suggestions.`;
 
 // ============================================================================
 // Planner Implementation

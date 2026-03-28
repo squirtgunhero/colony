@@ -51,6 +51,7 @@ export interface LamRunResult {
   response: {
     message: string;
     follow_up_question: string | null;
+    response_options?: string[] | null;
     requires_approval: boolean;
     can_undo: boolean;
   };
@@ -531,6 +532,7 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
       response: {
         message,
         follow_up_question: null,
+        response_options: plan.response_options || null,
         requires_approval: false,
         can_undo: false,
       },
