@@ -242,6 +242,50 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       return;
     }
 
+    // Intercept "show me the ad" / "preview" when there's a pending approval
+    const pendingRunId = get().pendingApprovalRunId;
+    if (pendingRunId) {
+      const previewPattern = /\b(see|show|view|preview|look at)\b.*\b(ad|campaign|creative|it)\b/i;
+      if (previewPattern.test(lowerMsg)) {
+        setInput("");
+        closeSlashMenu();
+        addMessage({
+          id: `user-${Date.now()}`,
+          role: "user",
+          content: message.trim(),
+          timestamp: new Date(),
+        });
+
+        // Find the pending execution message with ad details
+        const pendingMsg = get().messages.find(
+          (m) => m.runId === pendingRunId && m.lamResponse
+        );
+        const plan = pendingMsg?.lamResponse?.plan;
+        const adAction = plan?.actions?.find(
+          (a: { type: string }) => a.type === "ads.create_campaign" || a.type === "marketing.social_post"
+        );
+        const payload = adAction?.payload as Record<string, unknown> | undefined;
+
+        let previewContent = "";
+        if (payload && (payload.ad_headline || payload.ad_body)) {
+          previewContent = `Here's your ad preview:\n\n**${payload.ad_headline || ""}**\n${payload.ad_body || ""}\n_${payload.ad_description || ""}_\n\n`;
+          if (payload.daily_budget) previewContent += `**Budget:** $${payload.daily_budget}/day\n`;
+          if (payload.objective) previewContent += `**Objective:** ${payload.objective}\n`;
+          previewContent += "\nApprove to launch, or tell me what to change.";
+        } else {
+          previewContent = "The ad details are in the campaign card above. Scroll up to review, then tap Approve when you're ready.";
+        }
+
+        addMessage({
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: previewContent,
+          timestamp: new Date(),
+        });
+        return;
+      }
+    }
+
     // Clear input and close slash menu
     setInput("");
     closeSlashMenu();

@@ -253,6 +253,60 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
           const budgetMatch = msgLower.match(/\$(\d+)/);
           const budget = budgetMatch ? parseInt(budgetMatch[1], 10) : 10;
 
+          // Generate ad copy preview so user can see the ad before approving
+          const fullProfile = await prisma.profile.findUnique({
+            where: { id: input.user_id },
+            select: { businessType: true, fullName: true, serviceAreaCity: true },
+          });
+          const previewCity = fullProfile?.serviceAreaCity || "your area";
+          const businessType = fullProfile?.businessType || "business";
+
+          let adPreview = { headline: `${previewCity} ${businessType}`.slice(0, 40), primary_text: `Discover ${businessType} services in ${previewCity}`, description: "Learn more today" };
+          let previewImageUrl: string | undefined;
+
+          // Generate ad copy and image in parallel
+          const llm = getDefaultProvider();
+          const copyPromise = (async () => {
+            try {
+              const copyResponse = await llm.complete([
+                { role: "system", content: "You generate Facebook ad copy. Return JSON only, no markdown." },
+                { role: "user", content: `Write a Facebook ad for a ${businessType} in ${previewCity}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.` },
+              ], { temperature: 0.7 });
+              let jsonStr = copyResponse.content.trim();
+              if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+              if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
+              if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
+              const parsed = JSON.parse(jsonStr.trim());
+              adPreview = {
+                headline: String(parsed.headline || adPreview.headline).slice(0, 40),
+                primary_text: String(parsed.primary_text || adPreview.primary_text).slice(0, 125),
+                description: String(parsed.description || adPreview.description).slice(0, 30),
+              };
+            } catch {
+              // Use defaults
+            }
+          })();
+
+          const imagePromise = (async () => {
+            if (!process.env.OPENAI_API_KEY) return;
+            try {
+              const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
+              const leadType = originalMessage.includes("seller") ? "lead_generation" :
+                               originalMessage.includes("listing") ? "new_listing" : "lead_generation";
+              const prompt = buildAdImagePrompt({
+                type: leadType,
+                city: previewCity,
+                businessType,
+              });
+              const result = await generateImage({ prompt, size: "1024x1024" });
+              previewImageUrl = result.url;
+            } catch {
+              // Continue without image
+            }
+          })();
+
+          await Promise.all([copyPromise, imagePromise]);
+
           const { getRiskTier, requiresApproval } = await import("./actionSchema");
           const actionType = "ads.create_campaign" as const;
           plan.actions = [{
@@ -265,12 +319,19 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
               channel: "native" as const,
               objective: "LEADS" as const,
               daily_budget: budget,
+              ad_headline: adPreview.headline,
+              ad_body: adPreview.primary_text,
+              ad_description: adPreview.description,
+              preview_image_url: previewImageUrl,
             },
             expected_outcome: { entity_type: "campaign", created: true },
           } as ActionPlan["actions"][0]];
           plan.follow_up_question = null;
           plan.requires_approval = true;
           plan.highest_risk_tier = 2;
+          // Include preview in user summary so it shows in the chat
+          const imgMarkdown = previewImageUrl ? `\n\n![Ad Preview](${previewImageUrl})` : "";
+          plan.user_summary = `Here's your ad preview:\n\n**${adPreview.headline}**\n${adPreview.primary_text}\n_${adPreview.description}_${imgMarkdown}\n\n**Budget:** $${budget}/day · **Target:** ${previewCity}\n\nApprove to launch, or tell me what to change.`;
         } else {
           // Genuinely missing info — but be specific about what we need
           const questions: string[] = [];

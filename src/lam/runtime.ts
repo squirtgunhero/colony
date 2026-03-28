@@ -29,6 +29,27 @@ async function executeAction(
   action: Action,
   ctx: ExecutionContext
 ): Promise<ActionResult> {
+  // Sanitize payload.type for lead/contact actions — LLM sometimes picks invalid values
+  if (
+    (action.type === "lead.create" || action.type === "lead.update") &&
+    action.payload &&
+    typeof action.payload === "object" &&
+    "type" in action.payload
+  ) {
+    const validTypes = ["lead", "client", "agent", "vendor"];
+    const p = action.payload as Record<string, unknown>;
+    if (p.type && !validTypes.includes(p.type as string)) {
+      p.type = "lead";
+    }
+    // Also check nested patch.type for lead.update
+    if ("patch" in p && p.patch && typeof p.patch === "object") {
+      const patch = p.patch as Record<string, unknown>;
+      if (patch.type && !validTypes.includes(patch.type as string)) {
+        patch.type = "lead";
+      }
+    }
+  }
+
   // Validate action
   const validation = validateAction(action);
   if (!validation.success) {

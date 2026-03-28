@@ -80,6 +80,14 @@ export function ChatCommandBar() {
     }
   }, [input]);
 
+  // Auto-focus input after assistant responds
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last?.role === "assistant" && !isLoading) {
+      textareaRef.current?.focus();
+    }
+  }, [messages, isLoading]);
+
   useEffect(() => {
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {

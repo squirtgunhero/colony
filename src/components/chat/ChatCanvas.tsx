@@ -283,6 +283,23 @@ export function ChatCanvas() {
                   {message.messageType === "execution" && execution ? (
                     <ActionExecutionCard
                       execution={execution}
+                      adPreview={(() => {
+                        const actions = message.lamResponse?.plan?.actions;
+                        const adAction = actions?.find(
+                          (a: { type: string }) => a.type === "ads.create_campaign"
+                        );
+                        if (!adAction) return undefined;
+                        const p = adAction.payload as Record<string, unknown> | undefined;
+                        if (!p || (!p.ad_headline && !p.ad_body)) return undefined;
+                        return {
+                          headline: p.ad_headline as string | undefined,
+                          body: p.ad_body as string | undefined,
+                          description: p.ad_description as string | undefined,
+                          budget: p.daily_budget as number | undefined,
+                          target: (p.target_city || p.service_area) as string | undefined,
+                          imageUrl: p.preview_image_url as string | undefined,
+                        };
+                      })()}
                       onRetry={() => sendToLam(message.content)}
                       onCancel={() => message.executionId && cancelExecution(message.executionId)}
                       onApprove={() => message.runId && approveRun(message.runId)}

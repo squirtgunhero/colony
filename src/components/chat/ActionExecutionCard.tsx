@@ -22,8 +22,18 @@ import { ReportResult } from "./results/ReportResult";
 import { SocialResult } from "./results/SocialResult";
 import type { ActionExecution } from "@/lib/assistant/types";
 
+interface AdPreview {
+  headline?: string;
+  body?: string;
+  description?: string;
+  budget?: number;
+  target?: string;
+  imageUrl?: string;
+}
+
 interface ActionExecutionCardProps {
   execution: ActionExecution;
+  adPreview?: AdPreview;
   onRetry?: () => void;
   onCancel?: () => void;
   onApprove?: () => void;
@@ -49,6 +59,7 @@ const RESULT_RENDERERS: Record<string, React.ComponentType<{ result: unknown }>>
 
 export function ActionExecutionCard({
   execution,
+  adPreview,
   onRetry,
   onCancel,
   onApprove,
@@ -205,6 +216,77 @@ export function ActionExecutionCard({
         ))}
       </div>
 
+      {/* Ad Preview */}
+      {isAwaitingApproval && adPreview && (adPreview.headline || adPreview.body) && (
+        <div
+          className="mx-4 mb-3 p-4 rounded-xl"
+          style={{
+            backgroundColor: withAlpha(theme.text, 0.03),
+            border: `1px solid ${withAlpha(theme.text, 0.08)}`,
+          }}
+        >
+          <p
+            className="text-[11px] uppercase tracking-wider mb-2 font-medium"
+            style={{ color: theme.textMuted, fontFamily: "var(--font-dm-sans), sans-serif" }}
+          >
+            Ad Preview
+          </p>
+          {adPreview.imageUrl && (
+            <div className="mb-3 rounded-lg overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={adPreview.imageUrl}
+                alt="Ad preview"
+                className="w-full h-auto"
+                style={{ maxHeight: 240, objectFit: "cover" }}
+              />
+            </div>
+          )}
+          {adPreview.headline && (
+            <p
+              className="text-[15px] font-semibold mb-1"
+              style={{ color: theme.text, fontFamily: "var(--font-dm-sans), sans-serif" }}
+            >
+              {adPreview.headline}
+            </p>
+          )}
+          {adPreview.body && (
+            <p
+              className="text-[13px] mb-1"
+              style={{ color: theme.textSoft, fontFamily: "var(--font-dm-sans), sans-serif" }}
+            >
+              {adPreview.body}
+            </p>
+          )}
+          {adPreview.description && (
+            <p
+              className="text-[12px] italic mb-2"
+              style={{ color: theme.textMuted, fontFamily: "var(--font-dm-sans), sans-serif" }}
+            >
+              {adPreview.description}
+            </p>
+          )}
+          <div className="flex gap-3 mt-2">
+            {adPreview.budget && (
+              <span
+                className="text-[12px] font-medium"
+                style={{ color: theme.accent, fontFamily: "var(--font-dm-sans), sans-serif" }}
+              >
+                ${adPreview.budget}/day
+              </span>
+            )}
+            {adPreview.target && (
+              <span
+                className="text-[12px]"
+                style={{ color: theme.textMuted, fontFamily: "var(--font-dm-sans), sans-serif" }}
+              >
+                {adPreview.target}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Approval Gate */}
       {isAwaitingApproval && (
         <div
@@ -221,7 +303,9 @@ export function ActionExecutionCard({
               fontFamily: "var(--font-dm-sans), sans-serif",
             }}
           >
-            This action requires your approval before proceeding.
+            {adPreview && (adPreview.headline || adPreview.body)
+              ? "Approve to launch this campaign, or tell me what to change."
+              : "This action requires your approval before proceeding."}
           </p>
           <div className="flex gap-2">
             {onApprove && (

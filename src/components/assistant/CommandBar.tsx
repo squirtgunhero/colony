@@ -84,6 +84,14 @@ export function CommandBar() {
     }
   }, [input]);
 
+  // Auto-focus input after assistant responds
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (last?.role === "assistant" && !isLoading) {
+      textareaRef.current?.focus();
+    }
+  }, [messages, isLoading]);
+
   // Focus on Cmd+K
   useEffect(() => {
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
