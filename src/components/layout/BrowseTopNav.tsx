@@ -7,10 +7,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { UserMenu } from "@/components/auth/user-menu";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
-import { Menu, Plus, Search, X, Bell } from "lucide-react";
+import { Menu, Search, X, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { ContactDialog } from "@/components/contacts/contact-dialog";
+// ContactDialog removed — quick capture FAB handles creation
 import { globalSearch } from "@/app/(dashboard)/search/actions";
 
 interface SearchResult {
@@ -293,16 +293,6 @@ export function BrowseTopNav() {
 
       {/* Quick actions */}
       <div className="flex items-center gap-1" suppressHydrationWarning>
-        <ContactDialog>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            title="New contact"
-          >
-            <Plus className="h-3.5 w-3.5" style={{ color: withAlpha(theme.text, 0.35) }} />
-          </Button>
-        </ContactDialog>
         <Button variant="ghost" size="icon" className="h-7 w-7 relative" asChild>
           <Link href="/notifications" title="Notifications">
             <Bell className="h-3.5 w-3.5" style={{ color: withAlpha(theme.text, 0.35) }} />

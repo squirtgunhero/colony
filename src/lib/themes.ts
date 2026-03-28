@@ -66,7 +66,7 @@ function buildTheme(input: ThemeInput): ColonyTheme {
 
 export const COLONY_DARK: ColonyTheme = buildTheme({
   id: "colony-dark", name: "Colony Dark", isDark: true,
-  bg: "#000000", bgGlow: "#1c1c1e", accent: "#B8A080", text: "#F5F5F7",
+  bg: "#0C0C0E", bgGlow: "#161618", accent: "#C4A87A", text: "#E8E8ED",
 });
 
 export const COLONY_LIGHT: ColonyTheme = buildTheme({

@@ -141,56 +141,56 @@
    DARK THEME — True Dark, Not Inverted
    ============================================ */
 .dark {
-  --background: #000000;           /* True black like Apple dark mode */
-  --foreground: #f5f5f7;           /* Apple primary text (dark) */
-  --card: #1c1c1e;                 /* Apple secondary grouped bg */
-  --card-foreground: #f5f5f7;
-  --popover: #1c1c1e;
-  --popover-foreground: #f5f5f7;
+  --background: #0C0C0E;           /* Near-black, slightly warm */
+  --foreground: #E8E8ED;           /* Softer than pure white */
+  --card: #161618;                 /* Subtle lift from background */
+  --card-foreground: #E8E8ED;
+  --popover: #161618;
+  --popover-foreground: #E8E8ED;
 
-  --primary: #B8A080;
-  --primary-foreground: #1c1c1e;
+  --primary: #C4A87A;              /* Warmer, richer gold */
+  --primary-foreground: #0C0C0E;
 
-  --secondary: #2c2c2e;            /* Apple tertiary fill */
-  --secondary-foreground: #f5f5f7;
+  --secondary: #1E1E21;            /* Soft surface */
+  --secondary-foreground: #E8E8ED;
 
-  --muted: #2c2c2e;
-  --muted-foreground: #98989d;     /* Apple secondary text (dark) */
+  --muted: #1E1E21;
+  --muted-foreground: #7D7D85;     /* Softer secondary text */
 
-  --accent: #1e1a16;
-  --accent-foreground: #c9b89a;
+  --accent: rgba(196, 168, 122, 0.10);
+  --accent-foreground: #C4A87A;
 
   /* Semantic */
-  --destructive: #dc2626;
-  --success: #30d158;              /* Apple green */
-  --warning: #ff9f0a;              /* Apple orange */
-  --info: #64d2ff;                 /* Apple cyan */
+  --destructive: #E5484D;
+  --success: #30A46C;
+  --warning: #F5A623;
+  --info: #52A8FF;
 
-  --border: rgba(255, 255, 255, 0.06);
-  --input: rgba(255, 255, 255, 0.06);
-  --ring: #B8A080;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: #C4A87A;
 
-  /* Shadows for dark — very subtle */
+  /* Shadows for dark */
   --shadow-xs: 0 0.5px 1px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
   --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.5);
 
-  --chart-1: #f5f5f7;
+  --chart-1: #E8E8ED;
   --chart-2: #a1a1a1;
   --chart-3: #525252;
   --chart-4: #ea580c;
   --chart-5: #fb923c;
 
-  --sidebar: #000000;
-  --sidebar-foreground: #98989d;
-  --sidebar-primary: #B8A080;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #1c1c1e;
-  --sidebar-accent-foreground: #f5f5f7;
+  --sidebar: #0A0A0C;
+  --sidebar-foreground: #7D7D85;
+  --sidebar-primary: #C4A87A;
+  --sidebar-primary-foreground: #0C0C0E;
+  --sidebar-accent: #161618;
+  --sidebar-accent-foreground: #E8E8ED;
   --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #B8A080;
+  --sidebar-ring: #C4A87A;
 }
 
 /* ============================================
@@ -299,23 +299,23 @@
 }
 
 .dark .status-success {
-  background: rgba(48, 209, 88, 0.12);
-  color: #30d158;
+  background: rgba(48, 164, 108, 0.12);
+  color: #30A46C;
 }
 
 .dark .status-warning {
-  background: rgba(255, 159, 10, 0.12);
-  color: #ff9f0a;
+  background: rgba(245, 166, 35, 0.12);
+  color: #F5A623;
 }
 
 .dark .status-info {
-  background: rgba(100, 210, 255, 0.12);
-  color: #64d2ff;
+  background: rgba(82, 168, 255, 0.12);
+  color: #52A8FF;
 }
 
 .dark .status-neutral {
-  background: rgba(152, 152, 157, 0.1);
-  color: #98989d;
+  background: rgba(125, 125, 133, 0.1);
+  color: #7D7D85;
 }
 
 /* ============================================

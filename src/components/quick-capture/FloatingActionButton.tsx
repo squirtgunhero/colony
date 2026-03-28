@@ -38,11 +38,11 @@ export function FloatingActionButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
+        className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200 hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
         style={{
           backgroundColor: theme.accent,
           color: "#fff",
-          boxShadow: `0 4px 14px rgba(0,0,0,0.25), 0 0 20px ${theme.accent}33`,
+          boxShadow: `0 2px 10px rgba(0,0,0,0.2)`,
         }}
         aria-label="Quick capture (⌘N)"
       >

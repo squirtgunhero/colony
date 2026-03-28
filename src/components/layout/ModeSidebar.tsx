@@ -53,20 +53,44 @@ export function ModeSidebar() {
       .catch(() => {});
   }, []);
 
-  const navItems: NavItem[] = [
-    { href: "/dashboard", label: "Home", icon: Home },
-    { href: "/browse/contacts", label: "People", icon: Users },
-    { href: "/browse/deals", label: "Deals", icon: Handshake },
-    { href: "/browse/properties", label: "Properties", icon: Building2 },
-    { href: "/browse/listing-alerts", label: "Alerts", icon: Bell },
-    { href: "/browse/tasks", label: "Tasks", icon: CheckSquare },
-    { href: "/browse/dialer", label: "Dialer", icon: Phone },
-    { href: "/browse/ai-engage", label: "AI Engage", icon: BotMessageSquare },
-    { href: "/browse/text-campaigns", label: "Texts", icon: MessageSquareText },
-    { href: "/marketing", label: "Marketing", icon: Megaphone },
-    { href: "/calendar", label: "Calendar", icon: CalendarDays },
-    { href: "/inbox", label: "Inbox", icon: Inbox, badge: inboxUnread },
-    { href: "/reports", label: "Reports", icon: BarChart3 },
+  interface NavSection {
+    label?: string;
+    items: NavItem[];
+  }
+
+  const navSections: NavSection[] = [
+    {
+      items: [
+        { href: "/dashboard", label: "Home", icon: Home },
+      ],
+    },
+    {
+      label: "CRM",
+      items: [
+        { href: "/browse/contacts", label: "People", icon: Users },
+        { href: "/browse/deals", label: "Deals", icon: Handshake },
+        { href: "/browse/properties", label: "Properties", icon: Building2 },
+        { href: "/browse/tasks", label: "Tasks", icon: CheckSquare },
+      ],
+    },
+    {
+      label: "Outreach",
+      items: [
+        { href: "/browse/dialer", label: "Dialer", icon: Phone },
+        { href: "/browse/ai-engage", label: "AI Engage", icon: BotMessageSquare },
+        { href: "/browse/text-campaigns", label: "Texts", icon: MessageSquareText },
+        { href: "/marketing", label: "Marketing", icon: Megaphone },
+        { href: "/inbox", label: "Inbox", icon: Inbox, badge: inboxUnread },
+      ],
+    },
+    {
+      label: "Insights",
+      items: [
+        { href: "/browse/listing-alerts", label: "Alerts", icon: Bell },
+        { href: "/calendar", label: "Calendar", icon: CalendarDays },
+        { href: "/reports", label: "Reports", icon: BarChart3 },
+      ],
+    },
   ];
 
   const isActive = (href: string) => {
@@ -127,54 +151,68 @@ export function ModeSidebar() {
 
       {/* Navigation */}
       <nav
-        className="flex-1 flex flex-col px-3 pt-3 gap-0.5 overflow-y-auto scrollbar-none"
+        className="flex-1 flex flex-col px-3 pt-2 gap-0 overflow-y-auto scrollbar-none"
         suppressHydrationWarning
       >
-        {navItems.map((item) => {
-          const active = isActive(item.href);
-          const IconComponent = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group flex items-center gap-2.5 rounded-xl h-9 px-3 relative transition-all duration-150"
-              style={{
-                backgroundColor: active ? withAlpha(theme.text, 0.08) : "transparent",
-              }}
-              aria-current={active ? "page" : undefined}
-              suppressHydrationWarning
-            >
-              <IconComponent
-                className="h-[16px] w-[16px] shrink-0 transition-colors duration-150"
-                style={{
-                  color: active ? theme.text : withAlpha(theme.text, 0.35),
-                  strokeWidth: 1.5,
-                }}
-              />
-              <span
-                className="text-[13px] tracking-[-0.01em] transition-colors duration-150"
-                style={{
-                  color: active ? theme.text : withAlpha(theme.text, 0.5),
-                  fontWeight: active ? 600 : 400,
-                }}
+        {navSections.map((section, si) => (
+          <div key={si} className={si > 0 ? "mt-3" : ""}>
+            {section.label && (
+              <p
+                className="text-[10px] font-medium uppercase tracking-[0.08em] px-3 mb-1"
+                style={{ color: withAlpha(theme.text, 0.25) }}
               >
-                {item.label}
-              </span>
-              {item.badge != null && item.badge > 0 && (
-                <span
-                  className="ml-auto flex items-center justify-center h-[18px] min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold"
-                  style={{
-                    backgroundColor: withAlpha(theme.accent, 0.15),
-                    color: theme.accent,
-                  }}
-                  aria-label={`${item.badge} unread`}
-                >
-                  {item.badge > 99 ? "99+" : item.badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+                {section.label}
+              </p>
+            )}
+            <div className="flex flex-col gap-0.5">
+              {section.items.map((item) => {
+                const active = isActive(item.href);
+                const IconComponent = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="group flex items-center gap-2.5 rounded-xl h-9 px-3 relative transition-all duration-150"
+                    style={{
+                      backgroundColor: active ? withAlpha(theme.text, 0.08) : "transparent",
+                    }}
+                    aria-current={active ? "page" : undefined}
+                    suppressHydrationWarning
+                  >
+                    <IconComponent
+                      className="h-[16px] w-[16px] shrink-0 transition-colors duration-150"
+                      style={{
+                        color: active ? theme.text : withAlpha(theme.text, 0.30),
+                        strokeWidth: 1.5,
+                      }}
+                    />
+                    <span
+                      className="text-[13px] tracking-[-0.01em] transition-colors duration-150"
+                      style={{
+                        color: active ? theme.text : withAlpha(theme.text, 0.45),
+                        fontWeight: active ? 600 : 400,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                    {item.badge != null && item.badge > 0 && (
+                      <span
+                        className="ml-auto flex items-center justify-center h-[18px] min-w-[18px] px-1.5 rounded-full text-[10px] font-semibold"
+                        style={{
+                          backgroundColor: withAlpha(theme.accent, 0.15),
+                          color: theme.accent,
+                        }}
+                        aria-label={`${item.badge} unread`}
+                      >
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Bottom: Settings + Tara + User */}
