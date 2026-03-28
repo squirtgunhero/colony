@@ -357,6 +357,59 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
     }
   }
 
+  // ── Generate ad preview for any ads.create_campaign that lacks preview data ──
+  const adAction = plan.actions.find(a => a.type === "ads.create_campaign");
+  if (adAction) {
+    const adPayload = adAction.payload as Record<string, unknown>;
+    if (!adPayload.ad_headline && !adPayload.ad_body) {
+      // Load profile for context
+      const adProfile = await prisma.profile.findUnique({
+        where: { id: input.user_id },
+        select: { businessType: true, fullName: true, serviceAreaCity: true },
+      });
+      const adCity = (adPayload.target_city as string) || adProfile?.serviceAreaCity || "your area";
+      const adBiz = adProfile?.businessType || "business";
+      const adBudget = (adPayload.daily_budget as number) || 10;
+
+      // Generate copy + image in parallel
+      const adLlm = getDefaultProvider();
+      const adCopyPromise = (async () => {
+        try {
+          const resp = await adLlm.complete([
+            { role: "system", content: "You generate Facebook ad copy. Return JSON only, no markdown." },
+            { role: "user", content: `Write a Facebook ad for a ${adBiz} in ${adCity}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.` },
+          ], { temperature: 0.7 });
+          let jsonStr = resp.content.trim();
+          if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+          if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
+          if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
+          return JSON.parse(jsonStr.trim());
+        } catch { return null; }
+      })();
+
+      const adImagePromise = (async () => {
+        if (!process.env.OPENAI_API_KEY) return undefined;
+        try {
+          const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
+          const prompt = buildAdImagePrompt({ type: "lead_generation", city: adCity, businessType: adBiz });
+          const result = await generateImage({ prompt, size: "1024x1024" });
+          return result.url;
+        } catch { return undefined; }
+      })();
+
+      const [adCopy, adImageUrl] = await Promise.all([adCopyPromise, adImagePromise]);
+
+      adPayload.ad_headline = adCopy ? String(adCopy.headline || "").slice(0, 40) : `${adCity} ${adBiz}`.slice(0, 40);
+      adPayload.ad_body = adCopy ? String(adCopy.primary_text || "").slice(0, 125) : `Discover ${adBiz} services in ${adCity}`;
+      adPayload.ad_description = adCopy ? String(adCopy.description || "").slice(0, 30) : "Learn more today";
+      if (adImageUrl) adPayload.preview_image_url = adImageUrl;
+
+      // Update user summary with preview
+      const imgMd = adImageUrl ? `\n\n![Ad Preview](${adImageUrl})` : "";
+      plan.user_summary = `Here's your ad preview:\n\n**${adPayload.ad_headline}**\n${adPayload.ad_body}\n_${adPayload.ad_description}_${imgMd}\n\n**Budget:** $${adBudget}/day · **Target:** ${adCity}\n\nApprove to launch, or tell me what to change.`;
+    }
+  }
+
   // Step 2: Record the run
   const runId = await recordRun({
     user_id: input.user_id,
