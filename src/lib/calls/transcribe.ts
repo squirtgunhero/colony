@@ -192,3 +192,38 @@ export async function processCallRecording(callRecordingId: string): Promise<voi
     });
   }
 }
+
+// ============================================================================
+// Batch Processing (Cron)
+// ============================================================================
+
+/**
+ * Process all pending call recordings (for cron jobs)
+ */
+export async function processAllPendingRecordings(): Promise<{
+  processed: number;
+  failed: number;
+}> {
+  const pending = await prisma.callRecording.findMany({
+    where: {
+      analysisStatus: "pending",
+      recordingUrl: { not: null },
+    },
+    select: { id: true },
+    take: 10, // Process max 10 at a time
+  });
+
+  let processed = 0;
+  let failed = 0;
+
+  for (const recording of pending) {
+    try {
+      await processCallRecording(recording.id);
+      processed++;
+    } catch {
+      failed++;
+    }
+  }
+
+  return { processed, failed };
+}

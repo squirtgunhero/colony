@@ -64,10 +64,42 @@ export function outboundCallTwiml({
 /**
  * Validate Twilio webhook signature
  */
+/**
+ * Validate Twilio webhook signature
+ */
 export function validateTwilioSignature(
   url: string,
   params: Record<string, string>,
   signature: string
 ): boolean {
   return Twilio.validateRequest(authToken, signature, url, params);
+}
+
+/**
+ * The Twilio phone number configured for this account
+ */
+export const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER!;
+
+/**
+ * Generate TwiML to play a voicemail recording and hang up
+ */
+export function voicemailDropTwiml(recordingUrl: string): string {
+  const VoiceResponse = Twilio.twiml.VoiceResponse;
+  const response = new VoiceResponse();
+  response.play(recordingUrl);
+  response.hangup();
+  return response.toString();
+}
+
+/**
+ * Modify a live call to drop a voicemail (redirect to play recording)
+ */
+export async function dropVoicemailOnCall(
+  callSid: string,
+  recordingUrl: string
+): Promise<void> {
+  const client = Twilio(accountSid, authToken);
+  await client.calls(callSid).update({
+    twiml: voicemailDropTwiml(recordingUrl),
+  });
 }
