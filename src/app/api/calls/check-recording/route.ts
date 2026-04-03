@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import Twilio from "twilio";
@@ -69,9 +70,14 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Fire-and-forget: start transcription + analysis
-      processCallRecording(updated.id).catch((err) => {
-        console.error("Background call processing failed:", err);
+      // Run transcription + analysis after the response is sent
+      // (after() keeps the serverless function alive on Vercel)
+      after(async () => {
+        try {
+          await processCallRecording(updated.id);
+        } catch (err) {
+          console.error("Background call processing failed:", err);
+        }
       });
 
       return NextResponse.json({ status: "completed", hasRecording: true });

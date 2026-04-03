@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processCallRecording } from "@/lib/calls/transcribe";
 
@@ -45,9 +45,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Fire-and-forget: start transcription + analysis pipeline
-      processCallRecording(updated.id).catch((err) => {
-        console.error("Background call processing failed:", err);
+      // Run transcription + analysis after the response is sent
+      after(async () => {
+        try {
+          await processCallRecording(updated.id);
+        } catch (err) {
+          console.error("Background call processing failed:", err);
+        }
       });
     } else if (recordingStatus === "absent") {
       await prisma.callRecording.update({
