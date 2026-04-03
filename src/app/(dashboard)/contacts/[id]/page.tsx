@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ContactDetailView } from "./contact-detail-view";
-import { getScoreBreakdown } from "@/lib/relationship-score";
 import { requireUser } from "@/lib/supabase/auth";
 
 interface ContactPageProps {
@@ -35,14 +34,6 @@ async function getContact(id: string) {
           { dueDate: "asc" },
         ],
       },
-      emailInteractions: {
-        orderBy: { occurredAt: "desc" },
-        take: 50,
-      },
-      meetingInteractions: {
-        orderBy: { startTime: "desc" },
-        take: 50,
-      },
     },
   });
 
@@ -57,42 +48,10 @@ export default async function ContactPage({ params }: ContactPageProps) {
     notFound();
   }
 
-  // Use the new weighted score algorithm
-  const scoreBreakdown = await getScoreBreakdown(id);
-
-  const relationshipScore = {
-    score: scoreBreakdown.total,
-    label: scoreBreakdown.label,
-    color: scoreBreakdown.color,
-  };
-
-  // Determine last contacted date from all sources
-  const candidates: Date[] = [];
-  if (contact.activities[0]?.createdAt) candidates.push(new Date(contact.activities[0].createdAt));
-  if (contact.emailInteractions[0]?.occurredAt) candidates.push(new Date(contact.emailInteractions[0].occurredAt));
-  if (contact.meetingInteractions[0]?.startTime) candidates.push(new Date(contact.meetingInteractions[0].startTime));
-  if (contact.lastContactedAt) candidates.push(new Date(contact.lastContactedAt));
-
-  const lastContactedDate = candidates.length > 0
-    ? new Date(Math.max(...candidates.map((d) => d.getTime()))).toISOString()
+  // Determine last contacted date from activities
+  const lastContactedDate = contact.activities[0]?.createdAt
+    ? new Date(contact.activities[0].createdAt).toISOString()
     : null;
-
-  // Fetch AI attribute values for this contact
-  const aiAttributeValues = await prisma.aiAttributeValue.findMany({
-    where: { entityId: id },
-    include: { attribute: { select: { name: true, slug: true, outputType: true, options: true } } },
-    orderBy: { computedAt: "desc" },
-  });
-
-  const aiAttributes = aiAttributeValues.map((v) => ({
-    name: v.attribute.name,
-    slug: v.attribute.slug,
-    value: v.value,
-    confidence: v.confidence,
-    outputType: v.attribute.outputType,
-    options: v.attribute.options as string[] | null,
-    computedAt: v.computedAt.toISOString(),
-  }));
 
   // Get current user for presence
   const currentUser = await requireUser();
@@ -106,10 +65,8 @@ export default async function ContactPage({ params }: ContactPageProps) {
   return (
     <ContactDetailView
       contact={serialized}
-      relationshipScore={relationshipScore}
+      relationshipScore={undefined}
       lastContactedDate={lastContactedDate}
-      aiAttributes={aiAttributes}
-      currentUser={currentUserMeta}
     />
   );
 }
