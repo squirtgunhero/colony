@@ -225,8 +225,11 @@ export function DialerProvider({ children }: { children: ReactNode }) {
             }));
           }, 1000);
 
-          // Recording is now created server-side in the outbound TwiML route
-          // where the real Twilio CallSid is available
+          // Store the CallSid so we can check for recordings after disconnect
+          const sid = call.parameters?.CallSid;
+          if (sid) {
+            activeCallRef.current._colonySid = sid;
+          }
         });
 
         call.on("ringing", () => {
@@ -239,6 +242,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         call.on("disconnect", () => {
           console.log("[Dialer] Call disconnected");
           if (timerRef.current) clearInterval(timerRef.current);
+          const callSid = activeCallRef.current?._colonySid;
           activeCallRef.current = null;
           if (mountedRef.current) {
             setState((s) => ({
@@ -247,7 +251,23 @@ export function DialerProvider({ children }: { children: ReactNode }) {
               isConnecting: false,
               callDuration: 0,
             }));
-            notifyCallEnd();
+            // Check for recordings via Twilio API after a short delay
+            if (callSid) {
+              setTimeout(async () => {
+                try {
+                  await fetch("/api/calls/check-recording", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ callSid }),
+                  });
+                } catch (err) {
+                  console.error("[Dialer] Failed to check recording:", err);
+                }
+                notifyCallEnd();
+              }, 3000);
+            } else {
+              notifyCallEnd();
+            }
           }
         });
 

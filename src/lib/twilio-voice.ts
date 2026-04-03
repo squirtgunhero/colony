@@ -50,7 +50,7 @@ export function outboundCallTwiml({
 
   const dial = response.dial({
     callerId,
-    record: "record-from-answer-dual",
+    record: "record-from-ringing-dual",
     recordingStatusCallback: `${appUrl}/api/calls/recording-status`,
     recordingStatusCallbackMethod: "POST",
     recordingStatusCallbackEvent: "completed absent",
