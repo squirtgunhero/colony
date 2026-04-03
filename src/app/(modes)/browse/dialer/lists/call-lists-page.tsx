@@ -61,6 +61,7 @@ export function CallListsPage({ lists, contacts }: Props) {
   const [smartContactIds, setSmartContactIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const filteredContacts = contacts.filter((c) => {
     const matchesSearch = c.name.toLowerCase().includes(contactSearch.toLowerCase());
@@ -72,6 +73,7 @@ export function CallListsPage({ lists, contacts }: Props) {
   const handleCreate = () => {
     const ids = listType === "smart" ? smartContactIds : selectedContacts;
     if (!name.trim() || ids.length === 0) return;
+    setCreateError(null);
     startTransition(async () => {
       const res = await fetch("/api/dialer/call-lists", {
         method: "POST",
@@ -92,7 +94,11 @@ export function CallListsPage({ lists, contacts }: Props) {
         setSmartFilters([]);
         setSmartContactIds([]);
         setListType("manual");
+        setCreateError(null);
         router.push(`/browse/dialer/lists/${data.id}`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setCreateError(err.error || "Failed to create call list");
       }
     });
   };
@@ -369,6 +375,9 @@ export function CallListsPage({ lists, contacts }: Props) {
             </>
             )}
 
+            {createError && (
+              <p className="text-[12px] font-medium" style={{ color: "#ef4444" }}>{createError}</p>
+            )}
             <div className="flex justify-end">
               <ActionButton
                 label={isPending ? "Creating..." : `Create List (${listType === "smart" ? smartContactIds.length : selectedContacts.length} contacts)`}

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { scoreContact } from "@/lib/lead-scoring";
 
 /**
  * Voice AI status callback — receives call lifecycle updates from Twilio.
+ * On terminal statuses: creates activity, scores contact, marks call list
+ * entry complete, creates follow-up tasks, and triggers next batch call.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -64,10 +67,64 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        // Update contact: lastContactedAt + lead score/grade
         await prisma.contact.update({
           where: { id: call.contactId },
           data: { lastContactedAt: new Date() },
         });
+
+        // Re-score contact after call
+        try {
+          const { score, grade } = await scoreContact(call.contactId);
+          await prisma.contact.update({
+            where: { id: call.contactId },
+            data: { leadScore: score, leadGrade: grade },
+          });
+        } catch {
+          // Non-critical — don't fail the webhook
+        }
+
+        // Create follow-up task if appointment was set
+        if (call.appointmentSet) {
+          await prisma.task.create({
+            data: {
+              userId: call.userId,
+              contactId: call.contactId,
+              title: `Follow up: appointment with ${call.contact?.name || "contact"}`,
+              description: call.aiSummary || "Appointment set by Voice AI",
+              dueDate: call.appointmentDate || new Date(Date.now() + 86400000),
+              priority: "high",
+            },
+          });
+        } else if (call.leadQualified) {
+          // Create callback task for qualified leads without appointment
+          await prisma.task.create({
+            data: {
+              userId: call.userId,
+              contactId: call.contactId,
+              title: `Callback: ${call.contact?.name || "contact"} — qualified lead`,
+              description: call.aiSummary || "Lead qualified by Voice AI, needs personal follow-up",
+              dueDate: new Date(Date.now() + 86400000),
+              priority: "medium",
+            },
+          });
+        }
+      }
+
+      // Mark CallListEntry as completed and trigger next batch call
+      if (call.callListId && call.contactId) {
+        // Map Twilio status to entry outcome
+        const entryOutcome =
+          call.outcome || // Use outcome set by respond route (interested/callback_requested/connected)
+          (mappedStatus === "completed" ? "connected" : mappedStatus);
+
+        await prisma.callListEntry.updateMany({
+          where: { callListId: call.callListId, contactId: call.contactId },
+          data: { status: "completed", outcome: entryOutcome, calledAt: new Date() },
+        });
+
+        // Check if the list is still active and trigger next call
+        await triggerNextBatchCall(call.callListId, call.userId, call.aiObjective || "qualify");
       }
     }
 
@@ -76,5 +133,49 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Voice AI status callback error:", error);
     return NextResponse.json({ ok: true });
+  }
+}
+
+/**
+ * After a call completes, check if the list is still active and trigger
+ * the next pending contact in the batch.
+ */
+async function triggerNextBatchCall(callListId: string, userId: string, objective: string) {
+  try {
+    const list = await prisma.callList.findFirst({
+      where: { id: callListId, userId, status: "active" },
+    });
+    if (!list) return; // List paused or completed
+
+    const nextEntry = await prisma.callListEntry.findFirst({
+      where: { callListId, status: "pending" },
+      orderBy: { position: "asc" },
+      include: { contact: { select: { id: true, name: true, phone: true } } },
+    });
+
+    if (!nextEntry || !nextEntry.contact?.phone) {
+      // No more pending entries — mark list as completed
+      await prisma.callList.update({
+        where: { id: callListId },
+        data: { status: "completed" },
+      });
+      return;
+    }
+
+    // Trigger the next Voice AI call (server-to-server with internal secret)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.colony.so";
+    await fetch(`${baseUrl}/api/dialer/voice-ai`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contactId: nextEntry.contact.id,
+        objective,
+        callListId,
+        userId,
+        internalSecret: process.env.INTERNAL_API_SECRET,
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to trigger next batch call:", error);
   }
 }

@@ -173,13 +173,16 @@ export function DialerProvider({ children }: { children: ReactNode }) {
           connectionRef.current = null;
           // Reset after brief delay so UI can show post-call state
           setTimeout(() => {
-            if (callState !== "connected") {
-              setCallState("idle");
-              setCurrentNumber(null);
-              setCurrentContactId(null);
-              setCurrentContactName(null);
-              setCurrentCallId(null);
-            }
+            setCallState((prev) => {
+              if (prev === "disconnected") {
+                setCurrentNumber(null);
+                setCurrentContactId(null);
+                setCurrentContactName(null);
+                setCurrentCallId(null);
+                return "idle";
+              }
+              return prev;
+            });
           }, 30000); // 30s for notes/outcome
         });
         connection.on("cancel", () => {

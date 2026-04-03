@@ -6,6 +6,7 @@ import { withAlpha } from "@/lib/themes";
 import {
   BotMessageSquare,
   Pause,
+  Play,
   ArrowLeft,
   Phone,
   CheckCircle,
@@ -89,7 +90,10 @@ export function TaraSession({ callListId, callListName, objective, onExit }: Pro
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Failed to start");
+        const msg = data.error === "No pending contacts with phone numbers"
+          ? "No remaining contacts with phone numbers in this list"
+          : data.error || "Failed to start";
+        setError(msg);
         setStatus("paused");
         return;
       }
@@ -125,6 +129,8 @@ export function TaraSession({ callListId, callListName, objective, onExit }: Pro
       );
       if (activeCalls.length > 0) {
         setCurrentContact(activeCalls[0].contactName);
+      } else {
+        setCurrentContact(null);
       }
     } catch {
       // ignore polling errors
@@ -195,19 +201,34 @@ export function TaraSession({ callListId, callListName, objective, onExit }: Pro
           </div>
         </div>
 
-        {status === "active" && (
-          <button
-            onClick={handleStop}
-            className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-[13px] font-medium transition-colors"
-            style={{
-              backgroundColor: withAlpha("#ef4444", 0.12),
-              color: "#ef4444",
-            }}
-          >
-            <Pause className="h-3.5 w-3.5" />
-            Pause
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {status === "paused" && progress.remaining > 0 && (
+            <button
+              onClick={startBatch}
+              className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-[13px] font-medium transition-colors"
+              style={{
+                backgroundColor: withAlpha("#bf5af2", 0.12),
+                color: "#bf5af2",
+              }}
+            >
+              <Play className="h-3.5 w-3.5" />
+              Resume
+            </button>
+          )}
+          {status === "active" && (
+            <button
+              onClick={handleStop}
+              className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-[13px] font-medium transition-colors"
+              style={{
+                backgroundColor: withAlpha("#ef4444", 0.12),
+                color: "#ef4444",
+              }}
+            >
+              <Pause className="h-3.5 w-3.5" />
+              Pause
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Status banner */}

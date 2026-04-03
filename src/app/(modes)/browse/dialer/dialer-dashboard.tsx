@@ -130,11 +130,12 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
         }
       />
 
-      <StatGrid columns={4}>
+      <StatGrid columns={5}>
         <StatCard label="Calls Today" value={todayStats.totalCalls} icon={Phone} />
         <StatCard label="Connected" value={todayStats.connectedCalls} icon={CheckCircle} color="#30d158" />
         <StatCard label="Talk Time" value={formatDuration(todayStats.totalDuration)} icon={Clock} />
         <StatCard label="AI Calls" value={todayStats.voiceAICalls} icon={BotMessageSquare} color="#bf5af2" />
+        <StatCard label="Appointments" value={todayStats.appointmentsSet} icon={CalendarCheck} color="#ff9f0a" />
       </StatGrid>
 
       {/* Voice AI Panel */}

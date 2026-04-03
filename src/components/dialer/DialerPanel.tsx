@@ -357,10 +357,13 @@ export function DialerPanel() {
               </button>
 
               <button
-                onClick={() => {/* TODO: show voicemail dropdown */}}
+                onClick={() => {
+                  setOutcome("left_voicemail");
+                  hangup();
+                }}
                 className="flex items-center justify-center h-10 w-10 rounded-full transition-colors"
                 style={{ backgroundColor: withAlpha(theme.text, 0.08) }}
-                title="Drop Voicemail"
+                title="Leave voicemail & hang up"
               >
                 <Voicemail className="h-4 w-4" style={{ color: withAlpha(theme.text, 0.6) }} />
               </button>

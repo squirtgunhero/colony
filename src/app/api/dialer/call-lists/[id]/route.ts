@@ -59,6 +59,28 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    // Handle entry completion (by entryId or contactId)
+    if (body.action === "complete") {
+      const entryWhere = body.entryId
+        ? { id: body.entryId }
+        : body.contactId
+          ? { callListId_contactId: { callListId: id, contactId: body.contactId } }
+          : null;
+
+      if (entryWhere) {
+        await prisma.callListEntry.update({
+          where: entryWhere,
+          data: {
+            status: "completed",
+            outcome: body.outcome || null,
+            notes: body.notes || null,
+            calledAt: new Date(),
+          },
+        });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     const updated = await prisma.callList.update({
       where: { id },
       data: {

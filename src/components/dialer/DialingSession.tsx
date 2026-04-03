@@ -167,42 +167,60 @@ export function DialingSession({ callListId, callListName, onExit }: Props) {
 
   const handleSkip = useCallback(async () => {
     if (!currentEntryContactId) return;
-    // Mark as skipped via PATCH
-    await fetch(`/api/dialer/calls`, {
+    // Mark entry as skipped directly on the call list
+    await fetch(`/api/dialer/call-lists/${callListId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        callId: dialer.currentCallId,
+        contactId: currentEntryContactId,
+        action: "complete",
         outcome: "skipped",
       }),
     });
     loadNext();
-  }, [currentEntryContactId, dialer.currentCallId, loadNext]);
+  }, [currentEntryContactId, callListId, loadNext]);
 
   const handleSaveAndNext = useCallback(async () => {
-    // Save outcome and notes
+    // Save outcome and notes on the call record
     if (dialer.currentCallId) {
-      if (selectedOutcome) {
-        await dialer.setOutcome(selectedOutcome);
-      }
-      if (noteText) {
-        await dialer.setNotes(noteText);
-      }
+      if (selectedOutcome) await dialer.setOutcome(selectedOutcome);
+      if (noteText) await dialer.setNotes(noteText);
+    }
+    // Always mark the call list entry as complete
+    if (currentEntryContactId) {
+      await fetch(`/api/dialer/call-lists/${callListId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactId: currentEntryContactId,
+          action: "complete",
+          outcome: selectedOutcome || "connected",
+          notes: noteText || null,
+        }),
+      });
     }
     loadNext();
-  }, [dialer, selectedOutcome, noteText, loadNext]);
+  }, [dialer, selectedOutcome, noteText, currentEntryContactId, callListId, loadNext]);
 
   const handleSaveAndEnd = useCallback(async () => {
     if (dialer.currentCallId) {
-      if (selectedOutcome) {
-        await dialer.setOutcome(selectedOutcome);
-      }
-      if (noteText) {
-        await dialer.setNotes(noteText);
-      }
+      if (selectedOutcome) await dialer.setOutcome(selectedOutcome);
+      if (noteText) await dialer.setNotes(noteText);
+    }
+    if (currentEntryContactId) {
+      await fetch(`/api/dialer/call-lists/${callListId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactId: currentEntryContactId,
+          action: "complete",
+          outcome: selectedOutcome || "connected",
+          notes: noteText || null,
+        }),
+      });
     }
     onExit();
-  }, [dialer, selectedOutcome, noteText, onExit]);
+  }, [dialer, selectedOutcome, noteText, currentEntryContactId, callListId, onExit]);
 
   // ============================================================================
   // Render

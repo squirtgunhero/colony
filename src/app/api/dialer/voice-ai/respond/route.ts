@@ -54,12 +54,30 @@ export async function POST(request: NextRequest) {
         data: {
           aiTranscript: JSON.stringify(transcript),
           aiSummary: analysis.summary,
+          aiSentiment: analysis.sentiment,
+          aiInterestScore: analysis.interestScore,
           appointmentSet,
           appointmentDate,
           leadQualified,
           outcome: appointmentSet ? "interested" : leadQualified ? "callback_requested" : "connected",
         },
       });
+
+      // Create action items as CallAction records
+      if (analysis.actionItems.length > 0) {
+        const call = await prisma.call.findUnique({ where: { id: callId }, select: { userId: true } });
+        if (call) {
+          await prisma.callAction.createMany({
+            data: analysis.actionItems.map((item) => ({
+              callId,
+              userId: call.userId,
+              type: item.type,
+              description: item.description,
+              dueDate: item.dueDate ? new Date(item.dueDate) : null,
+            })),
+          });
+        }
+      }
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -189,9 +207,12 @@ async function analyzeConversation(
 ): Promise<{
   closingMessage: string;
   summary: string;
+  sentiment: string;
+  interestScore: number;
   appointmentSet: boolean;
   appointmentDate: Date | null;
   leadQualified: boolean;
+  actionItems: { type: string; description: string; dueDate?: string }[];
 }> {
   const conversationText = transcript
     .map(t => `${t.role === "ai" ? "Tara" : contactName}: ${t.text}`)
@@ -200,7 +221,7 @@ async function analyzeConversation(
   try {
     const response = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 300,
+      max_tokens: 500,
       system: "You analyze real estate phone conversations and return JSON.",
       messages: [
         {
@@ -208,9 +229,12 @@ async function analyzeConversation(
           content: `Analyze this phone conversation and return a JSON object with these fields:
 - closingMessage: A brief, friendly closing statement for Tara to say (1-2 sentences)
 - summary: A 1-2 sentence summary of the call outcome
+- sentiment: one of "positive", "neutral", "negative", "mixed"
+- interestScore: integer 1-10, how interested the contact seems (10 = very interested)
 - appointmentSet: boolean, whether an appointment/meeting was agreed upon
 - appointmentDateStr: if appointment set, the date/time mentioned as ISO string, or null
 - leadQualified: boolean, whether the lead seems genuinely interested
+- actionItems: array of {type, description, dueDate?} objects. Types: "follow_up_call", "send_email", "schedule_showing", "create_task". Include specific follow-ups mentioned in the call.
 
 Conversation:
 ${conversationText}
@@ -226,9 +250,12 @@ Return ONLY valid JSON, no other text.`,
       return {
         closingMessage: parsed.closingMessage || `Thank you for your time, ${contactName.split(" ")[0]}. We'll be in touch soon!`,
         summary: parsed.summary || "Call completed",
+        sentiment: parsed.sentiment || "neutral",
+        interestScore: Math.min(10, Math.max(1, parseInt(parsed.interestScore) || 5)),
         appointmentSet: parsed.appointmentSet || false,
         appointmentDate: parsed.appointmentDateStr ? new Date(parsed.appointmentDateStr) : null,
         leadQualified: parsed.leadQualified || false,
+        actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
       };
     }
   } catch {
@@ -238,9 +265,12 @@ Return ONLY valid JSON, no other text.`,
   return {
     closingMessage: `Thank you so much for your time, ${contactName.split(" ")[0]}. It was great speaking with you. We'll follow up with more details soon. Have a wonderful day!`,
     summary: "Call completed — needs follow-up review",
+    sentiment: "neutral",
+    interestScore: 5,
     appointmentSet: false,
     appointmentDate: null,
     leadQualified: false,
+    actionItems: [],
   };
 }
 

@@ -65,16 +65,18 @@ export function StatCard({ label, value, icon: Icon, delta, color }: StatCardPro
 
 interface StatGridProps {
   children: React.ReactNode;
-  columns?: 2 | 3 | 4;
+  columns?: 2 | 3 | 4 | 5;
 }
 
 export function StatGrid({ children, columns = 3 }: StatGridProps) {
   const colClass =
     columns === 2
       ? "grid-cols-1 sm:grid-cols-2"
-      : columns === 4
-        ? "grid-cols-2 sm:grid-cols-4"
-        : "grid-cols-1 sm:grid-cols-3";
+      : columns === 5
+        ? "grid-cols-2 sm:grid-cols-5"
+        : columns === 4
+          ? "grid-cols-2 sm:grid-cols-4"
+          : "grid-cols-1 sm:grid-cols-3";
 
   return <div className={`grid ${colClass} gap-3`}>{children}</div>;
 }

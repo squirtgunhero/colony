@@ -139,6 +139,12 @@ export async function scoreContact(contactId: string): Promise<{ score: number; 
     update: { score, grade, signals: signals as unknown as Record<string, number>, scoredAt: new Date() },
   });
 
+  // Keep Contact.leadScore/leadGrade in sync for fast queries
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: { leadScore: score, leadGrade: grade },
+  });
+
   return { score, grade };
 }
 

@@ -10,19 +10,26 @@ const twilioClient = Twilio(
 
 // POST — initiate a Voice AI call to a contact
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const body = await request.json();
-  const { contactId, objective = "qualify", callListId } = body;
+  const { contactId, objective = "qualify", callListId, userId: bodyUserId, internalSecret } = body;
+
+  // Auth: either browser session OR internal server-to-server with shared secret
+  let userId: string;
+  if (internalSecret === process.env.INTERNAL_API_SECRET && bodyUserId) {
+    userId = bodyUserId;
+  } else {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    userId = user.id;
+  }
 
   if (!contactId) {
     return NextResponse.json({ error: "contactId required" }, { status: 400 });
   }
 
   const contact = await prisma.contact.findFirst({
-    where: { id: contactId, userId: user.id },
+    where: { id: contactId, userId },
   });
   if (!contact || !contact.phone) {
     return NextResponse.json({ error: "Contact not found or has no phone" }, { status: 400 });
@@ -33,7 +40,7 @@ export async function POST(request: NextRequest) {
   // Create Call record
   const callRecord = await prisma.call.create({
     data: {
-      userId: user.id,
+      userId,
       contactId: contact.id,
       callListId: callListId || null,
       direction: "outbound",
