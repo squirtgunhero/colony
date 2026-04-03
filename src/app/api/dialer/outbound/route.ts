@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { outboundCallTwiml } from "@/lib/twilio-voice";
+import { prisma } from "@/lib/prisma";
 
 /**
  * TwiML endpoint called by Twilio when a browser call connects.
@@ -10,6 +11,9 @@ export async function POST(request: NextRequest) {
   const to = formData.get("To") as string;
   const callerId = formData.get("From") as string || process.env.TWILIO_PHONE_NUMBER!;
   const callSid = formData.get("CallSid") as string;
+  // Twilio sends the Device identity as "Caller" (e.g. "client:user-uuid")
+  const caller = formData.get("Caller") as string;
+  const contactId = formData.get("ContactId") as string;
 
   if (!to) {
     const VoiceResponse = (await import("twilio")).default.twiml.VoiceResponse;
@@ -18,6 +22,28 @@ export async function POST(request: NextRequest) {
     return new NextResponse(response.toString(), {
       headers: { "Content-Type": "text/xml" },
     });
+  }
+
+  // Create CallRecording entry with the real Twilio CallSid
+  // The userId comes from the Device identity (Caller = "client:<userId>")
+  if (callSid && caller) {
+    const userId = caller.replace(/^client:/, "");
+    try {
+      await prisma.callRecording.create({
+        data: {
+          userId,
+          contactId: contactId || null,
+          callSid,
+          direction: "outbound",
+          fromNumber: callerId || process.env.TWILIO_PHONE_NUMBER || "",
+          toNumber: to,
+          status: "in-progress",
+        },
+      });
+    } catch (err) {
+      // Log but don't fail the TwiML response — call should still go through
+      console.error("Failed to create call recording entry:", err);
+    }
   }
 
   const twiml = outboundCallTwiml({

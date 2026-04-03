@@ -193,10 +193,12 @@ export function DialerProvider({ children }: { children: ReactNode }) {
 
       try {
         // Place call via Twilio Voice SDK
+        // Pass contactId so the server-side TwiML route can create the recording
         const call = await deviceRef.current.connect({
           params: {
             To: to,
             From: process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || "",
+            ContactId: contactId || "",
           },
         });
 
@@ -221,23 +223,8 @@ export function DialerProvider({ children }: { children: ReactNode }) {
             }));
           }, 1000);
 
-          // Register call recording in our API
-          try {
-            const callSid =
-              call.parameters?.CallSid || call.outboundConnectionId || `browser-${Date.now()}`;
-            await fetch("/api/calls/recordings", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                callSid,
-                contactId,
-                toNumber: to,
-                fromNumber: process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || "",
-              }),
-            });
-          } catch (err) {
-            console.error("[Dialer] Failed to register call:", err);
-          }
+          // Recording is now created server-side in the outbound TwiML route
+          // where the real Twilio CallSid is available
         });
 
         call.on("ringing", () => {
