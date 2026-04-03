@@ -9,7 +9,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.twilio.com https://*.twiliocdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://*.uploadthing.com wss://*.supabase.co https://*.sentry.io https://*.ingest.sentry.io https://*.twilio.com wss://*.twilio.com https://*.twiliocdn.com wss://*.twiliocdn.com https://sdk.twilio.com; media-src 'self' blob: https://*.twilio.com https://*.twiliocdn.com; worker-src 'self' blob:; frame-ancestors 'none';"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.twilio.com https://*.twiliocdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://*.uploadthing.com wss://*.supabase.co https://*.sentry.io https://*.ingest.sentry.io https://*.twilio.com https://sdk.twilio.com wss://*.twilio.com wss://voice-js.roaming.twilio.com wss://*.roaming.twilio.com https://*.twiliocdn.com wss://*.twiliocdn.com; media-src 'self' blob: https://*.twilio.com https://*.twiliocdn.com https://sdk.twilio.com; worker-src 'self' blob:; frame-ancestors 'none';"
         }
       ]
     }
