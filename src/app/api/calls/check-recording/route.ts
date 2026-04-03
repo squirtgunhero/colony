@@ -11,8 +11,8 @@ const twilioClient = Twilio(
 
 /**
  * POST /api/calls/check-recording
- * After a call ends, poll Twilio's API for recordings on that CallSid.
- * This is a fallback for when Twilio's recordingStatusCallback doesn't fire.
+ * After a call ends, find the most recent in-progress recording for this user
+ * and poll Twilio's API for the actual recording file.
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -25,20 +25,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { callSid } = await request.json();
-  if (!callSid) {
-    return NextResponse.json({ error: "callSid required" }, { status: 400 });
-  }
+  const body = await request.json();
+  const { contactId } = body;
 
   try {
-    // Find the CallRecording entry
+    // Find the most recent in-progress recording for this user
     const recording = await prisma.callRecording.findFirst({
-      where: { callSid, userId: user.id },
+      where: {
+        userId: user.id,
+        status: "in-progress",
+        ...(contactId ? { contactId } : {}),
+      },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!recording) {
-      return NextResponse.json({ error: "No recording entry found" }, { status: 404 });
+      console.log("[CheckRecording] No in-progress recording found for user:", user.id);
+      return NextResponse.json({ status: "no-recording", hasRecording: false });
     }
+
+    console.log("[CheckRecording] Found recording:", recording.id, "callSid:", recording.callSid);
 
     // Already processed
     if (recording.recordingUrl) {
@@ -46,7 +52,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Query Twilio for recordings on this call
-    const recordings = await twilioClient.calls(callSid).recordings.list({ limit: 1 });
+    const recordings = await twilioClient.calls(recording.callSid).recordings.list({ limit: 1 });
+    console.log("[CheckRecording] Twilio recordings found:", recordings.length);
 
     if (recordings.length > 0) {
       const rec = recordings[0];
@@ -70,7 +77,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: "completed", hasRecording: true });
     }
 
-    // No recording found yet — call might not have been answered
+    // No recording found — update status
+    await prisma.callRecording.update({
+      where: { id: recording.id },
+      data: { status: "no-answer" },
+    });
+
     return NextResponse.json({ status: "no-recording", hasRecording: false });
   } catch (error) {
     console.error("Check recording error:", error);

@@ -225,10 +225,9 @@ export function DialerProvider({ children }: { children: ReactNode }) {
             }));
           }, 1000);
 
-          // Store the CallSid so we can check for recordings after disconnect
-          const sid = call.parameters?.CallSid;
-          if (sid) {
-            activeCallRef.current._colonySid = sid;
+          // Store the contactId so we can check for recordings after disconnect
+          if (contactId) {
+            activeCallRef.current._colonyContactId = contactId;
           }
         });
 
@@ -242,7 +241,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         call.on("disconnect", () => {
           console.log("[Dialer] Call disconnected");
           if (timerRef.current) clearInterval(timerRef.current);
-          const callSid = activeCallRef.current?._colonySid;
+          const cid = activeCallRef.current?._colonyContactId;
           activeCallRef.current = null;
           if (mountedRef.current) {
             setState((s) => ({
@@ -252,22 +251,18 @@ export function DialerProvider({ children }: { children: ReactNode }) {
               callDuration: 0,
             }));
             // Check for recordings via Twilio API after a short delay
-            if (callSid) {
-              setTimeout(async () => {
-                try {
-                  await fetch("/api/calls/check-recording", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ callSid }),
-                  });
-                } catch (err) {
-                  console.error("[Dialer] Failed to check recording:", err);
-                }
-                notifyCallEnd();
-              }, 3000);
-            } else {
+            setTimeout(async () => {
+              try {
+                await fetch("/api/calls/check-recording", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ contactId: cid || null }),
+                });
+              } catch (err) {
+                console.error("[Dialer] Failed to check recording:", err);
+              }
               notifyCallEnd();
-            }
+            }, 3000);
           }
         });
 
