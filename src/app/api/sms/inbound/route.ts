@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
           "\n\nI need your OK before I send that. Open Colony to approve it.";
       }
 
-      recordUsage(profileId, LAM_LIMITS.ESTIMATED_COST_PER_REQUEST);
+      await recordUsage(profileId, LAM_LIMITS.ESTIMATED_COST_PER_REQUEST);
     } catch (error) {
       console.error("LAM SMS error:", error);
       replyText = "Sorry, I hit a snag on that one. Try again in a sec.";

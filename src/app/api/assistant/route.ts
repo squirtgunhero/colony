@@ -4,6 +4,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { getUser } from "@/lib/supabase/auth";
 import type { Action, AssistantContext, AssistantResponse } from "@/lib/assistant/types";
 
 interface AssistantRequest {
@@ -245,6 +246,11 @@ function handleSlashCommand(message: string, context: AssistantContext): Assista
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body: AssistantRequest = await request.json();
     const { message, context } = body;
 

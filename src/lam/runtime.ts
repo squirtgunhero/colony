@@ -127,28 +127,31 @@ export async function executePlan(
   const tier1Actions = plan.actions.filter((a) => a.risk_tier === 1);
   const tier2Actions = plan.actions.filter((a) => a.risk_tier === 2);
 
-  // Execute Tier 0 (read-only) actions
-  for (const action of tier0Actions) {
-    if (ctx.dry_run) {
+  // Execute Tier 0 (read-only) actions — parallelized since they're independent reads
+  if (ctx.dry_run) {
+    for (const action of tier0Actions) {
       results.push({
         action_id: action.action_id,
         action_type: action.type,
         status: "skipped",
       });
       actionsSkipped++;
-      continue;
     }
-
-    const result = await executeAction(action, ctx);
-    results.push(result);
-    if (result.status === "success") {
-      actionsExecuted++;
-    } else if (result.status === "failed") {
-      actionsFailed++;
+  } else {
+    const tier0Results = await Promise.all(
+      tier0Actions.map((action) => executeAction(action, ctx))
+    );
+    for (const result of tier0Results) {
+      results.push(result);
+      if (result.status === "success") {
+        actionsExecuted++;
+      } else if (result.status === "failed") {
+        actionsFailed++;
+      }
     }
   }
 
-  // Execute Tier 1 (mutations) actions
+  // Execute Tier 1 (mutations) actions — sequential to preserve ordering
   for (const action of tier1Actions) {
     if (ctx.dry_run) {
       results.push({

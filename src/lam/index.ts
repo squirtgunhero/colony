@@ -13,7 +13,6 @@ export * from "./audit";
 export * from "./undo";
 export * from "./rateLimit";
 
-import * as Sentry from "@sentry/nextjs";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { planFromMessage, type PlannerInput } from "./planner";
@@ -24,7 +23,6 @@ import { getDefaultProvider, type LLMMessage } from "./llm";
 import type { ActionPlan } from "./actionSchema";
 import type { ExecutionResult } from "./runtime";
 import type { VerificationResult } from "./verifier";
-import { isAnalyticalQuery } from "./query-planner";
 
 // ============================================================================
 // Orchestrated LAM Run
@@ -51,7 +49,6 @@ export interface LamRunResult {
   response: {
     message: string;
     follow_up_question: string | null;
-    response_options?: string[] | null;
     requires_approval: boolean;
     can_undo: boolean;
   };
@@ -61,21 +58,6 @@ export interface LamRunResult {
  * Execute a complete LAM run: plan -> execute -> summarize -> audit
  */
 export async function runLam(input: LamRunInput): Promise<LamRunResult> {
-  return Sentry.withScope(async (scope) => {
-    // Tag every LAM error with user and context
-    scope.setUser({ id: input.user_id });
-    scope.setTag("lam.dry_run", input.dry_run ? "true" : "false");
-    scope.setContext("lam_input", {
-      message_length: input.message.length,
-      has_context: !!input.recent_context?.length,
-      context_count: input.recent_context?.length ?? 0,
-    });
-
-    return _runLamInner(input);
-  });
-}
-
-async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
   // Step 1: Plan
   const plannerInput: PlannerInput = {
     user_message: input.message,
@@ -84,206 +66,13 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
     permissions: input.permissions,
   };
 
-  // ── PRE-CHECK: Self-introduction / business info ──
-  // When the user tells us about themselves ("I'm a real estate agent in X"),
-  // save to profile and respond conversationally — no planner needed.
-  const selfIntroMatch = input.message.match(
-    /(?:i(?:'m| am) (?:a |an )?)(.+?)(?:\s+(?:in|based in|located in|from|near)\s+)(.+?)(?:\.|$)/i
-  );
-  if (selfIntroMatch && !input.message.toLowerCase().includes("add ") && !input.message.toLowerCase().includes("create ")) {
-    const businessType = selfIntroMatch[1]?.trim();
-    const location = selfIntroMatch[2]?.trim();
-
-    // Save to profile
-    try {
-      const updateData: Record<string, unknown> = {};
-      if (businessType) updateData.businessType = businessType;
-      if (location) {
-        updateData.serviceAreaCity = location;
-        if (!await prisma.profile.findUnique({ where: { id: input.user_id }, select: { serviceAreaRadius: true } }).then(p => p?.serviceAreaRadius)) {
-          updateData.serviceAreaRadius = 25; // default radius
-        }
-      }
-      await prisma.profile.update({
-        where: { id: input.user_id },
-        data: updateData,
-      });
-    } catch (e) {
-      console.error("Failed to save profile from self-intro:", e);
-    }
-
-    const runId = await recordRun({
-      user_id: input.user_id,
-      message: input.message,
-      plan: {
-        plan_id: randomUUID(),
-        intent: "User shared business information",
-        confidence: 0.95,
-        plan_steps: [],
-        actions: [],
-        verification_steps: [],
-        user_summary: `Saved business info: ${businessType || ""}${location ? ` in ${location}` : ""}`,
-        follow_up_question: null,
-        requires_approval: false,
-        highest_risk_tier: 0,
-      },
-    });
-
-    const friendlyBiz = businessType || "your business";
-    const friendlyLoc = location ? ` in ${location}` : "";
-    return {
-      run_id: runId,
-      plan: {
-        plan_id: randomUUID(),
-        intent: "User shared business information",
-        confidence: 0.95,
-        plan_steps: [],
-        actions: [],
-        verification_steps: [],
-        user_summary: `Saved: ${friendlyBiz}${friendlyLoc}`,
-        follow_up_question: null,
-        requires_approval: false,
-        highest_risk_tier: 0,
-      },
-      execution_result: null,
-      verification_result: null,
-      response: {
-        message: `Got it — ${friendlyBiz}${friendlyLoc}! I've saved that to your profile. How can I help you today? I can run ads to generate leads, manage your contacts and deals, track tasks, and more.`,
-        follow_up_question: null,
-        requires_approval: false,
-        can_undo: false,
-      },
-    };
-  }
-
-  // ── PRE-CHECK: Analytical queries → query engine shortcut ──
-  // Route analytical questions directly to query.ask without the full planner
-  if (isAnalyticalQuery(input.message)) {
-    const { getRiskTier, requiresApproval: reqApproval } = await import("./actionSchema");
-
-    // Detect report type shortcuts
-    const lowerMsg = input.message.toLowerCase();
-    let actionType: "query.ask" | "query.report" | "query.compare" = "query.ask";
-    let payload: Record<string, unknown> = { question: input.message };
-
-    if (/\b(pipeline report|pipeline summary|pipeline breakdown)\b/i.test(lowerMsg)) {
-      actionType = "query.report";
-      payload = { reportType: "pipeline" };
-    } else if (/\b(activity report|activity summary|monthly summary)\b/i.test(lowerMsg)) {
-      actionType = "query.report";
-      payload = { reportType: "activity" };
-    } else if (/\b(contact breakdown|contacts? report|contacts? summary)\b/i.test(lowerMsg)) {
-      actionType = "query.report";
-      payload = { reportType: "contacts" };
-    } else if (/\bvs\.?\b|\bversus\b|\bcompare\b|\bcompared to\b/i.test(lowerMsg)) {
-      actionType = "query.compare";
-      payload = { question: input.message };
-    }
-
-    const queryPlan: ActionPlan = {
-      plan_id: randomUUID(),
-      intent: `Analytical query: ${input.message}`,
-      confidence: 0.9,
-      plan_steps: [{ step_number: 1, description: `Execute ${actionType}`, action_refs: [randomUUID()] }],
-      actions: [{
-        action_id: randomUUID(),
-        idempotency_key: `${input.user_id}:${actionType}:${Date.now()}`,
-        type: actionType,
-        risk_tier: getRiskTier(actionType),
-        requires_approval: reqApproval(actionType),
-        payload,
-        expected_outcome: { entity_type: "query_result", results_returned: true },
-      } as ActionPlan["actions"][0]],
-      verification_steps: [],
-      user_summary: `Running query: ${input.message}`,
-      follow_up_question: null,
-      requires_approval: false,
-      highest_risk_tier: 0,
-    };
-
-    // Record + execute + summarize (same flow as below, but skip planner LLM call)
-    const qRunId = await recordRun({
-      user_id: input.user_id,
-      message: input.message,
-      plan: queryPlan,
-    });
-
-    const qCtx: ExecutionContext = {
-      user_id: input.user_id,
-      run_id: qRunId,
-      dry_run: input.dry_run,
-    };
-
-    const qExec = await executePlan(queryPlan, qCtx);
-    const qVerify = await verify(queryPlan, qExec);
-    const qMessage = await summarizeResults(input.message, queryPlan, qExec);
-
-    await updateRun({
-      run_id: qRunId,
-      execution_result: qExec,
-      verification_result: qVerify,
-      status: qExec.status === "completed" ? "completed" : "failed",
-      user_summary: qMessage,
-    });
-
-    return {
-      run_id: qRunId,
-      plan: queryPlan,
-      execution_result: qExec,
-      verification_result: qVerify,
-      response: {
-        message: qMessage,
-        follow_up_question: null,
-        requires_approval: false,
-        can_undo: false,
-      },
-    };
-  }
-
-  const planResult = await Sentry.startSpan(
-    { name: "lam.plan", op: "ai.plan" },
-    () => planFromMessage(plannerInput)
-  );
+  const planResult = await planFromMessage(plannerInput);
 
   if (!planResult.success) {
-    Sentry.setContext("lam_plan_error", {
-      code: planResult.code,
-      error: planResult.error,
-    });
     throw new Error(planResult.error);
   }
 
   const plan = planResult.plan;
-
-  Sentry.addBreadcrumb({
-    category: "lam",
-    message: `Plan: ${plan.intent} (${plan.actions.length} actions, tier ${plan.highest_risk_tier})`,
-    level: "info",
-    data: {
-      action_types: plan.actions.map((a) => a.type),
-      requires_approval: plan.requires_approval,
-      confidence: plan.confidence,
-    },
-  });
-
-  // ── SAFETY NET: Catch misrouted lead.update targeting "user_profile" ──
-  // If the planner still generates a lead.update with name containing "profile"
-  // or "user", strip it — it's a self-intro that slipped through.
-  plan.actions = plan.actions.filter(a => {
-    if (a.type === "lead.update") {
-      const payload = a.payload as Record<string, unknown>;
-      const name = String(payload.name || payload.contactName || "").toLowerCase();
-      if (name.includes("user_profile") || name.includes("user profile") || name === "profile") {
-        return false; // Remove this misrouted action
-      }
-    }
-    return true;
-  });
-
-  // If all actions were stripped and there's no follow-up, add a conversational response
-  if (plan.actions.length === 0 && !plan.follow_up_question) {
-    plan.follow_up_question = plan.user_summary || "How can I help you today?";
-  }
 
   // ── HARD OVERRIDE: Prevent lead.create from hijacking ad requests ──
   // If the user's original message mentions generating leads, running ads,
@@ -339,66 +128,6 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
           const budgetMatch = msgLower.match(/\$(\d+)/);
           const budget = budgetMatch ? parseInt(budgetMatch[1], 10) : 10;
 
-          // Generate ad copy preview so user can see the ad before approving
-          const fullProfile = await prisma.profile.findUnique({
-            where: { id: input.user_id },
-            select: { businessType: true, fullName: true, serviceAreaCity: true },
-          });
-          const previewCity = fullProfile?.serviceAreaCity || "your area";
-          const businessType = fullProfile?.businessType || "business";
-
-          let adPreview = { headline: `${previewCity} ${businessType}`.slice(0, 40), primary_text: `Discover ${businessType} services in ${previewCity}`, description: "Learn more today" };
-          let previewImageUrl: string | undefined;
-
-          // Generate ad copy and image in parallel
-          const llm = getDefaultProvider();
-          const copyPromise = (async () => {
-            try {
-              const copyResponse = await llm.complete([
-                { role: "system", content: "You generate Facebook ad copy. Return JSON only, no markdown." },
-                { role: "user", content: `Write a Facebook ad for a ${businessType} in ${previewCity}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.` },
-              ], { temperature: 0.7 });
-              let jsonStr = copyResponse.content.trim();
-              if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
-              if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
-              if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
-              const parsed = JSON.parse(jsonStr.trim());
-              adPreview = {
-                headline: String(parsed.headline || adPreview.headline).slice(0, 40),
-                primary_text: String(parsed.primary_text || adPreview.primary_text).slice(0, 125),
-                description: String(parsed.description || adPreview.description).slice(0, 30),
-              };
-            } catch {
-              // Use defaults
-            }
-          })();
-
-          const imagePromise = (async () => {
-            if (!process.env.OPENAI_API_KEY) {
-              console.log("[AD PREVIEW] No OPENAI_API_KEY, skipping image generation");
-              return;
-            }
-            try {
-              console.log("[AD PREVIEW] Generating image with DALL-E (isAdRequest path)...");
-              const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
-              const leadType = originalMessage.includes("seller") ? "lead_generation" :
-                               originalMessage.includes("listing") ? "new_listing" : "lead_generation";
-              const prompt = buildAdImagePrompt({
-                type: leadType,
-                city: previewCity,
-                businessType,
-              });
-              console.log("[AD PREVIEW] Image prompt:", prompt.slice(0, 100));
-              const result = await generateImage({ prompt, size: "1024x1024" });
-              previewImageUrl = result.url;
-              console.log("[AD PREVIEW] Image generated:", result.url?.slice(0, 80));
-            } catch (imgErr) {
-              console.error("[AD PREVIEW] Image generation failed:", imgErr instanceof Error ? imgErr.message : imgErr);
-            }
-          })();
-
-          await Promise.all([copyPromise, imagePromise]);
-
           const { getRiskTier, requiresApproval } = await import("./actionSchema");
           const actionType = "ads.create_campaign" as const;
           plan.actions = [{
@@ -411,19 +140,12 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
               channel: "native" as const,
               objective: "LEADS" as const,
               daily_budget: budget,
-              ad_headline: adPreview.headline,
-              ad_body: adPreview.primary_text,
-              ad_description: adPreview.description,
-              preview_image_url: previewImageUrl,
             },
             expected_outcome: { entity_type: "campaign", created: true },
           } as ActionPlan["actions"][0]];
           plan.follow_up_question = null;
           plan.requires_approval = true;
           plan.highest_risk_tier = 2;
-          // Include preview in user summary so it shows in the chat
-          const imgMarkdown = previewImageUrl ? `\n\n![Ad Preview](${previewImageUrl})` : "";
-          plan.user_summary = `Here's your ad preview:\n\n**${adPreview.headline}**\n${adPreview.primary_text}\n_${adPreview.description}_${imgMarkdown}\n\n**Budget:** $${budget}/day · **Target:** ${previewCity}\n\nApprove to launch, or tell me what to change.`;
         } else {
           // Genuinely missing info — but be specific about what we need
           const questions: string[] = [];
@@ -449,68 +171,6 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
     }
   }
 
-  // ── Generate ad preview for any ads.create_campaign that lacks preview data ──
-  const adAction = plan.actions.find(a => a.type === "ads.create_campaign");
-  if (adAction) {
-    const adPayload = adAction.payload as Record<string, unknown>;
-    if (!adPayload.ad_headline && !adPayload.ad_body) {
-      // Load profile for context
-      const adProfile = await prisma.profile.findUnique({
-        where: { id: input.user_id },
-        select: { businessType: true, fullName: true, serviceAreaCity: true },
-      });
-      const adCity = (adPayload.target_city as string) || adProfile?.serviceAreaCity || "your area";
-      const adBiz = adProfile?.businessType || "business";
-      const adBudget = (adPayload.daily_budget as number) || 10;
-
-      // Generate copy + image in parallel
-      const adLlm = getDefaultProvider();
-      const adCopyPromise = (async () => {
-        try {
-          const resp = await adLlm.complete([
-            { role: "system", content: "You generate Facebook ad copy. Return JSON only, no markdown." },
-            { role: "user", content: `Write a Facebook ad for a ${adBiz} in ${adCity}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.` },
-          ], { temperature: 0.7 });
-          let jsonStr = resp.content.trim();
-          if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
-          if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
-          if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
-          return JSON.parse(jsonStr.trim());
-        } catch { return null; }
-      })();
-
-      const adImagePromise = (async () => {
-        if (!process.env.OPENAI_API_KEY) {
-          console.log("[AD PREVIEW] No OPENAI_API_KEY, skipping image generation");
-          return undefined;
-        }
-        try {
-          console.log("[AD PREVIEW] Generating image with DALL-E...");
-          const { generateImage, buildAdImagePrompt } = await import("@/lib/image-gen");
-          const prompt = buildAdImagePrompt({ type: "lead_generation", city: adCity, businessType: adBiz });
-          console.log("[AD PREVIEW] Image prompt:", prompt.slice(0, 100));
-          const result = await generateImage({ prompt, size: "1024x1024" });
-          console.log("[AD PREVIEW] Image generated:", result.url?.slice(0, 80));
-          return result.url;
-        } catch (err) {
-          console.error("[AD PREVIEW] Image generation failed:", err instanceof Error ? err.message : err);
-          return undefined;
-        }
-      })();
-
-      const [adCopy, adImageUrl] = await Promise.all([adCopyPromise, adImagePromise]);
-
-      adPayload.ad_headline = adCopy ? String(adCopy.headline || "").slice(0, 40) : `${adCity} ${adBiz}`.slice(0, 40);
-      adPayload.ad_body = adCopy ? String(adCopy.primary_text || "").slice(0, 125) : `Discover ${adBiz} services in ${adCity}`;
-      adPayload.ad_description = adCopy ? String(adCopy.description || "").slice(0, 30) : "Learn more today";
-      if (adImageUrl) adPayload.preview_image_url = adImageUrl;
-
-      // Update user summary with preview
-      const imgMd = adImageUrl ? `\n\n![Ad Preview](${adImageUrl})` : "";
-      plan.user_summary = `Here's your ad preview:\n\n**${adPayload.ad_headline}**\n${adPayload.ad_body}\n_${adPayload.ad_description}_${imgMd}\n\n**Budget:** $${adBudget}/day · **Target:** ${adCity}\n\nApprove to launch, or tell me what to change.`;
-    }
-  }
-
   // Step 2: Record the run
   const runId = await recordRun({
     user_id: input.user_id,
@@ -532,7 +192,6 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
       response: {
         message,
         follow_up_question: null,
-        response_options: plan.response_options || null,
         requires_approval: false,
         can_undo: false,
       },
@@ -546,48 +205,10 @@ async function _runLamInner(input: LamRunInput): Promise<LamRunResult> {
     dry_run: input.dry_run,
   };
 
-  const executionResult = await Sentry.startSpan(
-    { name: "lam.execute", op: "ai.execute", attributes: { "lam.run_id": runId } },
-    () => executePlan(plan, ctx)
-  );
-
-  Sentry.addBreadcrumb({
-    category: "lam",
-    message: `Executed: ${executionResult.actions_executed} ok, ${executionResult.actions_failed} failed`,
-    level: executionResult.actions_failed > 0 ? "warning" : "info",
-    data: {
-      status: executionResult.status,
-      actions_executed: executionResult.actions_executed,
-      actions_failed: executionResult.actions_failed,
-      actions_pending: executionResult.actions_pending_approval,
-    },
-  });
-
-  // Alert Sentry on execution failures (non-approval)
-  if (executionResult.actions_failed > 0) {
-    Sentry.captureMessage(
-      `LAM execution: ${executionResult.actions_failed} action(s) failed`,
-      {
-        level: "warning",
-        contexts: {
-          lam_execution: {
-            run_id: runId,
-            user_id: input.user_id,
-            intent: plan.intent,
-            failed_actions: executionResult.results
-              .filter((r) => r.status === "failed")
-              .map((r) => ({ type: r.action_type, error: r.error })),
-          },
-        },
-      }
-    );
-  }
+  const executionResult = await executePlan(plan, ctx);
 
   // Step 4: Verify
-  const verificationResult = await Sentry.startSpan(
-    { name: "lam.verify", op: "ai.verify" },
-    () => verify(plan, executionResult)
-  );
+  const verificationResult = await verify(plan, executionResult);
 
   // Step 5: Generate conversational summary using LLM with actual data
   const conversationalMessage = await summarizeResults(
@@ -641,9 +262,7 @@ Rules:
 - Keep it concise — 2-4 sentences for simple results, more for data-heavy queries.
 - Do NOT use markdown headers or bullet points. Write flowing sentences.
 - Do NOT start with "Sure!" or "Here you go!" — just answer naturally.
-- Use dollar amounts, dates, and names when available.
-- For image generation results: include the image URL as a markdown image like ![Generated Image](url) so the UI can display it inline.
-- For content generation results: include the full generated content in your response.`;
+- Use dollar amounts, dates, and names when available.`;
 
 function buildResultsContext(executionResult: ExecutionResult): string {
   const parts: string[] = [];

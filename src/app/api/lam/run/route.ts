@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Record usage AFTER successful API call
-    recordUsage(user.id, LAM_LIMITS.ESTIMATED_COST_PER_REQUEST);
+    await recordUsage(user.id, LAM_LIMITS.ESTIMATED_COST_PER_REQUEST);
 
     // Save assistant response
     const assistantContent = result.response.message +

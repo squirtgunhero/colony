@@ -79,13 +79,14 @@ export async function getValidAccessToken(emailAccountId: string) {
 
   if (isExpired) {
     // Refresh the token
-    const newCredentials = await refreshAccessToken(account.refreshToken);
-    
-    // Update in database
+    const { decrypt, encrypt } = await import("@/lib/encryption");
+    const newCredentials = await refreshAccessToken(decrypt(account.refreshToken));
+
+    // Update in database (re-encrypt the new token)
     await prisma.emailAccount.update({
       where: { id: emailAccountId },
       data: {
-        accessToken: newCredentials.access_token!,
+        accessToken: encrypt(newCredentials.access_token!),
         expiresAt: new Date(newCredentials.expiry_date!),
       },
     });
@@ -93,7 +94,8 @@ export async function getValidAccessToken(emailAccountId: string) {
     return newCredentials.access_token!;
   }
 
-  return account.accessToken;
+  const { decrypt } = await import("@/lib/encryption");
+  return decrypt(account.accessToken);
 }
 
 // Send email via Gmail API

@@ -93,33 +93,33 @@ export function InboxClient({
       return;
     }
 
-    let cancelled = false;
-    
+    const abortController = new AbortController();
+
     // Start loading (deferred to next tick to avoid synchronous setState warning)
     const loadThread = async () => {
       setIsLoadingDetail(true);
-      
+
       const result = await fetchThreadDetail(selectedThreadId);
-      if (cancelled) return;
-      
+      if (abortController.signal.aborted) return;
+
       if (result.success && result.data) {
         setSelectedThread(result.data);
         // Update unread count since we're marking as read
         const countResult = await fetchUnreadCount();
-        if (!cancelled && countResult.success) {
+        if (!abortController.signal.aborted && countResult.success) {
           setUnreadCount(countResult.count);
         }
       }
-      
-      if (!cancelled) {
+
+      if (!abortController.signal.aborted) {
         setIsLoadingDetail(false);
       }
     };
-    
+
     loadThread();
-    
+
     return () => {
-      cancelled = true;
+      abortController.abort();
     };
   }, [selectedThreadId]);
 

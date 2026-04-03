@@ -113,7 +113,8 @@ export async function syncMetaAdAccount(adAccountDbId: string): Promise<SyncResu
       throw new Error("No access token for ad account");
     }
 
-    const client = createMetaClient(adAccount.accessToken);
+    const { decrypt } = await import("@/lib/encryption");
+    const client = createMetaClient(decrypt(adAccount.accessToken));
 
     // Sync campaigns
     try {

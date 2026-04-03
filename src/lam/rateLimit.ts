@@ -1,6 +1,9 @@
 // ============================================================================
 // LAM Rate Limiter - Protect against runaway API costs
+// Uses Upstash Redis when available, in-memory fallback for dev.
 // ============================================================================
+
+import { getRedis } from "@/lib/redis";
 
 // ============================================================================
 // Configuration - Adjust these limits as needed
@@ -11,32 +14,71 @@ export const LAM_LIMITS = {
   REQUESTS_PER_MINUTE: 10,
   REQUESTS_PER_HOUR: 50,
   REQUESTS_PER_DAY: 200,
-  
+
   // Global limits (across all users)
   GLOBAL_REQUESTS_PER_HOUR: 500,
   GLOBAL_REQUESTS_PER_DAY: 2000,
-  
-  // Cost estimation (GPT-4o pricing approximate)
+
+  // Cost estimation (Claude pricing approximate)
   ESTIMATED_COST_PER_REQUEST: 0.01, // ~$0.01 per request average
-  MAX_DAILY_SPEND: 5.00, // $5/day max
-  MAX_MONTHLY_SPEND: 50.00, // $50/month max
+  MAX_DAILY_SPEND: 5.0, // $5/day max
+  MAX_MONTHLY_SPEND: 50.0, // $50/month max
 };
 
-// In-memory rate tracking (resets on server restart)
-// For production, use Redis or database
-const rateLimits = new Map<string, { count: number; resetAt: number }>();
-const globalLimits = { 
+// ─── In-memory fallback store ──────────────────────────────────────────────
+
+const memStore = new Map<string, { count: number; resetAt: number }>();
+const globalLimits = {
   hourly: { count: 0, resetAt: Date.now() + 3600000 },
   daily: { count: 0, resetAt: Date.now() + 86400000 },
 };
-
-// Daily spend tracking
 let dailySpend = { amount: 0, resetAt: Date.now() + 86400000 };
 let monthlySpend = { amount: 0, resetAt: getEndOfMonth() };
 
 function getEndOfMonth(): number {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+}
+
+function getOrResetMem(key: string, windowMs: number): { count: number; resetAt: number } {
+  const now = Date.now();
+  const entry = memStore.get(key);
+  if (!entry || now > entry.resetAt) {
+    const fresh = { count: 0, resetAt: now + windowMs };
+    memStore.set(key, fresh);
+    return fresh;
+  }
+  return entry;
+}
+
+// ─── Redis helpers ─────────────────────────────────────────────────────────
+
+async function redisIncr(key: string, windowSeconds: number): Promise<number> {
+  const redis = getRedis();
+  if (!redis) return -1; // Signal to use in-memory
+
+  const pipeline = redis.pipeline();
+  pipeline.incr(key);
+  pipeline.expire(key, windowSeconds);
+  const results = await pipeline.exec();
+  return (results[0] as number) ?? 0;
+}
+
+async function redisGet(key: string): Promise<number> {
+  const redis = getRedis();
+  if (!redis) return -1;
+  const val = await redis.get<number>(key);
+  return val ?? 0;
+}
+
+async function redisIncrByFloat(key: string, amount: number, windowSeconds: number): Promise<number> {
+  const redis = getRedis();
+  if (!redis) return -1;
+  const pipeline = redis.pipeline();
+  pipeline.incrbyfloat(key, amount);
+  pipeline.expire(key, windowSeconds);
+  const results = await pipeline.exec();
+  return (results[0] as number) ?? 0;
 }
 
 // ============================================================================
@@ -58,111 +100,86 @@ export interface RateLimitResult {
 
 export async function checkRateLimit(userId: string): Promise<RateLimitResult> {
   const now = Date.now();
-  
-  // Reset global limits if needed
-  if (now > globalLimits.hourly.resetAt) {
-    globalLimits.hourly = { count: 0, resetAt: now + 3600000 };
+  const redis = getRedis();
+
+  // ── Spend checks ─────────────────────────────────────────────────────────
+  let currentDailySpend: number;
+  let currentMonthlySpend: number;
+
+  if (redis) {
+    currentDailySpend = await redisGet(`lam:spend:daily`);
+    currentMonthlySpend = await redisGet(`lam:spend:monthly`);
+  } else {
+    if (now > dailySpend.resetAt) dailySpend = { amount: 0, resetAt: now + 86400000 };
+    if (now > monthlySpend.resetAt) monthlySpend = { amount: 0, resetAt: getEndOfMonth() };
+    currentDailySpend = dailySpend.amount;
+    currentMonthlySpend = monthlySpend.amount;
   }
-  if (now > globalLimits.daily.resetAt) {
-    globalLimits.daily = { count: 0, resetAt: now + 86400000 };
+
+  // ── Per-user counters ────────────────────────────────────────────────────
+  let userMinute: number;
+  let userHour: number;
+  let userDay: number;
+
+  if (redis) {
+    [userMinute, userHour, userDay] = await Promise.all([
+      redisGet(`lam:user:${userId}:min`),
+      redisGet(`lam:user:${userId}:hr`),
+      redisGet(`lam:user:${userId}:day`),
+    ]);
+  } else {
+    userMinute = getOrResetMem(`${userId}:minute`, 60000).count;
+    userHour = getOrResetMem(`${userId}:hour`, 3600000).count;
+    userDay = getOrResetMem(`${userId}:day`, 86400000).count;
   }
-  
-  // Reset spend tracking if needed
-  if (now > dailySpend.resetAt) {
-    dailySpend = { amount: 0, resetAt: now + 86400000 };
+
+  // ── Global counters ──────────────────────────────────────────────────────
+  let globalHourly: number;
+  let globalDaily: number;
+
+  if (redis) {
+    [globalHourly, globalDaily] = await Promise.all([
+      redisGet(`lam:global:hr`),
+      redisGet(`lam:global:day`),
+    ]);
+  } else {
+    if (now > globalLimits.hourly.resetAt) globalLimits.hourly = { count: 0, resetAt: now + 3600000 };
+    if (now > globalLimits.daily.resetAt) globalLimits.daily = { count: 0, resetAt: now + 86400000 };
+    globalHourly = globalLimits.hourly.count;
+    globalDaily = globalLimits.daily.count;
   }
-  if (now > monthlySpend.resetAt) {
-    monthlySpend = { amount: 0, resetAt: getEndOfMonth() };
-  }
-  
-  // Get or create user rate limits
-  const minuteKey = `${userId}:minute`;
-  const hourKey = `${userId}:hour`;
-  const dayKey = `${userId}:day`;
-  
-  const userMinute = rateLimits.get(minuteKey) || { count: 0, resetAt: now + 60000 };
-  const userHour = rateLimits.get(hourKey) || { count: 0, resetAt: now + 3600000 };
-  const userDay = rateLimits.get(dayKey) || { count: 0, resetAt: now + 86400000 };
-  
-  // Reset if expired
-  if (now > userMinute.resetAt) {
-    userMinute.count = 0;
-    userMinute.resetAt = now + 60000;
-  }
-  if (now > userHour.resetAt) {
-    userHour.count = 0;
-    userHour.resetAt = now + 3600000;
-  }
-  if (now > userDay.resetAt) {
-    userDay.count = 0;
-    userDay.resetAt = now + 86400000;
-  }
-  
+
   const usage = {
-    userMinute: userMinute.count,
-    userHour: userHour.count,
-    userDay: userDay.count,
-    estimatedDailySpend: dailySpend.amount,
-    estimatedMonthlySpend: monthlySpend.amount,
+    userMinute,
+    userHour,
+    userDay,
+    estimatedDailySpend: currentDailySpend,
+    estimatedMonthlySpend: currentMonthlySpend,
   };
-  
-  // Check spending limits first (most important)
-  if (dailySpend.amount >= LAM_LIMITS.MAX_DAILY_SPEND) {
-    return {
-      allowed: false,
-      reason: `Daily spending limit reached ($${LAM_LIMITS.MAX_DAILY_SPEND}). Resets in ${Math.ceil((dailySpend.resetAt - now) / 3600000)} hours.`,
-      retryAfter: Math.ceil((dailySpend.resetAt - now) / 1000),
-      usage,
-    };
+
+  // ── Checks ───────────────────────────────────────────────────────────────
+  if (currentDailySpend >= LAM_LIMITS.MAX_DAILY_SPEND) {
+    return { allowed: false, reason: `Daily spending limit reached ($${LAM_LIMITS.MAX_DAILY_SPEND}).`, retryAfter: 3600, usage };
   }
-  
-  if (monthlySpend.amount >= LAM_LIMITS.MAX_MONTHLY_SPEND) {
-    return {
-      allowed: false,
-      reason: `Monthly spending limit reached ($${LAM_LIMITS.MAX_MONTHLY_SPEND}). Resets next month.`,
-      retryAfter: Math.ceil((monthlySpend.resetAt - now) / 1000),
-      usage,
-    };
+  if (currentMonthlySpend >= LAM_LIMITS.MAX_MONTHLY_SPEND) {
+    return { allowed: false, reason: `Monthly spending limit reached ($${LAM_LIMITS.MAX_MONTHLY_SPEND}).`, retryAfter: 86400, usage };
   }
-  
-  // Check rate limits
-  if (userMinute.count >= LAM_LIMITS.REQUESTS_PER_MINUTE) {
-    return {
-      allowed: false,
-      reason: "Too many requests. Please wait a moment.",
-      retryAfter: Math.ceil((userMinute.resetAt - now) / 1000),
-      usage,
-    };
+  if (userMinute >= LAM_LIMITS.REQUESTS_PER_MINUTE) {
+    return { allowed: false, reason: "Too many requests. Please wait a moment.", retryAfter: 60, usage };
   }
-  
-  if (userHour.count >= LAM_LIMITS.REQUESTS_PER_HOUR) {
-    return {
-      allowed: false,
-      reason: `Hourly limit reached (${LAM_LIMITS.REQUESTS_PER_HOUR} requests). Try again later.`,
-      retryAfter: Math.ceil((userHour.resetAt - now) / 1000),
-      usage,
-    };
+  if (userHour >= LAM_LIMITS.REQUESTS_PER_HOUR) {
+    return { allowed: false, reason: `Hourly limit reached (${LAM_LIMITS.REQUESTS_PER_HOUR} requests).`, retryAfter: 3600, usage };
   }
-  
-  if (userDay.count >= LAM_LIMITS.REQUESTS_PER_DAY) {
-    return {
-      allowed: false,
-      reason: `Daily limit reached (${LAM_LIMITS.REQUESTS_PER_DAY} requests). Resets tomorrow.`,
-      retryAfter: Math.ceil((userDay.resetAt - now) / 1000),
-      usage,
-    };
+  if (userDay >= LAM_LIMITS.REQUESTS_PER_DAY) {
+    return { allowed: false, reason: `Daily limit reached (${LAM_LIMITS.REQUESTS_PER_DAY} requests).`, retryAfter: 86400, usage };
   }
-  
-  // Check global limits
-  if (globalLimits.hourly.count >= LAM_LIMITS.GLOBAL_REQUESTS_PER_HOUR) {
-    return {
-      allowed: false,
-      reason: "System is busy. Please try again in a few minutes.",
-      retryAfter: Math.ceil((globalLimits.hourly.resetAt - now) / 1000),
-      usage,
-    };
+  if (globalHourly >= LAM_LIMITS.GLOBAL_REQUESTS_PER_HOUR) {
+    return { allowed: false, reason: "System is busy. Please try again in a few minutes.", retryAfter: 300, usage };
   }
-  
+  if (globalDaily >= LAM_LIMITS.GLOBAL_REQUESTS_PER_DAY) {
+    return { allowed: false, reason: "System daily limit reached. Try again tomorrow.", retryAfter: 86400, usage };
+  }
+
   return { allowed: true, usage };
 }
 
@@ -170,55 +187,64 @@ export async function checkRateLimit(userId: string): Promise<RateLimitResult> {
 // Record Usage (call after successful API request)
 // ============================================================================
 
-export function recordUsage(userId: string, estimatedCost: number = LAM_LIMITS.ESTIMATED_COST_PER_REQUEST): void {
-  const now = Date.now();
-  
-  // Update user limits
-  const minuteKey = `${userId}:minute`;
-  const hourKey = `${userId}:hour`;
-  const dayKey = `${userId}:day`;
-  
-  const userMinute = rateLimits.get(minuteKey) || { count: 0, resetAt: now + 60000 };
-  const userHour = rateLimits.get(hourKey) || { count: 0, resetAt: now + 3600000 };
-  const userDay = rateLimits.get(dayKey) || { count: 0, resetAt: now + 86400000 };
-  
-  userMinute.count++;
-  userHour.count++;
-  userDay.count++;
-  
-  rateLimits.set(minuteKey, userMinute);
-  rateLimits.set(hourKey, userHour);
-  rateLimits.set(dayKey, userDay);
-  
-  // Update global limits
-  globalLimits.hourly.count++;
-  globalLimits.daily.count++;
-  
-  // Update spend tracking
-  dailySpend.amount += estimatedCost;
-  monthlySpend.amount += estimatedCost;
+export async function recordUsage(
+  userId: string,
+  estimatedCost: number = LAM_LIMITS.ESTIMATED_COST_PER_REQUEST
+): Promise<void> {
+  const redis = getRedis();
+
+  if (redis) {
+    await Promise.all([
+      redisIncr(`lam:user:${userId}:min`, 60),
+      redisIncr(`lam:user:${userId}:hr`, 3600),
+      redisIncr(`lam:user:${userId}:day`, 86400),
+      redisIncr(`lam:global:hr`, 3600),
+      redisIncr(`lam:global:day`, 86400),
+      redisIncrByFloat(`lam:spend:daily`, estimatedCost, 86400),
+      redisIncrByFloat(`lam:spend:monthly`, estimatedCost, 30 * 86400),
+    ]);
+  } else {
+    // In-memory fallback
+    const now = Date.now();
+    getOrResetMem(`${userId}:minute`, 60000).count++;
+    getOrResetMem(`${userId}:hour`, 3600000).count++;
+    getOrResetMem(`${userId}:day`, 86400000).count++;
+    if (now > globalLimits.hourly.resetAt) globalLimits.hourly = { count: 0, resetAt: now + 3600000 };
+    if (now > globalLimits.daily.resetAt) globalLimits.daily = { count: 0, resetAt: now + 86400000 };
+    globalLimits.hourly.count++;
+    globalLimits.daily.count++;
+    if (now > dailySpend.resetAt) dailySpend = { amount: 0, resetAt: now + 86400000 };
+    if (now > monthlySpend.resetAt) monthlySpend = { amount: 0, resetAt: getEndOfMonth() };
+    dailySpend.amount += estimatedCost;
+    monthlySpend.amount += estimatedCost;
+  }
 }
 
 // ============================================================================
 // Get Current Usage Stats
 // ============================================================================
 
-export function getUsageStats(): {
+export async function getUsageStats(): Promise<{
   global: { hourly: number; daily: number };
   spend: { daily: number; monthly: number; limits: { daily: number; monthly: number } };
-} {
+}> {
+  const redis = getRedis();
+
+  if (redis) {
+    const [hourly, daily, dSpend, mSpend] = await Promise.all([
+      redisGet(`lam:global:hr`),
+      redisGet(`lam:global:day`),
+      redisGet(`lam:spend:daily`),
+      redisGet(`lam:spend:monthly`),
+    ]);
+    return {
+      global: { hourly, daily },
+      spend: { daily: dSpend, monthly: mSpend, limits: { daily: LAM_LIMITS.MAX_DAILY_SPEND, monthly: LAM_LIMITS.MAX_MONTHLY_SPEND } },
+    };
+  }
+
   return {
-    global: {
-      hourly: globalLimits.hourly.count,
-      daily: globalLimits.daily.count,
-    },
-    spend: {
-      daily: dailySpend.amount,
-      monthly: monthlySpend.amount,
-      limits: {
-        daily: LAM_LIMITS.MAX_DAILY_SPEND,
-        monthly: LAM_LIMITS.MAX_MONTHLY_SPEND,
-      },
-    },
+    global: { hourly: globalLimits.hourly.count, daily: globalLimits.daily.count },
+    spend: { daily: dailySpend.amount, monthly: monthlySpend.amount, limits: { daily: LAM_LIMITS.MAX_DAILY_SPEND, monthly: LAM_LIMITS.MAX_MONTHLY_SPEND } },
   };
 }

@@ -42,7 +42,8 @@ export async function syncGoogleAdAccount(
       throw new Error("No refresh token for Google Ad account");
     }
 
-    const client = createGoogleAdsClient(account.refreshToken);
+    const { decrypt } = await import("@/lib/encryption");
+    const client = createGoogleAdsClient(decrypt(account.refreshToken));
 
     // ========================================
     // Sync campaigns

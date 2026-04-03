@@ -5,9 +5,20 @@ import { LeadCards } from "@/components/dashboard/lead-cards";
 import { TasksCalendar } from "@/components/dashboard/tasks-calendar";
 import { PipelineChart } from "@/components/dashboard/pipeline-chart";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
-import { PipelineBarChart } from "@/components/dashboard/charts/pipeline-bar-chart";
-import { LeadSourcesChart } from "@/components/dashboard/charts/lead-sources-chart";
-import { DealsTrendChart } from "@/components/dashboard/charts/deals-trend-chart";
+import dynamic from "next/dynamic";
+
+const PipelineBarChart = dynamic(
+  () => import("@/components/dashboard/charts/pipeline-bar-chart").then((m) => m.PipelineBarChart),
+  { ssr: false }
+);
+const LeadSourcesChart = dynamic(
+  () => import("@/components/dashboard/charts/lead-sources-chart").then((m) => m.LeadSourcesChart),
+  { ssr: false }
+);
+const DealsTrendChart = dynamic(
+  () => import("@/components/dashboard/charts/deals-trend-chart").then((m) => m.DealsTrendChart),
+  { ssr: false }
+);
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 
 async function getLeads(userId: string) {
@@ -117,8 +128,8 @@ async function getRecentActivities(userId: string) {
     take: 8,
     orderBy: { createdAt: "desc" },
     include: {
-      contact: true,
-      deal: true,
+      contact: { select: { id: true, name: true, email: true, type: true } },
+      deal: { select: { id: true, title: true, value: true, stage: true } },
     },
   });
 }

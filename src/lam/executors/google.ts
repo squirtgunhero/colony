@@ -297,7 +297,7 @@ export const googleExecutors: Record<string, ActionExecutor> = {
 
   // ============================================================================
   // google.create_campaign — Create a Google Ads search campaign
-  // Creates: budget → campaign → ad group → responsive search ad → keywords
+  // Creates: budget -> campaign -> ad group -> responsive search ad -> keywords
   // ============================================================================
   "google.create_campaign": async (action, ctx) => {
     if (action.type !== "google.create_campaign") throw new Error("Invalid action type");

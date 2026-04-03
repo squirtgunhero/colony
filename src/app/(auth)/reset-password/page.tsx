@@ -46,6 +46,21 @@ export default function ResetPasswordPage() {
       setLoading(false);
       return;
     }
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must contain at least one uppercase letter");
+      setLoading(false);
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setError("Password must contain at least one lowercase letter");
+      setLoading(false);
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("Password must contain at least one number");
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.updateUser({ password });
 

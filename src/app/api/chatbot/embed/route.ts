@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type": "application/javascript",
       "Cache-Control": "public, max-age=300",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_APP_URL || "*",
     },
   });
 }

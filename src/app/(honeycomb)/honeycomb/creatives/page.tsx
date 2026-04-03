@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import NextImage from "next/image";
 import { PageShell, EmptyState } from "@/components/honeycomb/page-shell";
 import { Plus, Image, X } from "lucide-react";
 import { useCreatives } from "@/lib/honeycomb/hooks";
@@ -113,7 +114,7 @@ export default function CreativesPage() {
                 <div key={creative.id} className="bg-[#1f1f1f] rounded-lg overflow-hidden group">
                   <div className="aspect-square bg-[#2a2a2a] flex items-center justify-center relative">
                     {creative.thumbnailUrl ? (
-                      <img src={creative.thumbnailUrl} alt={creative.name} className="w-full h-full object-cover" />
+                      <NextImage src={creative.thumbnailUrl} alt={creative.name} className="w-full h-full object-cover" fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" />
                     ) : (
                       <Image className="h-8 w-8 text-neutral-600" />
                     )}

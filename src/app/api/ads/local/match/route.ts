@@ -53,14 +53,24 @@ export async function POST() {
       userBCategory: string;
     }> = [];
 
+    // Batch fetch all profiles to avoid N+1 queries
+    const candidateUserIds = otherLocalCampaigns
+      .filter((c) => !pairedUserIds.has(c.userId))
+      .map((c) => c.userId);
+
+    const profiles = candidateUserIds.length > 0
+      ? await prisma.profile.findMany({
+          where: { id: { in: candidateUserIds } },
+          select: { id: true, businessType: true },
+        })
+      : [];
+
+    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
     for (const campaign of otherLocalCampaigns) {
       if (pairedUserIds.has(campaign.userId)) continue;
 
-      const otherProfile = await prisma.profile.findUnique({
-        where: { id: campaign.userId },
-        select: { businessType: true },
-      });
-
+      const otherProfile = profileMap.get(campaign.userId);
       const otherCategory =
         otherProfile?.businessType?.toLowerCase().replace(/\s+/g, "_") || "other";
 

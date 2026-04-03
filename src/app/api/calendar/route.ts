@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getUser } from "@/lib/supabase/auth";
 
 // Generate iCal format for tasks
 function generateICalEvent(task: {
@@ -43,9 +44,15 @@ END:VEVENT
 
 export async function GET(request: NextRequest) {
   try {
-    // Get all tasks with due dates
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Get tasks with due dates for the authenticated user only
     const tasks = await prisma.task.findMany({
       where: {
+        userId: user.id,
         dueDate: { not: null },
       },
       orderBy: { dueDate: "asc" },

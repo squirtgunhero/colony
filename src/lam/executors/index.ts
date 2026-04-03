@@ -10,15 +10,6 @@ import { adsExecutors } from "./ads";
 import { googleExecutors } from "./google";
 import { contactsExecutors } from "./contacts";
 import { marketingExecutors } from "./marketing";
-import { docusignExecutors } from "./docusign";
-import { automationExecutors } from "./automations";
-import { relationshipExecutors } from "./relationship";
-import { enrichmentExecutors } from "./enrichment";
-import { aiAttributeExecutors } from "./ai-attributes";
-import { workflowExecutors } from "./workflows";
-import { sequenceExecutors } from "./sequences";
-import { callExecutors } from "./calls";
-import { queryExecutors } from "./query";
 
 /**
  * Combined executor registry — maps action type strings to executor functions.
@@ -32,13 +23,4 @@ export const executors: Record<string, ActionExecutor> = {
   ...googleExecutors,
   ...contactsExecutors,
   ...marketingExecutors,
-  ...docusignExecutors,
-  ...automationExecutors,
-  ...relationshipExecutors,
-  ...enrichmentExecutors,
-  ...aiAttributeExecutors,
-  ...workflowExecutors,
-  ...sequenceExecutors,
-  ...callExecutors,
-  ...queryExecutors,
 };

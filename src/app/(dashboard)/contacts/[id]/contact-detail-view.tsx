@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, forwardRef } from "react";
+import { useState, useRef, useEffect, forwardRef } from "react";
 import Link from "next/link";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
@@ -14,6 +14,7 @@ import { formatCurrency } from "@/lib/date-utils";
 import {
   ArrowLeft,
   Phone,
+  PhoneOff,
   Mail,
   Users,
   FileText,
@@ -24,22 +25,15 @@ import {
   CheckSquare,
   Plus,
   Send,
-  Linkedin,
-  Building2,
-  Briefcase,
-  RefreshCw,
-  Globe,
-  Sparkles,
+  Loader2,
 } from "lucide-react";
+import { useDialer } from "@/providers/DialerProvider";
+import { CallRecordingsPanel } from "@/components/calls/CallRecordingsPanel";
 import { RelationshipScoreRing } from "@/components/contacts/RelationshipScoreRing";
 import type { RelationshipScoreResult } from "@/lib/relationship-score";
 import { createQuickNote } from "@/components/quick-capture/actions";
 import { deleteContact } from "@/app/(dashboard)/contacts/actions";
 import { useRouter } from "next/navigation";
-import { usePresence } from "@/lib/realtime/presence";
-import { useRealtimeUpdates } from "@/lib/realtime/broadcast";
-import { PresenceAvatars } from "@/components/ui/presence-avatars";
-import { EnrollInSequenceDialog } from "@/components/sequences/enroll-dialog";
 
 interface Deal {
   id: string;
@@ -80,24 +74,6 @@ interface Task {
   completed: boolean;
 }
 
-interface EmailInteractionItem {
-  id: string;
-  direction: string;
-  subject: string | null;
-  snippet: string | null;
-  occurredAt: string;
-  externalEmail: string;
-}
-
-interface MeetingInteractionItem {
-  id: string;
-  title: string | null;
-  startTime: string;
-  endTime: string;
-  status: string;
-  externalEmail: string;
-}
-
 interface Contact {
   id: string;
   name: string;
@@ -113,17 +89,6 @@ interface Contact {
   deals: Deal[];
   properties: Property[];
   tasks: Task[];
-  emailInteractions?: EmailInteractionItem[];
-  meetingInteractions?: MeetingInteractionItem[];
-  // Enrichment fields
-  jobTitle?: string | null;
-  companyName?: string | null;
-  companyDomain?: string | null;
-  industry?: string | null;
-  linkedinUrl?: string | null;
-  avatarUrl?: string | null;
-  enrichedAt?: string | null;
-  enrichmentSource?: string | null;
 }
 
 function formatLastContacted(dateStr: string): string {
@@ -163,49 +128,23 @@ const stageLabels: Record<string, string> = {
   closed: "Closed",
 };
 
-interface AiAttributeChip {
-  name: string;
-  slug: string;
-  value: string;
-  confidence: number | null;
-  outputType: string;
-  options: string[] | null;
-  computedAt: string;
-}
-
 interface ContactDetailViewProps {
   contact: Contact;
   relationshipScore?: RelationshipScoreResult;
   lastContactedDate?: string | null;
-  aiAttributes?: AiAttributeChip[];
-  currentUser?: { name: string; avatar: string | null };
 }
 
 export function ContactDetailView({
   contact,
   relationshipScore,
   lastContactedDate,
-  aiAttributes = [],
-  currentUser,
 }: ContactDetailViewProps) {
   const { theme } = useColonyTheme();
   const router = useRouter();
   const [quickNote, setQuickNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [timelineTab, setTimelineTab] = useState<"activity" | "interactions" | "calls">("activity");
   const moreMenuRef = useRef<HTMLDivElement>(null);
-
-  // Realtime presence
-  const { others } = usePresence("contact", contact.id, {
-    userName: currentUser?.name || "Unknown",
-    userAvatar: currentUser?.avatar,
-  });
-
-  // Auto-refresh when another user makes changes
-  useRealtimeUpdates("contact", contact.id, useCallback(() => {
-    router.refresh();
-  }, [router]));
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -235,7 +174,11 @@ export function ContactDetailView({
     .join("")
     .toUpperCase();
 
+  const dialer = useDialer();
+
   const dividerColor = withAlpha(theme.text, 0.06);
+  const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
+  const neumorphicPressed = `inset 3px 3px 6px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(255,255,255,0.04)`;
 
   return (
     <div
@@ -265,8 +208,6 @@ export function ContactDetailView({
           Contacts
         </Link>
         <div className="flex items-center gap-1">
-          <PresenceAvatars users={others} />
-          {others.length > 0 && <div className="w-px h-5 mx-1" style={{ backgroundColor: withAlpha(theme.text, 0.1) }} />}
           <FavoriteContactButton
             contactId={contact.id}
             isFavorite={contact.isFavorite}
@@ -321,35 +262,28 @@ export function ContactDetailView({
       </div>
 
       {/* Hero section */}
-      <div className="max-w-5xl mx-auto px-6 pt-6 pb-4">
+      <div className="max-w-5xl mx-auto px-6 pt-8 pb-6">
         <div className="flex items-start gap-5">
           {/* Avatar */}
-          {contact.avatarUrl ? (
-            <img
-              src={contact.avatarUrl}
-              alt={contact.name}
-              className="h-14 w-14 rounded-full object-cover shrink-0"
-            />
-          ) : (
-            <div
-              className="h-14 w-14 rounded-full flex items-center justify-center text-lg font-medium shrink-0"
-              style={{
-                backgroundColor: withAlpha(theme.text, 0.08),
-                color: withAlpha(theme.text, 0.5),
-                fontFamily: "'DM Sans', sans-serif",
-              }}
-            >
-              {initials}
-            </div>
-          )}
+          <div
+            className="h-20 w-20 rounded-full flex items-center justify-center text-2xl font-medium shrink-0"
+            style={{
+              background: `linear-gradient(135deg, ${withAlpha(theme.accent, 0.20)}, ${withAlpha(theme.accent, 0.08)})`,
+              color: theme.accent,
+              border: `2px solid ${withAlpha(theme.accent, 0.3)}`,
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            {initials}
+          </div>
 
           <div className="flex-1 min-w-0 pt-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h1
-                className="text-[26px] leading-tight font-semibold tracking-[-0.01em]"
+                className="text-[32px] leading-tight font-semibold tracking-[-0.01em]"
                 style={{
                   color: theme.text,
-                  fontFamily: "'Manrope', var(--font-inter), sans-serif",
+                  fontFamily: "'Spectral', serif",
                 }}
               >
                 {contact.name}
@@ -436,35 +370,49 @@ export function ContactDetailView({
         </div>
       </div>
 
-      {/* AI Attribute Chips */}
-      {aiAttributes.length > 0 && (
-        <div className="max-w-5xl mx-auto px-6 pb-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Sparkles className="h-3.5 w-3.5" style={{ color: withAlpha(theme.accent, 0.5) }} />
-            {aiAttributes.map((attr) => (
-              <AiAttributeBadge key={attr.slug} attr={attr} theme={theme} />
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Action buttons */}
-      <div className="max-w-5xl mx-auto px-6 pb-6">
-        <div className="flex items-center gap-2">
-          <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
-            <ActionButton theme={theme} icon={<Phone className="h-4 w-4" />} label="Call" raised={"none"} pressed={"none"} />
-          </ActivityDialog>
+      <div className="max-w-5xl mx-auto px-6 pb-8">
+        <div className="flex items-center gap-3 overflow-x-auto pb-1 -mb-1">
+          {contact.phone ? (
+            dialer.isOnCall || dialer.isConnecting ? (
+              <ActionButton
+                theme={theme}
+                icon={<PhoneOff className="h-4 w-4" />}
+                label="Hang Up"
+                raised={neumorphicRaised}
+                pressed={neumorphicPressed}
+                onClick={() => dialer.hangUp()}
+              />
+            ) : (
+              <ActionButton
+                theme={theme}
+                icon={dialer.isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
+                label="Call"
+                raised={neumorphicRaised}
+                pressed={neumorphicPressed}
+                onClick={() => dialer.makeCall({ to: contact.phone!, contactId: contact.id, contactName: contact.name })}
+              />
+            )
+          ) : (
+            <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
+              <ActionButton theme={theme} icon={<Phone className="h-4 w-4" />} label="Call" raised={neumorphicRaised} pressed={neumorphicPressed} />
+            </ActivityDialog>
+          )}
           {contact.email && (
             <SendEmailDialog contactEmail={contact.email} contactId={contact.id} contactName={contact.name}>
-              <ActionButton theme={theme} icon={<Mail className="h-4 w-4" />} label="Email" raised={"none"} pressed={"none"} />
+              <ActionButton theme={theme} icon={<Mail className="h-4 w-4" />} label="Email" raised={neumorphicRaised} pressed={neumorphicPressed} />
             </SendEmailDialog>
           )}
-          <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="note">
-            <ActionButton theme={theme} icon={<FileText className="h-4 w-4" />} label="Note" raised={"none"} pressed={"none"} />
-          </ActivityDialog>
           <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="meeting">
-            <ActionButton theme={theme} icon={<Users className="h-4 w-4" />} label="Meeting" raised={"none"} pressed={"none"} />
+            <ActionButton theme={theme} icon={<Users className="h-4 w-4" />} label="Meeting" raised={neumorphicRaised} pressed={neumorphicPressed} />
           </ActivityDialog>
+          <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="note">
+            <ActionButton theme={theme} icon={<FileText className="h-4 w-4" />} label="Note" raised={neumorphicRaised} pressed={neumorphicPressed} />
+          </ActivityDialog>
+          <ActivityDialog contactId={contact.id} contactName={contact.name} defaultType="call">
+            <ActionButton theme={theme} icon={<MessageSquare className="h-4 w-4" />} label="Text" raised={neumorphicRaised} pressed={neumorphicPressed} />
+          </ActivityDialog>
+          <ActionButton theme={theme} icon={<CheckSquare className="h-4 w-4" />} label="Task" raised={neumorphicRaised} pressed={neumorphicPressed} />
         </div>
       </div>
 
@@ -529,161 +477,47 @@ export function ContactDetailView({
       </div>
 
       {/* Content: Timeline + Sidebar */}
-      <div className="max-w-5xl mx-auto px-6 py-6">
+      <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex gap-8 flex-col xl:flex-row">
           {/* Timeline (main column) */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-1 rounded-lg p-0.5" style={{ backgroundColor: withAlpha(theme.text, 0.05) }}>
+              <h2
+                className="text-[13px] font-semibold uppercase tracking-[0.06em]"
+                style={{ color: theme.textMuted }}
+              >
+                Timeline
+              </h2>
+              <ActivityDialog contactId={contact.id} contactName={contact.name}>
                 <button
-                  className="text-[12px] font-semibold uppercase tracking-[0.06em] px-3 py-1.5 rounded-md transition-all"
-                  style={{
-                    color: timelineTab === "activity" ? theme.text : theme.textMuted,
-                    backgroundColor: timelineTab === "activity" ? withAlpha(theme.accent, 0.12) : "transparent",
-                  }}
-                  onClick={() => setTimelineTab("activity")}
+                  className="flex items-center gap-1.5 text-xs font-medium transition-colors"
+                  style={{ color: theme.textMuted }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
                 >
-                  Timeline
+                  <Plus className="h-3.5 w-3.5" />
+                  Add
                 </button>
-                <button
-                  className="text-[12px] font-semibold uppercase tracking-[0.06em] px-3 py-1.5 rounded-md transition-all"
-                  style={{
-                    color: timelineTab === "interactions" ? theme.text : theme.textMuted,
-                    backgroundColor: timelineTab === "interactions" ? withAlpha(theme.accent, 0.12) : "transparent",
-                  }}
-                  onClick={() => setTimelineTab("interactions")}
-                >
-                  Interactions
-                  {((contact.emailInteractions?.length ?? 0) + (contact.meetingInteractions?.length ?? 0)) > 0 && (
-                    <span className="ml-1.5 font-normal" style={{ color: withAlpha(theme.text, 0.4) }}>
-                      {(contact.emailInteractions?.length ?? 0) + (contact.meetingInteractions?.length ?? 0)}
-                    </span>
-                  )}
-                </button>
-                <button
-                  className="text-[12px] font-semibold uppercase tracking-[0.06em] px-3 py-1.5 rounded-md transition-all"
-                  style={{
-                    color: timelineTab === "calls" ? theme.text : theme.textMuted,
-                    backgroundColor: timelineTab === "calls" ? withAlpha(theme.accent, 0.12) : "transparent",
-                  }}
-                  onClick={() => setTimelineTab("calls")}
-                >
-                  Calls
-                </button>
-              </div>
-              {timelineTab === "activity" && (
-                <ActivityDialog contactId={contact.id} contactName={contact.name}>
-                  <button
-                    className="flex items-center gap-1.5 text-xs font-medium transition-colors"
-                    style={{ color: theme.textMuted }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add
-                  </button>
-                </ActivityDialog>
-              )}
+              </ActivityDialog>
             </div>
 
-            {timelineTab === "activity" ? (
-              <>
-                {contact.activities.length === 0 && contact.tasks.length === 0 ? (
-                  <div className="py-16 text-center">
-                    <p className="text-sm" style={{ color: theme.textMuted }}>
-                      No activity yet. Start by adding a note or scheduling a follow-up.
-                    </p>
-                  </div>
-                ) : (
-                  <ThemedActivityTimeline activities={contact.activities} />
-                )}
-              </>
-            ) : timelineTab === "interactions" ? (
-              <InteractionTimeline
-                emails={contact.emailInteractions ?? []}
-                meetings={contact.meetingInteractions ?? []}
-                theme={theme}
-              />
+            {contact.activities.length === 0 && contact.tasks.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-sm" style={{ color: theme.textMuted }}>
+                  No activity yet. Start by adding a note or scheduling a follow-up.
+                </p>
+              </div>
             ) : (
-              <CallHistoryTab contactId={contact.id} theme={theme} />
+              <ThemedActivityTimeline activities={contact.activities} />
             )}
           </div>
 
           {/* Sidebar */}
           <div className="w-full xl:w-[300px] shrink-0 space-y-8">
-            {/* Enriched Profile */}
-            {(contact.jobTitle || contact.companyName || contact.linkedinUrl || contact.industry) && (
-              <SidebarSection title="Profile" theme={theme} divider={dividerColor}>
-                <div className="space-y-2.5">
-                  {contact.jobTitle && (
-                    <div className="flex items-center gap-2.5">
-                      <Briefcase className="h-3.5 w-3.5 shrink-0" style={{ color: theme.textMuted }} />
-                      <span className="text-sm" style={{ color: theme.textSoft }}>{contact.jobTitle}</span>
-                    </div>
-                  )}
-                  {contact.companyName && (
-                    <div className="flex items-center gap-2.5">
-                      <Building2 className="h-3.5 w-3.5 shrink-0" style={{ color: theme.textMuted }} />
-                      <span className="text-sm" style={{ color: theme.textSoft }}>
-                        {contact.companyName}
-                        {contact.companyDomain && (
-                          <span style={{ color: withAlpha(theme.text, 0.3) }}> · {contact.companyDomain}</span>
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  {contact.industry && (
-                    <div className="flex items-center gap-2.5">
-                      <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: theme.textMuted }} />
-                      <span className="text-sm" style={{ color: theme.textSoft }}>{contact.industry}</span>
-                    </div>
-                  )}
-                  {contact.linkedinUrl && (
-                    <a
-                      href={contact.linkedinUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 transition-colors"
-                      style={{ color: theme.textMuted }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = "#0a66c2")}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
-                    >
-                      <Linkedin className="h-3.5 w-3.5 shrink-0" />
-                      <span className="text-sm">LinkedIn Profile</span>
-                    </a>
-                  )}
-                  {contact.enrichedAt && (
-                    <div className="flex items-center justify-between pt-1">
-                      <p className="text-[10px]" style={{ color: withAlpha(theme.text, 0.25) }}>
-                        Enriched via {contact.enrichmentSource || "unknown"} on{" "}
-                        {new Date(contact.enrichedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                      </p>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await fetch("/api/enrichment/trigger", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ contactId: contact.id }),
-                            });
-                            await fetch("/api/enrichment/process", { method: "POST" });
-                            window.location.reload();
-                          } catch {}
-                        }}
-                        className="flex items-center gap-1 text-[10px] transition-colors"
-                        style={{ color: theme.textMuted }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
-                        title="Re-enrich contact"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        Re-enrich
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </SidebarSection>
-            )}
+            {/* Call Recordings */}
+            <SidebarSection title="Calls" theme={theme} divider={dividerColor}>
+              <CallRecordingsPanel contactId={contact.id} />
+            </SidebarSection>
 
             {/* Notes */}
             {contact.notes && (
@@ -835,145 +669,6 @@ const ActionButton = forwardRef<
   );
 });
 
-function getAttrChipColor(attr: AiAttributeChip): string {
-  if (attr.outputType === "select") {
-    const val = attr.value.toLowerCase();
-    if (val === "hot" || val === "tier 1") return "#22c55e";
-    if (val === "warm" || val === "tier 2") return "#f59e0b";
-    if (val === "cold" || val === "tier 3") return "#64748b";
-  }
-  if (attr.outputType === "number") {
-    const num = parseFloat(attr.value);
-    if (num >= 8) return "#22c55e";
-    if (num >= 5) return "#f59e0b";
-    return "#64748b";
-  }
-  return "#8b5cf6";
-}
-
-function AiAttributeBadge({ attr, theme }: { attr: AiAttributeChip; theme: ColonyTheme }) {
-  const chipColor = getAttrChipColor(attr);
-  const displayValue = attr.outputType === "text"
-    ? (attr.value.length > 60 ? attr.value.slice(0, 57) + "..." : attr.value)
-    : attr.value;
-
-  return (
-    <div
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium"
-      style={{
-        backgroundColor: withAlpha(chipColor, 0.12),
-        color: chipColor,
-        border: `1px solid ${withAlpha(chipColor, 0.2)}`,
-      }}
-      title={`${attr.name}: ${attr.value}${attr.confidence != null ? ` (${Math.round(attr.confidence * 100)}% confidence)` : ""}`}
-    >
-      <span style={{ color: withAlpha(theme.textMuted, 0.7), fontSize: "10px" }}>{attr.name}:</span>
-      <span>{displayValue}</span>
-    </div>
-  );
-}
-
-function InteractionTimeline({
-  emails,
-  meetings,
-  theme,
-}: {
-  emails: EmailInteractionItem[];
-  meetings: MeetingInteractionItem[];
-  theme: ColonyTheme;
-}) {
-  // Merge and sort chronologically (newest first)
-  type TimelineEntry =
-    | { kind: "email"; date: Date; data: EmailInteractionItem }
-    | { kind: "meeting"; date: Date; data: MeetingInteractionItem };
-
-  const timeline: TimelineEntry[] = [
-    ...emails.map((e) => ({ kind: "email" as const, date: new Date(e.occurredAt), data: e })),
-    ...meetings.map((m) => ({ kind: "meeting" as const, date: new Date(m.startTime), data: m })),
-  ].sort((a, b) => b.date.getTime() - a.date.getTime());
-
-  if (timeline.length === 0) {
-    return (
-      <div className="py-16 text-center">
-        <p className="text-sm" style={{ color: theme.textMuted }}>
-          No email or calendar interactions synced yet.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-1">
-      {timeline.map((entry) => {
-        const isEmail = entry.kind === "email";
-        const e = isEmail ? (entry.data as EmailInteractionItem) : null;
-        const m = !isEmail ? (entry.data as MeetingInteractionItem) : null;
-        const isInbound = e?.direction === "inbound";
-
-        return (
-          <div
-            key={isEmail ? `e-${e!.id}` : `m-${m!.id}`}
-            className="flex items-start gap-3 py-3 px-3 -mx-3 rounded-lg transition-colors"
-            onMouseEnter={(el) => (el.currentTarget.style.backgroundColor = withAlpha(theme.text, 0.03))}
-            onMouseLeave={(el) => (el.currentTarget.style.backgroundColor = "transparent")}
-          >
-            {/* Direction indicator */}
-            <div
-              className="mt-1 h-7 w-7 rounded-full flex items-center justify-center shrink-0"
-              style={{
-                backgroundColor: isEmail
-                  ? withAlpha(isInbound ? "#3b82f6" : theme.accent, 0.15)
-                  : withAlpha("#8b5cf6", 0.15),
-              }}
-            >
-              {isEmail ? (
-                <Mail className="h-3.5 w-3.5" style={{ color: isInbound ? "#3b82f6" : theme.accent }} />
-              ) : (
-                <Users className="h-3.5 w-3.5" style={{ color: "#8b5cf6" }} />
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium truncate" style={{ color: theme.text }}>
-                  {isEmail
-                    ? e!.subject || "(no subject)"
-                    : m!.title || "Meeting"}
-                </span>
-                {isEmail && (
-                  <span
-                    className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-                    style={{
-                      backgroundColor: withAlpha(isInbound ? "#3b82f6" : theme.accent, 0.1),
-                      color: isInbound ? "#3b82f6" : theme.accent,
-                    }}
-                  >
-                    {isInbound ? "IN" : "OUT"}
-                  </span>
-                )}
-              </div>
-              {isEmail && e!.snippet && (
-                <p className="text-xs mt-0.5 truncate" style={{ color: theme.textMuted }}>
-                  {e!.snippet}
-                </p>
-              )}
-              <p className="text-[11px] mt-1" style={{ color: withAlpha(theme.text, 0.35) }}>
-                {entry.date.toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  year: entry.date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-                })}
-                {" · "}
-                {entry.date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-              </p>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function SidebarSection({
   title,
   theme,
@@ -1001,205 +696,6 @@ function SidebarSection({
         )}
       </h3>
       {children}
-    </div>
-  );
-}
-
-// ============================================================================
-// Call History Tab
-// ============================================================================
-
-interface CallRecordingItem {
-  id: string;
-  recordingUrl: string;
-  duration: number;
-  direction: string;
-  status: string;
-  summary: string | null;
-  sentiment: string | null;
-  actionItems: { text: string; priority?: string; completed?: boolean }[] | null;
-  occurredAt: string;
-}
-
-function CallHistoryTab({ contactId, theme }: { contactId: string; theme: ColonyTheme }) {
-  const [recordings, setRecordings] = useState<CallRecordingItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/calls/recordings?contactId=${contactId}`)
-      .then((r) => r.json())
-      .then((data) => setRecordings(data))
-      .finally(() => setLoading(false));
-  }, [contactId]);
-
-  if (loading) {
-    return (
-      <div className="py-12 text-center text-sm" style={{ color: theme.textMuted }}>
-        Loading call history...
-      </div>
-    );
-  }
-
-  if (recordings.length === 0) {
-    return (
-      <div className="py-16 text-center">
-        <Phone className="h-8 w-8 mx-auto mb-2" style={{ color: theme.textMuted }} />
-        <p className="text-sm" style={{ color: theme.textMuted }}>
-          No call recordings yet
-        </p>
-      </div>
-    );
-  }
-
-  const sentimentColors: Record<string, { bg: string; text: string }> = {
-    positive: { bg: "rgba(16,185,129,0.15)", text: "#10b981" },
-    neutral: { bg: "rgba(156,163,175,0.15)", text: "#9ca3af" },
-    negative: { bg: "rgba(239,68,68,0.15)", text: "#ef4444" },
-  };
-
-  return (
-    <div className="space-y-3">
-      {recordings.map((rec) => {
-        const isExpanded = expanded === rec.id;
-        const mins = Math.floor(rec.duration / 60);
-        const secs = rec.duration % 60;
-        const durationStr = `${mins}:${secs.toString().padStart(2, "0")}`;
-        const sc = rec.sentiment ? sentimentColors[rec.sentiment] : null;
-
-        return (
-          <div
-            key={rec.id}
-            className="rounded-xl border overflow-hidden transition-all"
-            style={{
-              borderColor: withAlpha(theme.text, 0.06),
-              backgroundColor: withAlpha(theme.text, 0.02),
-            }}
-          >
-            {/* Header row */}
-            <button
-              className="w-full flex items-center gap-3 px-4 py-3 text-left"
-              onClick={() => setExpanded(isExpanded ? null : rec.id)}
-            >
-              <div
-                className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{ backgroundColor: withAlpha(theme.accent, 0.15) }}
-              >
-                <Phone className="h-3.5 w-3.5" style={{ color: theme.accent }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium" style={{ color: theme.text }}>
-                    {rec.direction === "inbound" ? "Inbound" : "Outbound"} Call
-                  </span>
-                  <span className="text-[10px]" style={{ color: theme.textMuted }}>
-                    {durationStr}
-                  </span>
-                  {sc && (
-                    <span
-                      className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
-                      style={{ backgroundColor: sc.bg, color: sc.text }}
-                    >
-                      {rec.sentiment}
-                    </span>
-                  )}
-                  {rec.status !== "summarized" && (
-                    <span
-                      className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
-                      style={{
-                        backgroundColor: withAlpha(theme.textMuted, 0.15),
-                        color: theme.textMuted,
-                      }}
-                    >
-                      {rec.status}
-                    </span>
-                  )}
-                </div>
-                {rec.summary && (
-                  <p
-                    className="text-xs mt-0.5 truncate"
-                    style={{ color: theme.textMuted }}
-                  >
-                    {rec.summary}
-                  </p>
-                )}
-              </div>
-              <span className="text-[10px] shrink-0" style={{ color: theme.textMuted }}>
-                {new Date(rec.occurredAt).toLocaleDateString()}
-              </span>
-            </button>
-
-            {/* Expanded content */}
-            {isExpanded && (
-              <div
-                className="px-4 pb-4 space-y-3"
-                style={{ borderTop: `1px solid ${withAlpha(theme.text, 0.06)}` }}
-              >
-                {/* Audio player */}
-                <div className="pt-3">
-                  <audio
-                    controls
-                    src={rec.recordingUrl}
-                    className="w-full h-8"
-                    style={{ filter: "invert(0.85)" }}
-                  />
-                </div>
-
-                {/* Summary */}
-                {rec.summary && (
-                  <div>
-                    <h4
-                      className="text-[10px] font-semibold uppercase tracking-wider mb-1"
-                      style={{ color: theme.textMuted }}
-                    >
-                      Summary
-                    </h4>
-                    <p className="text-xs leading-relaxed" style={{ color: theme.text }}>
-                      {rec.summary}
-                    </p>
-                  </div>
-                )}
-
-                {/* Action Items */}
-                {rec.actionItems && rec.actionItems.length > 0 && (
-                  <div>
-                    <h4
-                      className="text-[10px] font-semibold uppercase tracking-wider mb-1.5"
-                      style={{ color: theme.textMuted }}
-                    >
-                      Action Items
-                    </h4>
-                    <ul className="space-y-1">
-                      {(rec.actionItems as { text: string; priority?: string }[]).map(
-                        (item, i) => (
-                          <li
-                            key={i}
-                            className="flex items-start gap-2 text-xs"
-                            style={{ color: theme.text }}
-                          >
-                            <span
-                              className="inline-block h-1.5 w-1.5 rounded-full mt-1.5 shrink-0"
-                              style={{
-                                backgroundColor:
-                                  item.priority === "high"
-                                    ? "#ef4444"
-                                    : item.priority === "medium"
-                                      ? "#f59e0b"
-                                      : "#10b981",
-                              }}
-                            />
-                            {item.text}
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }

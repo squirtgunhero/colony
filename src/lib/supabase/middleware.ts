@@ -62,8 +62,42 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/sms/") ||
     request.nextUrl.pathname.startsWith("/api/cron/") ||
     request.nextUrl.pathname.startsWith("/marketplace") ||
-    request.nextUrl.pathname.startsWith("/api/marketplace")
+    request.nextUrl.pathname.startsWith("/api/marketplace") ||
+    request.nextUrl.pathname.startsWith("/api/chatbot/") ||
+    request.nextUrl.pathname.startsWith("/api/ads/") ||
+    request.nextUrl.pathname.startsWith("/api/calls/recording-status") ||
+    request.nextUrl.pathname.startsWith("/api/dialer/outbound")
   );
+
+  // CSRF protection: verify origin on mutation API requests
+  const isMutationMethod = ["POST", "PUT", "PATCH", "DELETE"].includes(request.method);
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+  // Skip CSRF for webhook/cron endpoints (they use their own auth)
+  const csrfExempt =
+    request.nextUrl.pathname.startsWith("/api/sms/") ||
+    request.nextUrl.pathname.startsWith("/api/cron/") ||
+    request.nextUrl.pathname.startsWith("/api/chatbot/") ||
+    request.nextUrl.pathname.startsWith("/api/ads/") ||
+    request.nextUrl.pathname.startsWith("/api/calls/recording-status") ||
+    request.nextUrl.pathname.startsWith("/api/dialer/outbound");
+
+  if (isMutationMethod && isApiRoute && !csrfExempt) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (appUrl) {
+      const origin = request.headers.get("origin");
+      if (origin) {
+        try {
+          const originHost = new URL(origin).host;
+          const appHost = new URL(appUrl).host;
+          if (originHost !== appHost) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+          }
+        } catch {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+    }
+  }
 
   if (!user && !isPublicRoute) {
     // No user, redirect to sign-in

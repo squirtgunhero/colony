@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import NextImage from "next/image";
 import { useSearchParams } from "next/navigation";
 import { PageShell } from "@/components/honeycomb/page-shell";
 import { User, Bell, Shield, Link2, Palette, RefreshCw, Trash2, ExternalLink, CheckCircle, AlertCircle } from "lucide-react";
@@ -199,9 +200,9 @@ function SettingsContent() {
                     
                     {/* Avatar */}
                     <div className="flex items-center gap-4 mb-6">
-                      <div className="h-16 w-16 rounded-full bg-[#1f1f1f] flex items-center justify-center overflow-hidden">
+                      <div className="h-16 w-16 rounded-full bg-[#1f1f1f] flex items-center justify-center overflow-hidden relative">
                         {settings?.profile.avatarUrl ? (
-                          <img src={settings.profile.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                          <NextImage src={settings.profile.avatarUrl} alt="Avatar" className="h-full w-full object-cover" fill sizes="64px" />
                         ) : (
                           <User className="h-8 w-8 text-neutral-500" />
                         )}

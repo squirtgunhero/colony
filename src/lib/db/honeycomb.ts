@@ -994,4 +994,3 @@ export async function deletePublisher(id: string): Promise<boolean> {
 
   return true;
 }
-

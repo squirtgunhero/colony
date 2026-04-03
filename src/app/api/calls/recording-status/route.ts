@@ -1,87 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { processCallRecording } from "@/lib/calls/transcribe";
 
 /**
- * Twilio recording status callback webhook.
- * Called when a recording reaches 'completed' status.
- * Creates a CallRecording and queues it for transcription.
+ * Twilio recording status webhook.
+ * Called when a call recording is completed or absent.
  */
-export async function POST(req: NextRequest) {
-  const formData = await req.formData();
+export async function POST(request: NextRequest) {
+  const formData = await request.formData();
 
   const callSid = formData.get("CallSid") as string;
   const recordingSid = formData.get("RecordingSid") as string;
   const recordingUrl = formData.get("RecordingUrl") as string;
   const recordingStatus = formData.get("RecordingStatus") as string;
   const recordingDuration = formData.get("RecordingDuration") as string;
-  const direction = (formData.get("Direction") as string) || "outbound";
 
-  if (recordingStatus !== "completed" || !callSid || !recordingUrl) {
-    return NextResponse.json({ received: true });
+  if (!callSid) {
+    return NextResponse.json({ error: "Missing CallSid" }, { status: 400 });
   }
 
-  // Dedup: skip if we already have this recording
-  const existing = await prisma.callRecording.findUnique({
-    where: { twilioCallSid: callSid },
-  });
-  if (existing) {
-    return NextResponse.json({ received: true, duplicate: true });
-  }
+  try {
+    // Find the call recording by callSid
+    const recording = await prisma.callRecording.findUnique({
+      where: { callSid },
+    });
 
-  // Try to match this call to an existing Call record and contact
-  const call = await prisma.call.findUnique({
-    where: { twilioCallSid: callSid },
-    select: { userId: true, contactId: true, direction: true },
-  });
+    if (!recording) {
+      // Call might not have been initiated through our app
+      console.warn(`No call recording found for CallSid: ${callSid}`);
+      return NextResponse.json({ ok: true });
+    }
 
-  // If no Call record, try matching by phone number
-  let userId = call?.userId;
-  let contactId = call?.contactId ?? null;
-  const callDirection = call?.direction || (direction === "inbound" ? "inbound" : "outbound");
-
-  if (!userId) {
-    // Try to find the user from the Twilio phone number config
-    const fromNumber = formData.get("From") as string | null;
-    const toNumber = formData.get("To") as string | null;
-    const matchNumber = callDirection === "inbound" ? fromNumber : toNumber;
-
-    if (matchNumber) {
-      // Match contact by phone
-      const contact = await prisma.contact.findFirst({
-        where: { phone: { contains: matchNumber.replace("+1", "").slice(-10) } },
-        select: { id: true, userId: true },
+    if (recordingStatus === "completed" && recordingUrl) {
+      // Update with recording details
+      const updated = await prisma.callRecording.update({
+        where: { id: recording.id },
+        data: {
+          recordingSid,
+          recordingUrl: `${recordingUrl}.wav`, // Twilio serves .wav by default
+          duration: recordingDuration ? parseInt(recordingDuration) : null,
+          status: "completed",
+        },
       });
-      if (contact) {
-        contactId = contact.id;
-        userId = contact.userId ?? undefined;
-      }
+
+      // Fire-and-forget: start transcription + analysis pipeline
+      processCallRecording(updated.id).catch((err) => {
+        console.error("Background call processing failed:", err);
+      });
+    } else if (recordingStatus === "absent") {
+      await prisma.callRecording.update({
+        where: { id: recording.id },
+        data: {
+          status: "no-answer",
+          analysisStatus: "failed",
+          analysisError: "No recording available - call may not have been answered",
+        },
+      });
     }
 
-    // Fallback: use first user's ID (single-tenant assumption)
-    if (!userId) {
-      const firstProfile = await prisma.profile.findFirst({ select: { id: true } });
-      userId = firstProfile?.id;
-    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Recording status webhook error:", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
-
-  if (!userId) {
-    console.error("[CallRecording] Could not determine userId for call", callSid);
-    return NextResponse.json({ error: "No user found" }, { status: 400 });
-  }
-
-  await prisma.callRecording.create({
-    data: {
-      userId,
-      contactId,
-      twilioCallSid: callSid,
-      recordingSid,
-      recordingUrl: `${recordingUrl}.mp3`,
-      duration: parseInt(recordingDuration) || 0,
-      direction: callDirection,
-      status: "recorded",
-      occurredAt: new Date(),
-    },
-  });
-
-  return NextResponse.json({ received: true, queued: true });
 }

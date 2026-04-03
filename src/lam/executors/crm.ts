@@ -1,10 +1,7 @@
-// CRM Domain Executors — Lead, Deal, Task, Note, Search, Referral, Company, Lead Scoring
+// CRM Domain Executors — Lead, Deal, Task, Note, Search, Referral
 import { prisma } from "@/lib/prisma";
 import type { ActionExecutor } from "../types";
 import { recordChange, getUserActiveTeamId } from "../helpers";
-import { evaluateAutomations } from "@/lib/automation-engine";
-import { eventBus } from "@/lib/events";
-import { scoreAllContacts, scoreContact } from "@/lib/lead-scoring";
 
 export const crmExecutors: Record<string, ActionExecutor> = {
   "lead.create": async (action, ctx) => {
@@ -79,42 +76,9 @@ export const crmExecutors: Record<string, ActionExecutor> = {
           contactId: contact.id,
         },
       });
-      await prisma.contact.update({
-        where: { id: contact.id },
-        data: { lastContactedAt: new Date() },
-      });
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for lead.create:", e);
     }
-
-    // Queue enrichment if contact has email
-    if (contact.email) {
-      prisma.enrichmentJob.create({
-        data: { contactId: contact.id },
-      }).catch((e) => console.error("[LAM Runtime] Failed to queue enrichment:", e));
-    }
-
-    // Trigger AI attributes computation (fire-and-forget)
-    import("@/lib/ai-attributes/engine").then(({ computeForEntity }) =>
-      computeForEntity(contact.id, "contact", ctx.user_id)
-    ).catch((e) => console.error("[LAM Runtime] Failed to compute AI attributes:", e));
-
-    // Fire automation event
-    evaluateAutomations({
-      type: "new_lead_created",
-      userId: ctx.user_id,
-      contactId: contact.id,
-      metadata: { source: contact.source, type: contact.type },
-    }).catch(() => {});
-
-    // Emit to workflow event bus
-    eventBus.emit({
-      type: "record.created",
-      entityType: "contact",
-      entityId: contact.id,
-      userId: ctx.user_id,
-      metadata: { source: contact.source, type: contact.type, name: contact.name },
-    }).catch(() => {});
 
     return {
       action_id: action.action_id,
@@ -251,10 +215,6 @@ export const crmExecutors: Record<string, ActionExecutor> = {
           contactId: contactId,
         },
       });
-      await prisma.contact.update({
-        where: { id: contactId },
-        data: { lastContactedAt: new Date() },
-      });
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for lead.update:", e);
     }
@@ -312,12 +272,6 @@ export const crmExecutors: Record<string, ActionExecutor> = {
           contactId: deal.contactId,
         },
       });
-      if (deal.contactId) {
-        await prisma.contact.update({
-          where: { id: deal.contactId },
-          data: { lastContactedAt: new Date() },
-        });
-      }
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for deal.create:", e);
     }
@@ -426,25 +380,6 @@ export const crmExecutors: Record<string, ActionExecutor> = {
     } catch (e) {
       console.error("[LAM Runtime] Failed to log activity for deal.moveStage:", e);
     }
-
-    // Fire automation event
-    evaluateAutomations({
-      type: "deal_stage_changed",
-      userId: ctx.user_id,
-      dealId: deal.id,
-      contactId: deal.contactId ?? undefined,
-      metadata: { fromStage: before.stage, toStage: deal.stage },
-    }).catch(() => {});
-
-    // Emit to workflow event bus
-    eventBus.emit({
-      type: "deal.stage_changed",
-      entityType: "deal",
-      entityId: deal.id,
-      userId: ctx.user_id,
-      changes: { stage: { from: before.stage, to: deal.stage } },
-      metadata: { contactId: deal.contactId },
-    }).catch(() => {});
 
     return {
       action_id: action.action_id,
@@ -1122,41 +1057,6 @@ export const crmExecutors: Record<string, ActionExecutor> = {
         });
         break;
       }
-      case "company": {
-        results = await prisma.company.findMany({
-          where: {
-            userId: ctx.user_id,
-            ...(hasQuery
-              ? {
-                  OR: [
-                    { name: { contains: query, mode: "insensitive" } },
-                    { domain: { contains: query, mode: "insensitive" } },
-                    { industry: { contains: query, mode: "insensitive" } },
-                  ],
-                }
-              : {}),
-            ...(filters?.type ? { industry: filters.type } : {}),
-          },
-          select: {
-            id: true,
-            name: true,
-            domain: true,
-            industry: true,
-            size: true,
-            city: true,
-            state: true,
-            phone: true,
-            email: true,
-            website: true,
-            createdAt: true,
-            updatedAt: true,
-            _count: { select: { contacts: true, deals: true } },
-          },
-          take: limit || 10,
-          orderBy: { updatedAt: "desc" },
-        });
-        break;
-      }
     }
 
     return {
@@ -1164,155 +1064,6 @@ export const crmExecutors: Record<string, ActionExecutor> = {
       action_type: action.type,
       status: "success",
       data: { entity, query, total: results.length, records: results },
-    };
-  },
-
-  "lead.score": async (action, ctx) => {
-    if (action.type !== "lead.score") throw new Error("Invalid action type");
-
-    const raw = action.payload as Record<string, unknown>;
-    const contactId = raw.contact_id as string | undefined;
-
-    if (contactId) {
-      const result = await scoreContact(contactId);
-      return {
-        action_id: action.action_id,
-        action_type: action.type,
-        status: "success",
-        data: result,
-      };
-    }
-
-    const result = await scoreAllContacts(ctx.user_id);
-    return {
-      action_id: action.action_id,
-      action_type: action.type,
-      status: "success",
-      data: result,
-    };
-  },
-
-  "company.create": async (action, ctx) => {
-    if (action.type !== "company.create") throw new Error("Invalid action type");
-
-    const payload = action.payload;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = payload as any;
-
-    const company = await prisma.company.create({
-      data: {
-        userId: ctx.user_id,
-        name: payload.name,
-        domain: raw.domain || undefined,
-        industry: raw.industry || undefined,
-        size: raw.size || undefined,
-        phone: raw.phone || undefined,
-        email: raw.email || undefined,
-        website: raw.website || undefined,
-        address: raw.address || undefined,
-        city: raw.city || undefined,
-        state: raw.state || undefined,
-        zipCode: raw.zip_code || undefined,
-        notes: raw.notes || undefined,
-      },
-    });
-
-    await recordChange(ctx.run_id, action.action_id, "Company", company.id, "create", null, company);
-
-    return {
-      action_id: action.action_id,
-      action_type: action.type,
-      status: "success",
-      data: company,
-      entity_id: company.id,
-      after_state: company,
-    };
-  },
-
-  "company.update": async (action, ctx) => {
-    if (action.type !== "company.update") throw new Error("Invalid action type");
-
-    const raw = action.payload as Record<string, unknown>;
-    const patch = raw.patch as Record<string, unknown> || {};
-    let id = raw.id as string | undefined;
-
-    // Name-based lookup fallback
-    if (!id && raw.name) {
-      const found = await prisma.company.findFirst({
-        where: { userId: ctx.user_id, name: { contains: raw.name as string, mode: "insensitive" } },
-      });
-      if (found) id = found.id;
-    }
-
-    if (!id) {
-      return { action_id: action.action_id, action_type: action.type, status: "failed", error: "Company not found" };
-    }
-
-    const before = await prisma.company.findFirst({ where: { id, userId: ctx.user_id } });
-    if (!before) {
-      return { action_id: action.action_id, action_type: action.type, status: "failed", error: "Company not found" };
-    }
-
-    const updateData: Record<string, unknown> = {};
-    if (patch.name !== undefined) updateData.name = patch.name;
-    if (patch.domain !== undefined) updateData.domain = patch.domain;
-    if (patch.industry !== undefined) updateData.industry = patch.industry;
-    if (patch.size !== undefined) updateData.size = patch.size;
-    if (patch.phone !== undefined) updateData.phone = patch.phone;
-    if (patch.email !== undefined) updateData.email = patch.email;
-    if (patch.website !== undefined) updateData.website = patch.website;
-    if (patch.address !== undefined) updateData.address = patch.address;
-    if (patch.city !== undefined) updateData.city = patch.city;
-    if (patch.state !== undefined) updateData.state = patch.state;
-    if (patch.zip_code !== undefined) updateData.zipCode = patch.zip_code;
-    if (patch.notes !== undefined) updateData.notes = patch.notes;
-
-    const after = await prisma.company.update({ where: { id }, data: updateData });
-    await recordChange(ctx.run_id, action.action_id, "Company", id, "update", before, after);
-
-    return {
-      action_id: action.action_id,
-      action_type: action.type,
-      status: "success",
-      data: after,
-      entity_id: id,
-      before_state: before,
-      after_state: after,
-    };
-  },
-
-  "company.delete": async (action, ctx) => {
-    if (action.type !== "company.delete") throw new Error("Invalid action type");
-
-    const raw = action.payload as Record<string, unknown>;
-    let id = raw.id as string | undefined;
-
-    if (!id && raw.name) {
-      const found = await prisma.company.findFirst({
-        where: { userId: ctx.user_id, name: { contains: raw.name as string, mode: "insensitive" } },
-      });
-      if (found) id = found.id;
-    }
-
-    if (!id) {
-      return { action_id: action.action_id, action_type: action.type, status: "failed", error: "Company not found" };
-    }
-
-    const before = await prisma.company.findFirst({ where: { id, userId: ctx.user_id } });
-    if (!before) {
-      return { action_id: action.action_id, action_type: action.type, status: "failed", error: "Company not found" };
-    }
-
-    await prisma.company.delete({ where: { id } });
-    await recordChange(ctx.run_id, action.action_id, "Company", id, "delete", before, null);
-
-    return {
-      action_id: action.action_id,
-      action_type: action.type,
-      status: "success",
-      data: { deleted: true },
-      entity_id: id,
-      before_state: before,
     };
   },
 

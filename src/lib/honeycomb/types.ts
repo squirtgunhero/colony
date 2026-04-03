@@ -413,4 +413,3 @@ export interface CreatePublisherInput {
   type?: "ad_network" | "direct" | "programmatic";
   logoUrl?: string;
 }
-

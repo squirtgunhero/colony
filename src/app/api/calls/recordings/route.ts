@@ -1,38 +1,110 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/supabase/auth";
 
-// GET /api/calls/recordings?contactId=xxx
-export async function GET(req: NextRequest) {
-  const userId = await requireUserId();
-  const contactId = req.nextUrl.searchParams.get("contactId");
+/**
+ * GET /api/calls/recordings?contactId=xxx
+ * Fetch call recordings for a contact
+ */
+export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  const where: Record<string, unknown> = { userId };
-  if (contactId) where.contactId = contactId;
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const recordings = await prisma.callRecording.findMany({
-    where,
-    orderBy: { occurredAt: "desc" },
-    take: 20,
-    include: {
-      contact: { select: { name: true } },
-    },
-  });
+  const contactId = request.nextUrl.searchParams.get("contactId");
 
-  return NextResponse.json(
-    recordings.map((r) => ({
-      id: r.id,
-      contactName: r.contact?.name ?? null,
-      twilioCallSid: r.twilioCallSid,
-      recordingUrl: r.recordingUrl,
-      duration: r.duration,
-      direction: r.direction,
-      status: r.status,
-      transcript: r.transcript,
-      summary: r.summary,
-      actionItems: r.actionItems,
-      sentiment: r.sentiment,
-      occurredAt: r.occurredAt.toISOString(),
-    }))
-  );
+  if (!contactId) {
+    return NextResponse.json({ error: "contactId is required" }, { status: 400 });
+  }
+
+  try {
+    const recordings = await prisma.callRecording.findMany({
+      where: {
+        userId: user.id,
+        contactId,
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        callSid: true,
+        direction: true,
+        fromNumber: true,
+        toNumber: true,
+        duration: true,
+        status: true,
+        transcript: true,
+        summary: true,
+        sentiment: true,
+        sentimentScore: true,
+        keyTopics: true,
+        objections: true,
+        talkListenRatio: true,
+        actionItems: true,
+        analysisStatus: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json({ recordings });
+  } catch (error) {
+    console.error("Failed to fetch recordings:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch recordings" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/calls/recordings
+ * Create a call recording entry when initiating a call
+ */
+export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { callSid, contactId, toNumber, fromNumber } = body;
+
+    if (!callSid || !toNumber) {
+      return NextResponse.json(
+        { error: "callSid and toNumber are required" },
+        { status: 400 }
+      );
+    }
+
+    const recording = await prisma.callRecording.create({
+      data: {
+        userId: user.id,
+        contactId: contactId || null,
+        callSid,
+        direction: "outbound",
+        fromNumber: fromNumber || process.env.TWILIO_PHONE_NUMBER || "",
+        toNumber,
+        status: "in-progress",
+      },
+    });
+
+    return NextResponse.json({ recording });
+  } catch (error) {
+    console.error("Failed to create recording:", error);
+    return NextResponse.json(
+      { error: "Failed to create recording" },
+      { status: 500 }
+    );
+  }
 }

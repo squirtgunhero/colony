@@ -224,35 +224,37 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let errors = 0;
   const errorDetails: string[] = [];
 
+  // Batch fetch existing contacts by email to avoid N+1 queries
+  const allEmails = rows.map((r) => r.email).filter(Boolean) as string[];
+  const existingContacts = (dedup_strategy !== "create" && allEmails.length > 0)
+    ? await prisma.contact.findMany({
+        where: { userId, email: { in: allEmails } },
+        select: { id: true, email: true },
+      })
+    : [];
+  const existingEmailMap = new Map(existingContacts.map((c) => [c.email!, c.id]));
+
+  // Separate rows into creates and updates
+  const toCreate: typeof rows = [];
+  const toUpdate: Array<{ id: string; row: ContactRow }> = [];
+
   for (const row of rows) {
-    try {
-      if (dedup_strategy !== "create" && row.email) {
-        const existing = await prisma.contact.findFirst({
-          where: { userId, email: row.email },
-          select: { id: true },
-        });
-
-        if (existing) {
-          if (dedup_strategy === "skip") { skipped++; continue; }
-          // dedup_strategy === "update"
-          await prisma.contact.update({
-            where: { id: existing.id },
-            data: {
-              name: row.name,
-              phone: row.phone ?? undefined,
-              source: row.source ?? undefined,
-              type: row.type,
-              tags: row.tags,
-              notes: row.notes ?? undefined,
-            },
-          });
-          updated++;
-          continue;
-        }
+    if (dedup_strategy !== "create" && row.email && existingEmailMap.has(row.email)) {
+      if (dedup_strategy === "skip") {
+        skipped++;
+      } else {
+        toUpdate.push({ id: existingEmailMap.get(row.email)!, row });
       }
+    } else {
+      toCreate.push(row);
+    }
+  }
 
-      await prisma.contact.create({
-        data: {
+  // Batch create new contacts
+  if (toCreate.length > 0) {
+    try {
+      const result = await prisma.contact.createMany({
+        data: toCreate.map((row) => ({
           userId,
           name: row.name,
           email: row.email ?? null,
@@ -261,9 +263,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           type: row.type,
           tags: row.tags,
           notes: row.notes ?? null,
+        })),
+        skipDuplicates: true,
+      });
+      created = result.count;
+    } catch (err) {
+      errors += toCreate.length;
+      if (err instanceof Error) errorDetails.push(`Batch create: ${err.message}`);
+    }
+  }
+
+  // Updates must be individual (Prisma doesn't support batch update with different data)
+  for (const { id, row } of toUpdate) {
+    try {
+      await prisma.contact.update({
+        where: { id },
+        data: {
+          name: row.name,
+          phone: row.phone ?? undefined,
+          source: row.source ?? undefined,
+          type: row.type,
+          tags: row.tags,
+          notes: row.notes ?? undefined,
         },
       });
-      created++;
+      updated++;
     } catch (err) {
       errors++;
       if (err instanceof Error) errorDetails.push(`Row "${row.name}": ${err.message}`);

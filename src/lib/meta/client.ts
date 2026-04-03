@@ -24,7 +24,7 @@ import type {
   UploadImageResponse,
 } from "./types";
 
-const META_GRAPH_API_VERSION = "v22.0";
+const META_GRAPH_API_VERSION = "v21.0";
 const META_GRAPH_API_BASE = `https://graph.facebook.com/${META_GRAPH_API_VERSION}`;
 
 // ============================================
@@ -58,8 +58,6 @@ export function getAuthorizationUrl(state?: string): string {
     "ads_read",
     "business_management",
     "pages_read_engagement",
-    "pages_manage_ads",
-    "pages_show_list",
   ].join(",");
 
   const params = new URLSearchParams({
@@ -158,26 +156,8 @@ class MetaApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("[META API] Full error response:", JSON.stringify(data, null, 2));
-      const err = data as MetaErrorResponse;
-      let detail: string;
-      if (err.error) {
-        const parts = [
-          err.error.message,
-          `(code: ${err.error.code}, type: ${err.error.type}, subcode: ${err.error.error_subcode || "none"}, fbtrace: ${err.error.fbtrace_id || "none"})`,
-        ];
-        if (err.error.error_user_msg) {
-          parts.push(`Detail: ${err.error.error_user_msg}`);
-        }
-        if (err.error.error_user_title) {
-          parts.push(`Title: ${err.error.error_user_title}`);
-        }
-        detail = parts.join(" ");
-      } else {
-        detail = `HTTP ${response.status}: ${JSON.stringify(data)}`;
-      }
-      console.error("[META API] Error:", detail);
-      throw new Error(detail);
+      const error = data as MetaErrorResponse;
+      throw new Error(error.error?.message || `Meta API error: ${response.status}`);
     }
 
     return data as T;
@@ -228,63 +208,21 @@ class MetaApiClient {
       special_ad_categories?: string[];
     }
   ): Promise<{ id: string }> {
-    const payload: Record<string, unknown> = {
-      name: params.name,
-      objective: params.objective,
-      status: params.status || "PAUSED",
-      special_ad_categories: params.special_ad_categories || [],
-      is_adset_budget_sharing_enabled: false,
-    };
-
-    // For HOUSING category, Meta requires the country field
-    if (params.special_ad_categories?.includes("HOUSING")) {
-      payload.special_ad_category_country = ["US"];
+    const body = new URLSearchParams();
+    body.set("name", params.name);
+    body.set("objective", params.objective);
+    body.set("status", params.status || "PAUSED");
+    const categories = params.special_ad_categories || [];
+    body.set("special_ad_categories", JSON.stringify(categories));
+    if (categories.length > 0) {
+      body.set("special_ad_category_country", JSON.stringify(["US"]));
     }
-
-    console.log("[META API] createCampaign:", {
-      endpoint: `/${adAccountId}/campaigns`,
-      payload,
-    });
 
     return this.request<{ id: string }>(`/${adAccountId}/campaigns`, {
       method: "POST",
-      body: JSON.stringify(payload),
+      body,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
-  }
-
-  /**
-   * Search for a city's targeting key (required for geo_locations)
-   */
-  async searchCity(cityName: string): Promise<{ key: string; name: string; region: string; country_code: string } | null> {
-    const url = new URL(`${META_GRAPH_API_BASE}/search`);
-    url.searchParams.set("access_token", this.accessToken);
-    url.searchParams.set("type", "adgeolocation");
-    url.searchParams.set("location_types", JSON.stringify(["city"]));
-    url.searchParams.set("q", cityName);
-
-    const response = await fetch(url.toString());
-    const data = await response.json();
-
-    if (!response.ok || !data.data?.length) {
-      console.error("[META API] City search failed for:", cityName, data);
-      return null;
-    }
-
-    // Prefer US results
-    const usCity = data.data.find((c: { country_code: string }) => c.country_code === "US") || data.data[0];
-    console.log("[META API] Found city:", usCity);
-    return usCity;
-  }
-
-  /**
-   * Get Facebook Pages the user manages (needed for ad creatives)
-   */
-  async getPages(): Promise<Array<{ id: string; name: string; access_token?: string }>> {
-    const data = await this.request<{ data: Array<{ id: string; name: string; access_token?: string }> }>(
-      "/me/accounts?fields=id,name,access_token",
-      { method: "GET" }
-    );
-    return data.data || [];
   }
 
   /**
@@ -367,15 +305,6 @@ class MetaApiClient {
     body.set("status", params.status);
     if (params.special_ad_categories) {
       body.set("special_ad_categories", JSON.stringify(params.special_ad_categories));
-    }
-    if (params.bid_strategy) {
-      body.set("bid_strategy", params.bid_strategy);
-    }
-    if (params.bid_amount) {
-      body.set("bid_amount", String(params.bid_amount));
-    }
-    if (params.promoted_object) {
-      body.set("promoted_object", JSON.stringify(params.promoted_object));
     }
 
     return this.request<CreateAdSetResponse>(`/${adAccountId}/adsets`, {

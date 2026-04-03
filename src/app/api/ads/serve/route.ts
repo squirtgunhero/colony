@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,13 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  // Rate limit: 60 requests per minute per IP
+  const ip = getClientIp(request);
+  const rl = await rateLimit(`ads-serve:${ip}`, { limit: 60, windowSeconds: 60 });
+  if (!rl.allowed) {
+    return NextResponse.json({ ok: false, ad: null }, { status: 429, headers: CORS_HEADERS });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const zoneId = searchParams.get("zone");
@@ -80,28 +88,54 @@ export async function GET(request: NextRequest) {
       };
     }> = [];
 
-    for (const campaign of activeCampaigns) {
-      if (campaign.channel === "local") {
-        const pair = await prisma.localExchangePair.findFirst({
+    // Batch fetch: local exchange pairs for all local campaigns
+    const localCampaigns = activeCampaigns.filter((c) => c.channel === "local");
+    const localUserIds = localCampaigns.map((c) => c.userId);
+
+    const activePairs = localUserIds.length > 0
+      ? await prisma.localExchangePair.findMany({
           where: {
             status: "active",
             OR: [
-              { userAId: campaign.userId, userBId: zone.publisher.userId },
-              { userAId: zone.publisher.userId, userBId: campaign.userId },
+              { userAId: { in: localUserIds }, userBId: zone.publisher.userId },
+              { userAId: zone.publisher.userId, userBId: { in: localUserIds } },
             ],
           },
-        });
-        if (!pair) continue;
-      }
+        })
+      : [];
 
-      if (campaign.dailyBudget) {
-        const todayImpressions = await prisma.adEvent.count({
+    const pairedUserIds = new Set(
+      activePairs.flatMap((p) => [p.userAId, p.userBId])
+    );
+
+    // Batch fetch: today's impression counts for campaigns with daily budgets
+    const budgetCampaignIds = activeCampaigns
+      .filter((c) => c.dailyBudget)
+      .map((c) => c.id);
+
+    const impressionCounts = budgetCampaignIds.length > 0
+      ? await prisma.adEvent.groupBy({
+          by: ["campaignId"],
           where: {
-            campaignId: campaign.id,
+            campaignId: { in: budgetCampaignIds },
             eventType: "impression",
             createdAt: { gte: todayStart },
           },
-        });
+          _count: { _all: true },
+        })
+      : [];
+
+    const impressionMap = new Map(
+      impressionCounts.map((ic) => [ic.campaignId, ic._count._all])
+    );
+
+    for (const campaign of activeCampaigns) {
+      if (campaign.channel === "local") {
+        if (!pairedUserIds.has(campaign.userId)) continue;
+      }
+
+      if (campaign.dailyBudget) {
+        const todayImpressions = impressionMap.get(campaign.id) || 0;
         const maxImpressions = (campaign.dailyBudget / CPM_RATE) * 1000;
         if (todayImpressions >= maxImpressions) continue;
       }
@@ -121,7 +155,9 @@ export async function GET(request: NextRequest) {
             ctaUrl: cc.creative.ctaUrl,
           },
         });
+        if (eligible.length >= 100) break;
       }
+      if (eligible.length >= 100) break;
     }
 
     if (eligible.length === 0) {

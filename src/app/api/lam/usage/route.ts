@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const rateCheck = await checkRateLimit(user.id);
     
     // Get global usage stats
-    const globalStats = getUsageStats();
+    const globalStats = await getUsageStats();
 
     return NextResponse.json({
       user: {

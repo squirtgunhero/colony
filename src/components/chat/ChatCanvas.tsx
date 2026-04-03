@@ -12,8 +12,6 @@ import { ChatSuggestionChips } from "./ChatSuggestionChips";
 import { ColonySuggestions } from "./ColonySuggestions";
 import { OnboardingFlow } from "./OnboardingFlow";
 import { TodayView } from "./TodayView";
-import { ActionExecutionCard } from "./ActionExecutionCard";
-import { QuickActions } from "./QuickActions";
 
 interface Summary {
   firstName: string | null;
@@ -55,10 +53,6 @@ export function ChatCanvas() {
     isListening,
     loadHistory,
     addMessage,
-    executions,
-    approveRun,
-    cancelExecution,
-    sendToLam,
   } = useAssistantStore();
 
   const { activeChips, clearChips } = useModeStore();
@@ -149,9 +143,11 @@ export function ChatCanvas() {
       ref={scrollContainerRef}
       className="flex-1 flex flex-col overflow-y-auto pb-72 relative"
       style={{
-        backgroundColor: theme.bg,
+        background: `linear-gradient(160deg, ${theme.bg} 0%, ${theme.bgGlow} 50%, ${theme.bg} 100%)`,
+        backgroundSize: "400% 400%",
+        animation: "colonyBgShift 20s ease infinite",
         color: theme.text,
-        transition: "background-color 500ms ease-in-out, color 500ms ease-in-out",
+        transition: "background 500ms ease-in-out, color 500ms ease-in-out",
       }}
     >
       <div className={`mx-auto w-full max-w-2xl px-4 py-8 flex flex-col relative z-10 ${hasMessages ? "flex-1" : ""}`}>
@@ -232,11 +228,6 @@ export function ChatCanvas() {
                 isNewUser={suggestions.isNewUser}
               />
             )}
-
-            {/* Quick action chips */}
-            <div className="mt-4 w-full max-w-md">
-              <QuickActions />
-            </div>
             </>
             )}
           </div>
@@ -266,61 +257,28 @@ export function ChatCanvas() {
             >
               Clear chat
             </button>
-            {messages.map((message, index) => {
-              // Render execution card for execution-type messages
-              const execution = message.executionId
-                ? executions.get(message.executionId)
-                : undefined;
-
-              return (
-                <div
-                  key={message.id}
-                  className="animate-in fade-in slide-in-from-bottom-2 duration-400"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  {message.messageType === "execution" && execution ? (
-                    <ActionExecutionCard
-                      execution={execution}
-                      adPreview={(() => {
-                        const actions = message.lamResponse?.plan?.actions;
-                        const adAction = actions?.find(
-                          (a: { type: string }) => a.type === "ads.create_campaign"
-                        );
-                        if (!adAction) return undefined;
-                        const p = adAction.payload as Record<string, unknown> | undefined;
-                        if (!p || (!p.ad_headline && !p.ad_body)) return undefined;
-                        return {
-                          headline: p.ad_headline as string | undefined,
-                          body: p.ad_body as string | undefined,
-                          description: p.ad_description as string | undefined,
-                          budget: p.daily_budget as number | undefined,
-                          target: (p.target_city || p.service_area) as string | undefined,
-                          imageUrl: p.preview_image_url as string | undefined,
-                        };
-                      })()}
-                      onRetry={() => sendToLam(message.content)}
-                      onCancel={() => message.executionId && cancelExecution(message.executionId)}
-                      onApprove={() => message.runId && approveRun(message.runId)}
-                    />
-                  ) : (
-                    <ChatMessageBubble
-                      message={message}
-                      pendingActions={pendingActions.filter((pa) =>
-                        message.actions?.some(
-                          (a) => JSON.stringify(a) === JSON.stringify(pa.action)
-                        )
-                      )}
-                      onApplyAction={applyAction}
-                      onCancelAction={cancelAction}
-                    />
+            {messages.map((message, index) => (
+              <div
+                key={message.id}
+                className="animate-in fade-in slide-in-from-bottom-2 duration-400"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <ChatMessageBubble
+                  message={message}
+                  pendingActions={pendingActions.filter((pa) =>
+                    message.actions?.some(
+                      (a) => JSON.stringify(a) === JSON.stringify(pa.action)
+                    )
                   )}
+                  onApplyAction={applyAction}
+                  onCancelAction={cancelAction}
+                />
 
-                  {message.role === "assistant" &&
-                    index === messages.length - 1 &&
-                    activeChips.length > 0 && <ChatSuggestionChips />}
-                </div>
-              );
-            })}
+                {message.role === "assistant" &&
+                  index === messages.length - 1 &&
+                  activeChips.length > 0 && <ChatSuggestionChips />}
+              </div>
+            ))}
 
             {/* Typing indicator */}
             {isLoading && (

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { encrypt } from "@/lib/encryption";
 import { GoogleAdsApi } from "google-ads-api";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -116,12 +117,12 @@ export async function GET(request: NextRequest) {
           userId,
           customerId,
           descriptiveName,
-          refreshToken,
+          refreshToken: encrypt(refreshToken),
           isActive: true,
         },
         update: {
           descriptiveName,
-          refreshToken,
+          refreshToken: encrypt(refreshToken),
           isActive: true,
         },
       });

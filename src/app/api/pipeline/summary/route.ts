@@ -40,13 +40,12 @@ export async function GET() {
         },
         _sum: { price: true },
       }),
-      // Properties by status for stages
-      prisma.property.findMany({
+      // Properties grouped by status for stages
+      prisma.property.groupBy({
+        by: ["status"],
         where: { userId },
-        select: {
-          status: true,
-          price: true,
-        },
+        _count: { _all: true },
+        _sum: { price: true },
       }),
       // Recent deals
       prisma.deal.findMany({
@@ -65,16 +64,6 @@ export async function GET() {
     const totalValue = totalValueResult._sum.price || 0;
     const previousValue = previousValueResult._sum.price || 0;
 
-    // Group properties by status to create stages
-    const stageMap = new Map<string, { count: number; value: number }>();
-    for (const prop of properties) {
-      const existing = stageMap.get(prop.status) || { count: 0, value: 0 };
-      stageMap.set(prop.status, {
-        count: existing.count + 1,
-        value: existing.value + prop.price,
-      });
-    }
-
     const stageLabels: Record<string, string> = {
       active: "Active Listings",
       pending: "Pending",
@@ -82,25 +71,28 @@ export async function GET() {
       off_market: "Off Market",
     };
 
-    const stages = Array.from(stageMap.entries())
-      .map(([status, data]) => ({
-        name: stageLabels[status] || status,
-        count: data.count,
-        value: data.value,
+    const stages = properties
+      .map((group) => ({
+        name: stageLabels[group.status] || group.status,
+        count: group._count._all,
+        value: group._sum.price || 0,
       }))
       .sort((a, b) => b.value - a.value);
 
-    return NextResponse.json({
-      totalValue,
-      previousValue,
-      stages,
-      recentDeals: recentDeals.map((deal) => ({
-        id: deal.id,
-        name: deal.title,
-        value: deal.value,
-        stage: deal.stage,
-      })),
-    });
+    return NextResponse.json(
+      {
+        totalValue,
+        previousValue,
+        stages,
+        recentDeals: recentDeals.map((deal) => ({
+          id: deal.id,
+          name: deal.title,
+          value: deal.value,
+          stage: deal.stage,
+        })),
+      },
+      { headers: { "Cache-Control": "private, max-age=60" } }
+    );
   } catch (error) {
     console.error("Pipeline summary error:", error);
     return NextResponse.json(

@@ -1,27 +1,30 @@
+// ============================================================================
+// TWILIO VOICE - Browser-to-phone calling with recording
+// ============================================================================
+
 import Twilio from "twilio";
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID!;
-const apiKey = process.env.TWILIO_API_KEY!;
-const apiSecret = process.env.TWILIO_API_SECRET!;
+const authToken = process.env.TWILIO_AUTH_TOKEN!;
 const twimlAppSid = process.env.TWILIO_TWIML_APP_SID!;
-const phoneNumber = process.env.TWILIO_PHONE_NUMBER!;
+const apiKeySid = process.env.TWILIO_API_KEY_SID!;
+const apiKeySecret = process.env.TWILIO_API_KEY_SECRET!;
 
 /**
- * Generate an Access Token for the Twilio Voice SDK (browser).
- * Token is valid for 1 hour.
+ * Generate a Twilio access token for browser-based calling
  */
 export function generateVoiceToken(identity: string): string {
   const AccessToken = Twilio.jwt.AccessToken;
   const VoiceGrant = AccessToken.VoiceGrant;
 
-  const token = new AccessToken(accountSid, apiKey, apiSecret, {
-    identity,
-    ttl: 3600,
-  });
-
   const voiceGrant = new VoiceGrant({
     outgoingApplicationSid: twimlAppSid,
-    incomingAllow: false, // We don't handle inbound calls yet
+    incomingAllow: false,
+  });
+
+  const token = new AccessToken(accountSid, apiKeySid, apiKeySecret, {
+    identity,
+    ttl: 3600,
   });
 
   token.addGrant(voiceGrant);
@@ -29,50 +32,42 @@ export function generateVoiceToken(identity: string): string {
 }
 
 /**
- * Generate TwiML for an outbound call from the browser to a phone number.
+ * Generate TwiML for outbound call with recording enabled
  */
-export function outboundCallTwiml(
-  toNumber: string,
-  statusCallbackUrl: string
-): string {
+export function outboundCallTwiml({
+  to,
+  callerId,
+  callSid,
+}: {
+  to: string;
+  callerId: string;
+  callSid: string;
+}): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
   const VoiceResponse = Twilio.twiml.VoiceResponse;
   const response = new VoiceResponse();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dial = response.dial({
-    callerId: phoneNumber,
-    answerOnBridge: true,
-    statusCallback: statusCallbackUrl,
-    statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
-    statusCallbackMethod: "POST",
-  } as any);
-
-  dial.number(toNumber);
-  return response.toString();
-}
-
-/**
- * Generate TwiML to play a voicemail recording and hang up.
- */
-export function voicemailDropTwiml(recordingUrl: string): string {
-  const VoiceResponse = Twilio.twiml.VoiceResponse;
-  const response = new VoiceResponse();
-  response.play(recordingUrl);
-  response.hangup();
-  return response.toString();
-}
-
-/**
- * Modify a live call to drop a voicemail (redirect to play recording).
- */
-export async function dropVoicemailOnCall(
-  callSid: string,
-  recordingUrl: string
-): Promise<void> {
-  const client = Twilio(accountSid, process.env.TWILIO_AUTH_TOKEN!);
-  await client.calls(callSid).update({
-    twiml: voicemailDropTwiml(recordingUrl),
+    callerId,
+    record: "record-from-answer-dual",
+    recordingStatusCallback: `${appUrl}/api/calls/recording-status`,
+    recordingStatusCallbackMethod: "POST",
+    recordingStatusCallbackEvent: ["completed", "absent"],
   });
+
+  dial.number(to);
+
+  return response.toString();
 }
 
-export { phoneNumber as twilioPhoneNumber };
+/**
+ * Validate Twilio webhook signature
+ */
+export function validateTwilioSignature(
+  url: string,
+  params: Record<string, string>,
+  signature: string
+): boolean {
+  return Twilio.validateRequest(authToken, signature, url, params);
+}

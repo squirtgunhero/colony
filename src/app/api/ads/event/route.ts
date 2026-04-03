@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createHash } from "crypto";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +23,13 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  // Rate limit: 120 events per minute per IP
+  const clientIp = getClientIp(request);
+  const rl = await rateLimit(`ads-event:${clientIp}`, { limit: 120, windowSeconds: 60 });
+  if (!rl.allowed) {
+    return new NextResponse("Too many requests", { status: 429, headers: CORS_HEADERS });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const zoneId = searchParams.get("z");

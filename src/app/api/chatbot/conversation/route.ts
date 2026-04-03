@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 function createId(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 25);
 }
 
+const ALLOWED_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || "*";
+
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
@@ -22,6 +25,16 @@ const CORS_HEADERS = {
  *   - action: "qualify"  → Visitor submits a qualification answer
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 30 requests per minute per IP
+  const ip = getClientIp(request);
+  const rl = await rateLimit(`chatbot:${ip}`, { limit: 30, windowSeconds: 60 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { ...CORS_HEADERS, "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+    );
+  }
+
   try {
     const body = await request.json();
     const { action } = body;

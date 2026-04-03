@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { encrypt } from "@/lib/encryption";
 import { exchangeCodeForTokens, getGmailUserEmail } from "@/lib/gmail";
 
 export async function GET(request: NextRequest) {
@@ -51,8 +52,8 @@ export async function GET(request: NextRequest) {
       await prisma.emailAccount.update({
         where: { id: existingAccount.id },
         data: {
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
+          accessToken: encrypt(tokens.access_token),
+          refreshToken: encrypt(tokens.refresh_token),
           expiresAt,
         },
       });
@@ -68,8 +69,8 @@ export async function GET(request: NextRequest) {
           userId: state,
           provider: "gmail",
           email,
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
+          accessToken: encrypt(tokens.access_token),
+          refreshToken: encrypt(tokens.refresh_token),
           expiresAt,
           isDefault: hasAccounts === 0, // First account is default
         },

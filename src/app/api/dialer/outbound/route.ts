@@ -2,30 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { outboundCallTwiml } from "@/lib/twilio-voice";
 
 /**
- * TwiML webhook — Twilio POSTs here when the browser SDK initiates an outbound call.
- * Returns TwiML that dials the target number.
+ * TwiML endpoint called by Twilio when a browser call connects.
+ * This is NOT called directly by the client — Twilio invokes it.
  */
 export async function POST(request: NextRequest) {
-  try {
-    const formData = await request.formData();
-    const toNumber = formData.get("To") as string;
+  const formData = await request.formData();
+  const to = formData.get("To") as string;
+  const callerId = formData.get("From") as string || process.env.TWILIO_PHONE_NUMBER!;
+  const callSid = formData.get("CallSid") as string;
 
-    if (!toNumber) {
-      return new NextResponse("<Response><Say>No number provided</Say></Response>", {
-        headers: { "Content-Type": "text/xml" },
-      });
-    }
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get("host")}`;
-    const statusCallbackUrl = `${baseUrl}/api/dialer/status`;
-
-    const twiml = outboundCallTwiml(toNumber, statusCallbackUrl);
-    return new NextResponse(twiml, {
-      headers: { "Content-Type": "text/xml" },
-    });
-  } catch {
-    return new NextResponse("<Response><Say>An error occurred</Say></Response>", {
+  if (!to) {
+    const VoiceResponse = (await import("twilio")).default.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    response.say("No destination number provided.");
+    return new NextResponse(response.toString(), {
       headers: { "Content-Type": "text/xml" },
     });
   }
+
+  const twiml = outboundCallTwiml({
+    to,
+    callerId: callerId || process.env.TWILIO_PHONE_NUMBER!,
+    callSid,
+  });
+
+  return new NextResponse(twiml, {
+    headers: { "Content-Type": "text/xml" },
+  });
 }

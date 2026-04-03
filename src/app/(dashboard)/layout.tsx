@@ -6,6 +6,8 @@ import { ModeSidebar } from "@/components/layout/ModeSidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import { ViewToggle } from "@/components/view-mode/ViewToggle";
 import { CRMContextProvider } from "@/lib/context/CRMContext";
+import { DialerProvider } from "@/providers/DialerProvider";
+import { ActiveCallBar } from "@/components/calls/ActiveCallBar";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { useModeStore } from "@/lib/mode";
 import { Toaster } from "sonner";
@@ -28,6 +30,7 @@ export default function DashboardLayout({
 
   return (
     <CRMContextProvider>
+      <DialerProvider>
       <div
         className="min-h-screen transition-colors duration-500"
         style={{ backgroundColor: theme.bg, color: theme.text }}
@@ -43,6 +46,7 @@ export default function DashboardLayout({
         </div>
 
         <FloatingActionButton />
+        <ActiveCallBar />
         <Toaster
           position="bottom-right"
           toastOptions={{
@@ -52,6 +56,7 @@ export default function DashboardLayout({
           }}
         />
       </div>
+      </DialerProvider>
     </CRMContextProvider>
   );
 }

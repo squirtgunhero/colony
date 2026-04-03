@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { twilioClient } from "@/lib/twilio";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 attempts per minute per IP to prevent brute-force
+  const ip = getClientIp(request);
+  const rl = await rateLimit(`verify-code:${ip}`, { limit: 5, windowSeconds: 60 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many verification attempts. Please wait and try again." },
+      { status: 429 }
+    );
+  }
   const supabase = await createClient();
   const {
     data: { user },

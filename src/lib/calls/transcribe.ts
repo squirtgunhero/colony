@@ -1,221 +1,194 @@
 // ============================================================================
-// COLONY - Call Intelligence Pipeline
-// Downloads Twilio recordings, transcribes with Deepgram, and extracts
-// AI summaries + action items via Claude
+// CALL TRANSCRIPTION + AI ANALYSIS PIPELINE
+// Transcribes call recordings via OpenAI Whisper, then analyzes with Claude
 // ============================================================================
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getDefaultProvider } from "@/lam/llm";
+import { AnthropicProvider } from "@/lam/llm";
 
-// ---------------------------------------------------------------------------
-// Deepgram transcription
-// ---------------------------------------------------------------------------
-
-async function transcribeWithDeepgram(audioUrl: string): Promise<string> {
-  const apiKey = process.env.DEEPGRAM_API_KEY;
-  if (!apiKey) throw new Error("DEEPGRAM_API_KEY not configured");
-
-  const response = await fetch(
-    "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&paragraphs=true&diarize=true&punctuate=true",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ url: audioUrl }),
-    }
-  );
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Deepgram API error: ${response.status} - ${err}`);
-  }
-
-  const data = await response.json();
-
-  // Extract paragraphs with speaker labels
-  const paragraphs =
-    data.results?.channels?.[0]?.alternatives?.[0]?.paragraphs?.paragraphs;
-
-  if (paragraphs && paragraphs.length > 0) {
-    return paragraphs
-      .map(
-        (p: { speaker: number; sentences: { text: string }[] }) =>
-          `Speaker ${p.speaker}: ${p.sentences.map((s: { text: string }) => s.text).join(" ")}`
-      )
-      .join("\n\n");
-  }
-
-  // Fallback to plain transcript
-  return (
-    data.results?.channels?.[0]?.alternatives?.[0]?.transcript || ""
-  );
-}
-
-// ---------------------------------------------------------------------------
-// AI analysis (summary + action items + sentiment)
-// ---------------------------------------------------------------------------
+// ============================================================================
+// Schemas
+// ============================================================================
 
 const CallAnalysisSchema = z.object({
-  summary: z.string(),
-  actionItems: z.array(
-    z.object({
-      text: z.string(),
-      priority: z.enum(["high", "medium", "low"]).optional(),
-    })
-  ),
-  sentiment: z.enum(["positive", "neutral", "negative"]),
+  summary: z.string().describe("2-3 sentence summary of the call"),
+  sentiment: z.enum(["positive", "neutral", "negative", "mixed"]),
+  sentimentScore: z.number().min(-1).max(1).describe("-1 = very negative, 1 = very positive"),
+  keyTopics: z.array(z.string()).describe("Main topics discussed (3-8 items)"),
+  objections: z.array(z.object({
+    objection: z.string(),
+    response: z.string().optional(),
+    resolved: z.boolean(),
+  })).describe("Client objections raised during the call"),
+  talkListenRatio: z.number().min(0).max(1).describe("0-1, fraction of time the agent spoke vs listened"),
+  actionItems: z.array(z.string()).describe("Follow-up actions identified"),
 });
 
 type CallAnalysis = z.infer<typeof CallAnalysisSchema>;
+
+// ============================================================================
+// Transcription (OpenAI Whisper)
+// ============================================================================
+
+async function transcribeRecording(recordingUrl: string): Promise<string> {
+  // Fetch the recording audio from Twilio
+  const audioResponse = await fetch(recordingUrl, {
+    headers: {
+      Authorization: `Basic ${Buffer.from(
+        `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
+      ).toString("base64")}`,
+    },
+  });
+
+  if (!audioResponse.ok) {
+    throw new Error(`Failed to fetch recording: ${audioResponse.status}`);
+  }
+
+  const audioBlob = await audioResponse.blob();
+
+  // Send to OpenAI Whisper
+  const form = new FormData();
+  form.append("file", audioBlob, "recording.wav");
+  form.append("model", "whisper-1");
+  form.append("language", "en");
+  form.append("response_format", "verbose_json");
+  form.append("timestamp_granularities[]", "segment");
+
+  const whisperResponse = await fetch(
+    "https://api.openai.com/v1/audio/transcriptions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: form,
+    }
+  );
+
+  if (!whisperResponse.ok) {
+    const err = await whisperResponse.text();
+    throw new Error(`Whisper transcription failed: ${whisperResponse.status} - ${err}`);
+  }
+
+  const data = await whisperResponse.json();
+  return data.text ?? "";
+}
+
+// ============================================================================
+// AI Analysis (Claude via AnthropicProvider)
+// ============================================================================
 
 async function analyzeTranscript(
   transcript: string,
   contactName?: string
 ): Promise<CallAnalysis> {
-  const llm = getDefaultProvider();
+  const llm = new AnthropicProvider();
 
-  const { data } = await llm.completeJSON(
-    [
-      {
-        role: "system",
-        content:
-          "You are a CRM assistant that analyzes sales call transcripts. Be concise and actionable.",
-      },
-      {
-        role: "user",
-        content: `Analyze this call transcript${contactName ? ` with ${contactName}` : ""}:
+  const systemPrompt = `You are an AI sales call analyst for a real estate CRM called Colony.
+Analyze the following call transcript and extract structured insights.
 
+Guidelines:
+- Identify the agent (CRM user) vs the client/lead in the conversation
+- Sentiment reflects the CLIENT's sentiment toward the deal/relationship
+- Talk-listen ratio estimates how much the AGENT talked vs listened (0 = all listening, 1 = all talking)
+- Key topics should be specific and actionable (e.g., "Property pricing at $450K", not just "pricing")
+- Objections are specific concerns the client raised
+- Action items are concrete next steps mentioned or implied
+
+Respond with valid JSON only. No markdown, no explanation.`;
+
+  const userPrompt = `Analyze this call transcript${contactName ? ` with ${contactName}` : ""}:
+
+---
 ${transcript}
+---
 
-Return JSON with:
-- "summary": 3-4 sentence summary of the call
-- "actionItems": array of { "text": string, "priority": "high"|"medium"|"low" } — concrete follow-up tasks
-- "sentiment": "positive" | "neutral" | "negative" — overall call sentiment`,
-      },
+Return a JSON object with: summary, sentiment (positive/neutral/negative/mixed), sentimentScore (-1 to 1), keyTopics (string[]), objections ({objection, response?, resolved}[]), talkListenRatio (0-1), actionItems (string[]).`;
+
+  const result = await llm.completeJSON(
+    [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
     ],
     CallAnalysisSchema,
-    { temperature: 0.3 }
+    { temperature: 0.3, maxTokens: 2048 }
   );
 
-  return data;
+  return result.data;
 }
 
-// ---------------------------------------------------------------------------
-// Process a single recording: transcribe → analyze → update DB → create tasks
-// ---------------------------------------------------------------------------
+// ============================================================================
+// Main Processing Pipeline
+// ============================================================================
 
-export async function processCallRecording(recordingId: string): Promise<void> {
-  const recording = await prisma.callRecording.findUniqueOrThrow({
-    where: { id: recordingId },
-    include: {
-      contact: { select: { id: true, name: true } },
-    },
-  });
+export async function processCallRecording(callRecordingId: string): Promise<void> {
+  try {
+    // Update status to transcribing
+    await prisma.callRecording.update({
+      where: { id: callRecordingId },
+      data: { analysisStatus: "transcribing" },
+    });
 
-  // Mark as transcribing
-  await prisma.callRecording.update({
-    where: { id: recordingId },
-    data: { status: "transcribing" },
-  });
+    const recording = await prisma.callRecording.findUnique({
+      where: { id: callRecordingId },
+      include: { contact: { select: { name: true } } },
+    });
 
-  // Step 1: Transcribe
-  const transcript = await transcribeWithDeepgram(recording.recordingUrl);
-
-  await prisma.callRecording.update({
-    where: { id: recordingId },
-    data: { transcript, status: "transcribed" },
-  });
-
-  if (!transcript.trim()) {
-    // Empty transcript — nothing to analyze
-    return;
-  }
-
-  // Step 2: AI analysis
-  const analysis = await analyzeTranscript(
-    transcript,
-    recording.contact?.name
-  );
-
-  await prisma.callRecording.update({
-    where: { id: recordingId },
-    data: {
-      summary: analysis.summary,
-      actionItems: analysis.actionItems,
-      sentiment: analysis.sentiment,
-      status: "summarized",
-    },
-  });
-
-  // Step 3: Auto-create tasks from action items
-  if (analysis.actionItems.length > 0 && recording.contactId) {
-    for (const item of analysis.actionItems) {
-      await prisma.task.create({
-        data: {
-          userId: recording.userId,
-          contactId: recording.contactId,
-          title: item.text,
-          priority: item.priority || "medium",
-        },
-      });
+    if (!recording || !recording.recordingUrl) {
+      throw new Error("Recording not found or no URL available");
     }
-  }
 
-  // Step 4: Update relationship score — calls are deep interactions
-  if (recording.contactId) {
-    await prisma.contact.update({
-      where: { id: recording.contactId },
+    // Step 1: Transcribe
+    const transcript = await transcribeRecording(recording.recordingUrl);
+
+    await prisma.callRecording.update({
+      where: { id: callRecordingId },
+      data: { transcript, analysisStatus: "analyzing" },
+    });
+
+    // Step 2: AI Analysis
+    const analysis = await analyzeTranscript(transcript, recording.contact?.name ?? undefined);
+
+    // Step 3: Save results
+    await prisma.callRecording.update({
+      where: { id: callRecordingId },
       data: {
-        lastContactedAt: recording.occurredAt,
-        interactionCount: { increment: 1 },
+        summary: analysis.summary,
+        sentiment: analysis.sentiment,
+        sentimentScore: analysis.sentimentScore,
+        keyTopics: analysis.keyTopics,
+        objections: analysis.objections,
+        talkListenRatio: analysis.talkListenRatio,
+        actionItems: analysis.actionItems,
+        analysisStatus: "complete",
       },
-    }).catch(() => {});
+    });
 
-    // Create an EmailInteraction-equivalent for relationship scoring
+    // Also create an Activity entry for the timeline
     await prisma.activity.create({
       data: {
         userId: recording.userId,
         contactId: recording.contactId,
         type: "call",
-        title: `Call${recording.contact?.name ? ` with ${recording.contact.name}` : ""} — ${analysis.sentiment}`,
+        title: `Call with ${recording.contact?.name || recording.toNumber}`,
         description: analysis.summary,
+        metadata: JSON.stringify({
+          callRecordingId: recording.id,
+          duration: recording.duration,
+          sentiment: analysis.sentiment,
+          sentimentScore: analysis.sentimentScore,
+        }),
       },
-    }).catch(() => {});
+    });
+  } catch (error) {
+    console.error("Call recording processing failed:", error);
+    await prisma.callRecording.update({
+      where: { id: callRecordingId },
+      data: {
+        analysisStatus: "failed",
+        analysisError: error instanceof Error ? error.message : "Unknown error",
+      },
+    });
   }
-}
-
-// ---------------------------------------------------------------------------
-// Batch processor — called by cron
-// ---------------------------------------------------------------------------
-
-export async function processAllPendingRecordings(): Promise<{
-  processed: number;
-  failed: number;
-}> {
-  const pending = await prisma.callRecording.findMany({
-    where: { status: "recorded" },
-    take: 10,
-    orderBy: { createdAt: "asc" },
-  });
-
-  let processed = 0;
-  let failed = 0;
-
-  for (const recording of pending) {
-    try {
-      await processCallRecording(recording.id);
-      processed++;
-    } catch (error) {
-      console.error(
-        `[CallIntel] Failed to process recording ${recording.id}:`,
-        error
-      );
-      failed++;
-    }
-  }
-
-  return { processed, failed };
 }
