@@ -99,6 +99,33 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create an Activity immediately so the call appears on the timeline
+    // even if the recording webhook never fires (short call, no answer, etc.)
+    let contactName: string | null = null;
+    if (contactId) {
+      const contact = await prisma.contact.findUnique({
+        where: { id: contactId },
+        select: { name: true },
+      });
+      contactName = contact?.name ?? null;
+    }
+
+    await prisma.activity.create({
+      data: {
+        userId: user.id,
+        contactId: contactId || null,
+        type: "call",
+        title: `Outbound call to ${contactName || toNumber}`,
+        description: "Call initiated from Colony dialer",
+        metadata: JSON.stringify({
+          callRecordingId: recording.id,
+          callSid,
+          toNumber,
+          direction: "outbound",
+        }),
+      },
+    });
+
     return NextResponse.json({ recording });
   } catch (error) {
     console.error("Failed to create recording:", error);

@@ -165,22 +165,58 @@ export async function processCallRecording(callRecordingId: string): Promise<voi
       },
     });
 
-    // Also create an Activity entry for the timeline
-    await prisma.activity.create({
-      data: {
+    // Update the existing Activity (created when call started) with analysis results
+    // Find by callRecordingId in metadata
+    const existingActivity = await prisma.activity.findFirst({
+      where: {
         userId: recording.userId,
         contactId: recording.contactId,
         type: "call",
-        title: `Call with ${recording.contact?.name || recording.toNumber}`,
-        description: analysis.summary,
-        metadata: JSON.stringify({
-          callRecordingId: recording.id,
-          duration: recording.duration,
-          sentiment: analysis.sentiment,
-          sentimentScore: analysis.sentimentScore,
-        }),
+        metadata: { contains: recording.id },
       },
+      orderBy: { createdAt: "desc" },
     });
+
+    const durationStr = recording.duration
+      ? `${Math.floor(recording.duration / 60)}m ${recording.duration % 60}s`
+      : "";
+
+    if (existingActivity) {
+      await prisma.activity.update({
+        where: { id: existingActivity.id },
+        data: {
+          title: `Call with ${recording.contact?.name || recording.toNumber}${durationStr ? ` (${durationStr})` : ""}`,
+          description: analysis.summary,
+          metadata: JSON.stringify({
+            callRecordingId: recording.id,
+            duration: recording.duration,
+            sentiment: analysis.sentiment,
+            sentimentScore: analysis.sentimentScore,
+            keyTopics: analysis.keyTopics,
+            actionItems: analysis.actionItems,
+          }),
+        },
+      });
+    } else {
+      // Fallback: create new activity if the original wasn't found
+      await prisma.activity.create({
+        data: {
+          userId: recording.userId,
+          contactId: recording.contactId,
+          type: "call",
+          title: `Call with ${recording.contact?.name || recording.toNumber}${durationStr ? ` (${durationStr})` : ""}`,
+          description: analysis.summary,
+          metadata: JSON.stringify({
+            callRecordingId: recording.id,
+            duration: recording.duration,
+            sentiment: analysis.sentiment,
+            sentimentScore: analysis.sentimentScore,
+            keyTopics: analysis.keyTopics,
+            actionItems: analysis.actionItems,
+          }),
+        },
+      });
+    }
   } catch (error) {
     console.error("Call recording processing failed:", error);
     await prisma.callRecording.update({

@@ -481,24 +481,13 @@ export function ContactDetailView({
         <div className="flex gap-8 flex-col xl:flex-row">
           {/* Timeline (main column) */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <h2
                 className="text-[13px] font-semibold uppercase tracking-[0.06em]"
                 style={{ color: theme.textMuted }}
               >
                 Timeline
               </h2>
-              <ActivityDialog contactId={contact.id} contactName={contact.name}>
-                <button
-                  className="flex items-center gap-1.5 text-xs font-medium transition-colors"
-                  style={{ color: theme.textMuted }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = theme.accent)}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = theme.textMuted)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add
-                </button>
-              </ActivityDialog>
             </div>
 
             {contact.activities.length === 0 && contact.tasks.length === 0 ? (
