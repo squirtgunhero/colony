@@ -144,6 +144,7 @@ export function ContactDetailView({
   const [quickNote, setQuickNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [activities, setActivities] = useState<Activity[]>(contact.activities);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -174,14 +175,27 @@ export function ContactDetailView({
     .join("")
     .toUpperCase();
 
+  // Sync activities state when server props change (e.g. navigation)
+  useEffect(() => {
+    setActivities(contact.activities);
+  }, [contact.activities]);
+
   const dialer = useDialer();
 
-  // Refresh the page data when a call ends so timeline + recordings update
+  // Append call activity to timeline when a call ends (no full page refresh)
   useEffect(() => {
     return dialer.onCallEnd(() => {
-      router.refresh();
+      const newActivity: Activity = {
+        id: `call-${Date.now()}`,
+        type: "call",
+        title: `Outbound call to ${contact.phone || "unknown"}`,
+        description: "Call placed via Colony dialer",
+        metadata: null,
+        createdAt: new Date().toISOString(),
+      };
+      setActivities((prev) => [newActivity, ...prev]);
     });
-  }, [dialer, router]);
+  }, [dialer, contact.phone]);
 
   const dividerColor = withAlpha(theme.text, 0.06);
   const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
@@ -497,14 +511,14 @@ export function ContactDetailView({
               </h2>
             </div>
 
-            {contact.activities.length === 0 && contact.tasks.length === 0 ? (
+            {activities.length === 0 && contact.tasks.length === 0 ? (
               <div className="py-16 text-center">
                 <p className="text-sm" style={{ color: theme.textMuted }}>
                   No activity yet. Start by adding a note or scheduling a follow-up.
                 </p>
               </div>
             ) : (
-              <ThemedActivityTimeline activities={contact.activities} />
+              <ThemedActivityTimeline activities={activities} />
             )}
           </div>
 
