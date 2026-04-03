@@ -19,6 +19,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ActionButton } from "@/components/ui/action-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
+import { SmartListBuilder } from "./smart-list-builder";
 
 interface CallList {
   id: string;
@@ -37,7 +38,8 @@ interface Contact {
   name: string;
   phone: string | null;
   type: string;
-  leadScore: { score: number; grade: string } | null;
+  leadScore: number | null;
+  leadGrade: string | null;
 }
 
 interface Props {
@@ -51,9 +53,12 @@ export function CallListsPage({ lists, contacts }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [showCreate, setShowCreate] = useState(false);
+  const [listType, setListType] = useState<"manual" | "smart">("manual");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [smartFilters, setSmartFilters] = useState<{ field: string; operator: string; value: string }[]>([]);
+  const [smartContactIds, setSmartContactIds] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
 
@@ -65,12 +70,18 @@ export function CallListsPage({ lists, contacts }: Props) {
   });
 
   const handleCreate = () => {
-    if (!name.trim() || selectedContacts.length === 0) return;
+    const ids = listType === "smart" ? smartContactIds : selectedContacts;
+    if (!name.trim() || ids.length === 0) return;
     startTransition(async () => {
       const res = await fetch("/api/dialer/call-lists", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, contactIds: selectedContacts }),
+        body: JSON.stringify({
+          name,
+          description,
+          contactIds: ids,
+          filterJson: listType === "smart" ? smartFilters : null,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -78,6 +89,9 @@ export function CallListsPage({ lists, contacts }: Props) {
         setName("");
         setDescription("");
         setSelectedContacts([]);
+        setSmartFilters([]);
+        setSmartContactIds([]);
+        setListType("manual");
         router.push(`/browse/dialer/lists/${data.id}`);
       }
     });
@@ -148,6 +162,34 @@ export function CallListsPage({ lists, contacts }: Props) {
       {showCreate && (
         <SectionCard title="Create Call List">
           <div className="space-y-4">
+            {/* List type toggle */}
+            <div>
+              <label
+                className="text-[11px] uppercase tracking-wider block mb-1.5"
+                style={{ color: withAlpha(theme.text, 0.5) }}
+              >
+                List Type
+              </label>
+              <div
+                className="inline-flex rounded-xl p-1"
+                style={{ backgroundColor: withAlpha(theme.text, 0.05) }}
+              >
+                {(["manual", "smart"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setListType(t)}
+                    className="h-8 px-4 rounded-lg text-[12px] font-medium capitalize transition-all duration-200"
+                    style={{
+                      backgroundColor: listType === t ? withAlpha(theme.text, 0.1) : "transparent",
+                      color: listType === t ? theme.text : withAlpha(theme.text, 0.45),
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label
@@ -181,7 +223,17 @@ export function CallListsPage({ lists, contacts }: Props) {
               </div>
             </div>
 
-            {/* Contact selector */}
+            {/* Smart list filter builder */}
+            {listType === "smart" && (
+              <SmartListBuilder
+                onChange={setSmartFilters}
+                onContactIdsResolved={setSmartContactIds}
+              />
+            )}
+
+            {/* Manual contact selector */}
+            {listType === "manual" && (
+            <>{/* Contact selector */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label
@@ -296,7 +348,7 @@ export function CallListsPage({ lists, contacts }: Props) {
                         >
                           {contact.type}
                         </span>
-                        {contact.leadScore && (
+                        {contact.leadGrade && (
                           <span
                             className="text-[10px] font-bold px-1.5 py-0.5 rounded"
                             style={{
@@ -304,7 +356,7 @@ export function CallListsPage({ lists, contacts }: Props) {
                               color: theme.accent,
                             }}
                           >
-                            {contact.leadScore.grade}
+                            {contact.leadGrade}
                           </span>
                         )}
                       </button>
@@ -314,12 +366,15 @@ export function CallListsPage({ lists, contacts }: Props) {
               </div>
             </div>
 
+            </>
+            )}
+
             <div className="flex justify-end">
               <ActionButton
-                label={isPending ? "Creating..." : `Create List (${selectedContacts.length} contacts)`}
+                label={isPending ? "Creating..." : `Create List (${listType === "smart" ? smartContactIds.length : selectedContacts.length} contacts)`}
                 icon={Plus}
                 onClick={handleCreate}
-                disabled={!name.trim() || selectedContacts.length === 0 || isPending}
+                disabled={!name.trim() || (listType === "smart" ? smartContactIds.length === 0 : selectedContacts.length === 0) || isPending}
               />
             </div>
           </div>

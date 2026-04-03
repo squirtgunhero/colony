@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
   if (alert.cities.length > 0) where.city = { in: alert.cities };
   if (alert.states.length > 0) where.state = { in: alert.states };
   if (alert.zipCodes.length > 0) where.zipCode = { in: alert.zipCodes };
-  if (alert.statuses.length > 0) where.status = { in: alert.statuses };
+  if (alert.states.length > 0) where.state = { in: alert.states };
   if (alert.minPrice || alert.maxPrice) {
     where.price = {};
     if (alert.minPrice) (where.price as Record<string, number>).gte = alert.minPrice;

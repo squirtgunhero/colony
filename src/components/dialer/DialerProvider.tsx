@@ -28,6 +28,7 @@ export interface DialerContextValue {
   setOutcome: (outcome: string) => void;
   setNotes: (notes: string) => void;
   dropVoicemail: (voicemailDropId: string) => Promise<void>;
+  onCallEnd: (callback: () => void) => () => void;
   isReady: boolean;
 }
 
@@ -48,6 +49,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
   const deviceRef = useRef<unknown>(null);
   const connectionRef = useRef<unknown>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const callEndListenersRef = useRef<Set<() => void>>(new Set());
 
   // Initialize Twilio Device
   useEffect(() => {
@@ -250,6 +252,22 @@ export function DialerProvider({ children }: { children: ReactNode }) {
     [currentCallId]
   );
 
+  const onCallEnd = useCallback((callback: () => void) => {
+    callEndListenersRef.current.add(callback);
+    return () => { callEndListenersRef.current.delete(callback); };
+  }, []);
+
+  const notifyCallEnd = useCallback(() => {
+    callEndListenersRef.current.forEach((cb) => cb());
+  }, []);
+
+  // Fire notifyCallEnd when call transitions to disconnected or idle from a call
+  useEffect(() => {
+    if (callState === "disconnected") {
+      notifyCallEnd();
+    }
+  }, [callState, notifyCallEnd]);
+
   return (
     <DialerContext.Provider
       value={{
@@ -269,6 +287,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         setOutcome,
         setNotes,
         dropVoicemail,
+        onCallEnd,
         isReady,
       }}
     >

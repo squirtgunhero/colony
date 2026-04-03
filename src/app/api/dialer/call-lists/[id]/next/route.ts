@@ -49,7 +49,8 @@ export async function GET(
         type: true,
         notes: true,
         lastContactedAt: true,
-        leadScore: { select: { score: true, grade: true } },
+        leadScore: true,
+        leadGrade: true,
       },
     });
 

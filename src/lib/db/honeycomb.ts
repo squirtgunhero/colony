@@ -686,7 +686,7 @@ function mapBotToListItem(bot: {
   status: string;
   conversationCount: number;
   welcomeMessage: string | null;
-  embedToken: string;
+  embedToken: string | null;
   qualificationFlow: unknown;
   brandColor: string | null;
   position: string | null;
@@ -698,6 +698,7 @@ function mapBotToListItem(bot: {
   notifyOnLead: boolean;
   createdAt: Date;
   updatedAt: Date;
+  [key: string]: unknown;
 }): ChatBotListItem {
   return {
     id: bot.id,
@@ -706,7 +707,7 @@ function mapBotToListItem(bot: {
     status: bot.status as ChatBotStatus,
     conversationCount: bot.conversationCount,
     welcomeMessage: bot.welcomeMessage,
-    embedToken: bot.embedToken,
+    embedToken: bot.embedToken ?? "",
     qualificationFlow: bot.qualificationFlow,
     brandColor: bot.brandColor,
     position: bot.position,

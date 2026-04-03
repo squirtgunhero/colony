@@ -933,6 +933,82 @@ export const MarketingGenerateContentActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Automation Actions
+// ============================================================================
+
+export const AutomationCreatePayloadSchema = z.object({
+  name: z.string(),
+  trigger: z.object({ type: z.string(), conditions: z.record(z.string(), z.unknown()).optional() }),
+  action: z.object({ type: z.string(), params: z.record(z.string(), z.unknown()) }),
+});
+
+export const AutomationCreateExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("automation"),
+  created: z.literal(true),
+});
+
+export const AutomationCreateActionSchema = BaseActionSchema.extend({
+  type: z.literal("automation.create"),
+  payload: AutomationCreatePayloadSchema,
+  expected_outcome: AutomationCreateExpectedOutcomeSchema,
+});
+
+export const AutomationListPayloadSchema = z.object({
+  activeOnly: z.boolean().optional(),
+});
+
+export const AutomationListExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("automation"),
+  listed: z.literal(true),
+});
+
+export const AutomationListActionSchema = BaseActionSchema.extend({
+  type: z.literal("automation.list"),
+  payload: AutomationListPayloadSchema,
+  expected_outcome: AutomationListExpectedOutcomeSchema,
+});
+
+// ============================================================================
+// DocuSign Actions
+// ============================================================================
+
+export const DocuSignSendEnvelopePayloadSchema = z.object({
+  dealId: z.string().optional(),
+  dealTitle: z.string().optional(),
+  documentUrl: z.string().optional(),
+  subject: z.string(),
+  signers: z.array(z.object({ name: z.string(), email: z.string() })),
+});
+
+export const DocuSignSendEnvelopeExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("envelope"),
+  sent: z.literal(true),
+});
+
+export const DocuSignSendEnvelopeActionSchema = BaseActionSchema.extend({
+  type: z.literal("docusign.send_envelope"),
+  payload: DocuSignSendEnvelopePayloadSchema,
+  expected_outcome: DocuSignSendEnvelopeExpectedOutcomeSchema,
+});
+
+export const DocuSignCheckStatusPayloadSchema = z.object({
+  envelopeId: z.string().optional(),
+  dealId: z.string().optional(),
+  dealTitle: z.string().optional(),
+});
+
+export const DocuSignCheckStatusExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("envelope"),
+  status_checked: z.literal(true),
+});
+
+export const DocuSignCheckStatusActionSchema = BaseActionSchema.extend({
+  type: z.literal("docusign.check_status"),
+  payload: DocuSignCheckStatusPayloadSchema,
+  expected_outcome: DocuSignCheckStatusExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // Union Action Type
 // ============================================================================
 
@@ -981,6 +1057,10 @@ export const ActionSchema = z.discriminatedUnion("type", [
   DealAddMilestonesActionSchema,
   MarketingGenerateImageActionSchema,
   MarketingGenerateContentActionSchema,
+  AutomationCreateActionSchema,
+  AutomationListActionSchema,
+  DocuSignSendEnvelopeActionSchema,
+  DocuSignCheckStatusActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -1012,6 +1092,7 @@ export const ActionPlanSchema = z.object({
   verification_steps: z.array(VerificationStepSchema),
   user_summary: z.string(),
   follow_up_question: z.string().nullable(),
+  response_options: z.array(z.string()).nullable().optional(),
   requires_approval: z.boolean(),
   highest_risk_tier: RiskTier,
 });
@@ -1038,6 +1119,8 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "savedSearch.list":
     case "marketing.generate_image":
     case "marketing.generate_content":
+    case "automation.list":
+    case "docusign.check_status":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
@@ -1062,6 +1145,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "savedSearch.create":
     case "savedSearch.update":
     case "deal.addMilestones":
+    case "automation.create":
       return 1;
     // Tier 2: Destructive bulk actions + external communications + spending money
     case "lead.deleteAll":
@@ -1076,6 +1160,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "google.create_campaign":
     case "google.launch_campaign":
     case "contacts.import":
+    case "docusign.send_envelope":
       return 2;
     default:
       return 2;

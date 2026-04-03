@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   Voicemail,
+  Search,
 } from "lucide-react";
 
 const OUTCOMES = [
@@ -58,6 +59,8 @@ export function DialerPanel() {
   const [noteText, setNoteText] = useState("");
   const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<{ id: string; name: string; phone: string }[]>([]);
 
   const borderColor = withAlpha(theme.text, 0.1);
   const isActive = callState !== "idle" && callState !== "disconnected";
@@ -70,6 +73,34 @@ export function DialerPanel() {
       setIsExpanded(true);
     }
   }, [isActive, isPostCall]);
+
+  // Contact search (debounced)
+  useEffect(() => {
+    if (!contactSearch || contactSearch.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(contactSearch)}&hasPhone=true&limit=5`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(
+            (data.contacts || data || [])
+              .filter((c: { phone?: string | null }) => c.phone)
+              .map((c: { id: string; name: string; phone: string }) => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phone,
+              }))
+          );
+        }
+      } catch {
+        // ignore
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [contactSearch]);
 
   // Save notes on change (debounced)
   useEffect(() => {
@@ -208,11 +239,63 @@ export function DialerPanel() {
           {/* Manual dialer (when idle) */}
           {!isActive && !isPostCall && (
             <div className="space-y-2">
+              {/* Contact search */}
+              <div className="relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
+                  style={{ color: withAlpha(theme.text, 0.3) }}
+                />
+                <input
+                  value={contactSearch}
+                  onChange={(e) => {
+                    setContactSearch(e.target.value);
+                    setManualNumber("");
+                  }}
+                  placeholder="Search contacts..."
+                  className="w-full h-9 pl-8 pr-3 rounded-lg text-[13px] focus:outline-none"
+                  style={{
+                    backgroundColor: withAlpha(theme.text, 0.05),
+                    border: `1px solid ${withAlpha(theme.text, 0.08)}`,
+                    color: theme.text,
+                  }}
+                />
+              </div>
+
+              {/* Search results */}
+              {searchResults.length > 0 && (
+                <div
+                  className="rounded-lg overflow-hidden"
+                  style={{ border: `1px solid ${withAlpha(theme.text, 0.08)}` }}
+                >
+                  {searchResults.map((c, i) => (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        call(c.phone, c.id, c.name);
+                        setContactSearch("");
+                        setSearchResults([]);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-white/[0.03]"
+                      style={{
+                        borderBottom: i < searchResults.length - 1 ? `1px solid ${withAlpha(theme.text, 0.05)}` : undefined,
+                      }}
+                    >
+                      <Phone className="h-3 w-3 shrink-0" style={{ color: "#22c55e" }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium truncate" style={{ color: theme.text }}>{c.name}</p>
+                        <p className="text-[10px]" style={{ color: withAlpha(theme.text, 0.4) }}>{c.phone}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Manual number input */}
               <input
                 type="tel"
                 value={manualNumber}
                 onChange={(e) => setManualNumber(e.target.value)}
-                placeholder="Enter phone number..."
+                placeholder="Or enter number..."
                 className="w-full h-9 px-3 rounded-lg text-[13px] focus:outline-none"
                 style={{
                   backgroundColor: withAlpha(theme.text, 0.05),

@@ -31,21 +31,33 @@ export default async function CallListDetailPage({ params }: Props) {
       phone: true,
       email: true,
       type: true,
-      leadScore: { select: { score: true, grade: true } },
+      leadScore: true,
+      leadGrade: true,
     },
   });
 
   const contactMap = new Map(contacts.map((c) => [c.id, c]));
-  const entries = list.entries.map((entry) => ({
-    id: entry.id,
-    contactId: entry.contactId,
-    position: entry.position,
-    status: entry.status,
-    outcome: entry.outcome,
-    notes: entry.notes,
-    calledAt: entry.calledAt?.toISOString() || null,
-    contact: contactMap.get(entry.contactId) || null,
-  }));
+  const entries = list.entries.map((entry) => {
+    const contact = contactMap.get(entry.contactId);
+    return {
+      id: entry.id,
+      contactId: entry.contactId,
+      position: entry.position,
+      status: entry.status,
+      outcome: entry.outcome,
+      notes: entry.notes,
+      calledAt: entry.calledAt?.toISOString() || null,
+      contact: contact ? {
+        id: contact.id,
+        name: contact.name,
+        phone: contact.phone,
+        email: contact.email,
+        type: contact.type,
+        leadScore: contact.leadScore,
+        leadGrade: contact.leadGrade,
+      } : null,
+    };
+  });
 
   return (
     <CallListDetail

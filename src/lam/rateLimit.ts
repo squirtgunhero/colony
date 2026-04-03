@@ -224,7 +224,17 @@ export async function recordUsage(
 // Get Current Usage Stats
 // ============================================================================
 
-export async function getUsageStats(): Promise<{
+export function getUsageStats(): {
+  global: { hourly: number; daily: number };
+  spend: { daily: number; monthly: number; limits: { daily: number; monthly: number } };
+} {
+  return {
+    global: { hourly: globalLimits.hourly.count, daily: globalLimits.daily.count },
+    spend: { daily: dailySpend.amount, monthly: monthlySpend.amount, limits: { daily: LAM_LIMITS.MAX_DAILY_SPEND, monthly: LAM_LIMITS.MAX_MONTHLY_SPEND } },
+  };
+}
+
+export async function getUsageStatsAsync(): Promise<{
   global: { hourly: number; daily: number };
   spend: { daily: number; monthly: number; limits: { daily: number; monthly: number } };
 }> {
@@ -243,8 +253,5 @@ export async function getUsageStats(): Promise<{
     };
   }
 
-  return {
-    global: { hourly: globalLimits.hourly.count, daily: globalLimits.daily.count },
-    spend: { daily: dailySpend.amount, monthly: monthlySpend.amount, limits: { daily: LAM_LIMITS.MAX_DAILY_SPEND, monthly: LAM_LIMITS.MAX_MONTHLY_SPEND } },
-  };
+  return getUsageStats();
 }

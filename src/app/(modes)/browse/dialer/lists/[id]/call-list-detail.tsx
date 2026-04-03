@@ -14,10 +14,14 @@ import {
   XCircle,
   SkipForward,
   BotMessageSquare,
+  Play,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { ActionButton } from "@/components/ui/action-button";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
+import { DialingSession } from "@/components/dialer/DialingSession";
+import { TaraSession } from "@/components/dialer/TaraSession";
 
 interface Entry {
   id: string;
@@ -33,7 +37,8 @@ interface Entry {
     phone: string | null;
     email: string | null;
     type: string;
-    leadScore: { score: number; grade: string } | null;
+    leadScore: number | null;
+    leadGrade: string | null;
   } | null;
 }
 
@@ -59,6 +64,8 @@ export function CallListDetail({ list, entries }: Props) {
   const borderColor = withAlpha(theme.text, 0.06);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isDialing, setIsDialing] = useState(false);
+  const [isTaraActive, setIsTaraActive] = useState(false);
 
   const completed = entries.filter((e) => e.status === "completed").length;
   const pending = entries.filter((e) => e.status === "pending").length;
@@ -79,6 +86,33 @@ export function CallListDetail({ list, entries }: Props) {
     });
   };
 
+  if (isTaraActive) {
+    return (
+      <TaraSession
+        callListId={list.id}
+        callListName={list.name}
+        objective="qualify"
+        onExit={() => {
+          setIsTaraActive(false);
+          router.refresh();
+        }}
+      />
+    );
+  }
+
+  if (isDialing) {
+    return (
+      <DialingSession
+        callListId={list.id}
+        callListName={list.name}
+        onExit={() => {
+          setIsDialing(false);
+          router.refresh();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <PageHeader
@@ -87,18 +121,41 @@ export function CallListDetail({ list, entries }: Props) {
         icon={ListChecks}
         overline="Dialer / Call Lists"
         actions={
-          <Link
-            href="/browse/dialer/lists"
-            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium transition-all duration-150 hover:opacity-90"
-            style={{
-              backgroundColor: withAlpha(theme.text, 0.06),
-              color: withAlpha(theme.text, 0.7),
-              border: `1px solid ${withAlpha(theme.text, 0.08)}`,
-            }}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            All Lists
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/browse/dialer/lists"
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium transition-all duration-150 hover:opacity-90"
+              style={{
+                backgroundColor: withAlpha(theme.text, 0.06),
+                color: withAlpha(theme.text, 0.7),
+                border: `1px solid ${withAlpha(theme.text, 0.08)}`,
+              }}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              All Lists
+            </Link>
+            {pending > 0 && (
+              <>
+                <button
+                  onClick={() => setIsTaraActive(true)}
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium transition-all duration-150 hover:opacity-90"
+                  style={{
+                    backgroundColor: withAlpha("#bf5af2", 0.12),
+                    color: "#bf5af2",
+                    border: `1px solid ${withAlpha("#bf5af2", 0.2)}`,
+                  }}
+                >
+                  <BotMessageSquare className="h-4 w-4" />
+                  Assign Tara
+                </button>
+                <ActionButton
+                  label="Start Dialing"
+                  icon={Play}
+                  onClick={() => setIsDialing(true)}
+                />
+              </>
+            )}
+          </div>
         }
       />
 
@@ -169,7 +226,7 @@ export function CallListDetail({ list, entries }: Props) {
                 </div>
 
                 {/* Lead score */}
-                {contact?.leadScore && (
+                {contact?.leadGrade && (
                   <span
                     className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
                     style={{
@@ -177,7 +234,7 @@ export function CallListDetail({ list, entries }: Props) {
                       color: theme.accent,
                     }}
                   >
-                    {contact.leadScore.grade}
+                    {contact.leadGrade}
                   </span>
                 )}
 

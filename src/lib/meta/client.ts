@@ -567,6 +567,29 @@ class MetaApiClient {
       ],
     });
   }
+
+  async searchCity(cityName: string): Promise<{ key: string; name: string } | null> {
+    try {
+      const q = encodeURIComponent(cityName);
+      const result = await this.request<{ data: Array<{ key: string; name: string }> }>(
+        `/search?type=adgeolocation&q=${q}&location_types=%5B%22city%22%5D`
+      );
+      return result.data?.[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async getPages(): Promise<Array<{ id: string; name: string; access_token: string }>> {
+    try {
+      const result = await this.request<{ data: Array<{ id: string; name: string; access_token: string }> }>(
+        "/me/accounts?fields=id,name,access_token"
+      );
+      return result.data ?? [];
+    } catch {
+      return [];
+    }
+  }
 }
 
 /**

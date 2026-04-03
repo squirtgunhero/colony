@@ -129,20 +129,53 @@ model Contact {
   utmTerm         String?  @map("utm_term")
   landingPage     String?  @map("landing_page")     // URL where lead first arrived
 
+  // Dialer fields
+  lastContactedAt DateTime? @map("last_contacted_at")
+  leadScore       Int?      @map("lead_score")
+  leadGrade       String?   @map("lead_grade") // A, B, C, D, F
+
+  // Company / enrichment fields
+  companyId           String?   @map("company_id")
+  company             Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  jobTitle            String?   @map("job_title")
+  companyName         String?   @map("company_name")
+  companyDomain       String?   @map("company_domain")
+  industry            String?
+  linkedinUrl         String?   @map("linkedin_url")
+  avatarUrl           String?   @map("avatar_url")
+  enrichedAt          DateTime? @map("enriched_at")
+  enrichmentSource    String?   @map("enrichment_source")
+  relationshipScore   Int?      @map("relationship_score")
+  interactionCount    Int       @default(0) @map("interaction_count")
+  lastExternalContact DateTime? @map("last_external_contact")
+
   // Relations
-  properties     Property[]
-  deals          Deal[]
-  tasks          Task[]
-  activities     Activity[]
-  inboxThreads   InboxThread[]
-  noteRecords    Note[]
-  savedSearches  SavedSearch[]
-  attributions   LeadAttribution[]
-  callRecordings CallRecording[]
+  properties             Property[]
+  deals                  Deal[]
+  tasks                  Task[]
+  activities             Activity[]
+  inboxThreads           InboxThread[]
+  noteRecords            Note[]
+  savedSearches          SavedSearch[]
+  attributions           LeadAttribution[]
+  callRecordings         CallRecording[]
+  calls                  Call[]
+  callListEntries        CallListEntry[]
+  leadScoreRecord        LeadScore?
+  emailInteractions      EmailInteraction[]
+  meetingInteractions     MeetingInteraction[]
+  enrichmentJobs         EnrichmentJob[]
+  listingAlerts          ListingAlert[]
+  aiEngagements          AIEngagement[]
+  sequenceEnrollments    SequenceEnrollment[]
+  textCampaignRecipients TextCampaignRecipient[]
+  emailCampaignRecipients EmailCampaignRecipient[]
+  chatBotConversations   ChatBotConversation[]
 
   @@index([teamId])
   @@index([campaignChannel])
   @@index([source])
+  @@index([companyId])
 }
 
 // ============================================================================
@@ -276,19 +309,42 @@ model Deal {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  // Transaction details
+  transactionSide   String?   @map("transaction_side") // buyer | seller | dual
+  commissionPercent Float?    @map("commission_percent")
+  commissionAmount  Float?    @map("commission_amount")
+  commissionSplit   Float?    @map("commission_split")
+  contractDate      DateTime? @map("contract_date")
+  inspectionDate    DateTime? @map("inspection_date")
+  appraisalDate     DateTime? @map("appraisal_date")
+  closingDate       DateTime? @map("closing_date")
+  earnestMoney      Float?    @map("earnest_money")
+  escrowCompany     String?   @map("escrow_company")
+  titleCompany      String?   @map("title_company")
+  lenderName        String?   @map("lender_name")
+  loanAmount        Float?    @map("loan_amount")
+  probability       Float?
+  weightedValue     Float?    @map("weighted_value")
+  closedAt          DateTime? @map("closed_at")
+
   // Relations
-  contactId  String?
-  contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  propertyId String?
-  property   Property?  @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  tasks      Task[]
-  activities Activity[]
-  documents  Document[]
+  contactId     String?
+  contact       Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  propertyId    String?
+  property      Property?      @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  companyId     String?        @map("company_id")
+  company       Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  tasks         Task[]
+  activities    Activity[]
+  documents     Document[]
+  closingTasks  ClosingTask[]
+  docuSignEnvelopes DocuSignEnvelope[]
 
   @@index([teamId])
   @@index([userId])
   @@index([contactId])
   @@index([propertyId])
+  @@index([companyId])
 }
 
 model Task {
@@ -320,16 +376,18 @@ model Task {
 }
 
 model EmailAccount {
-  id           String   @id @default(cuid())
-  userId       String   @map("user_id") @db.Uuid // Supabase auth user ID
-  provider     String // gmail, outlook
-  email        String // The connected email address
-  accessToken  String   @map("access_token") // OAuth access token
-  refreshToken String   @map("refresh_token") // OAuth refresh token
-  expiresAt    DateTime @map("expires_at") // Token expiration
-  isDefault    Boolean  @default(false) @map("is_default")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id") @db.Uuid // Supabase auth user ID
+  provider        String // gmail, outlook
+  email           String // The connected email address
+  accessToken     String    @map("access_token") // OAuth access token
+  refreshToken    String    @map("refresh_token") // OAuth refresh token
+  expiresAt       DateTime  @map("expires_at") // Token expiration
+  isDefault       Boolean   @default(false) @map("is_default")
+  gmailHistoryId  String?   @map("gmail_history_id")
+  lastSyncedAt    DateTime? @map("last_synced_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   @@unique([userId, email])
   @@index([userId])
@@ -598,14 +656,26 @@ model HoneycombChatBot {
   description       String?
   status            String   @default("draft") // draft | active | paused
   conversationCount Int      @default(0) @map("conversation_count")
-  
+
   // Configuration
-  welcomeMessage    String?  @map("welcome_message")
-  systemPrompt      String?  @map("system_prompt")
-  
+  welcomeMessage       String?  @map("welcome_message")
+  systemPrompt         String?  @map("system_prompt")
+  embedToken           String?  @unique @default(cuid()) @map("embed_token")
+  qualificationFlow    Json     @default("[]") @map("qualification_flow")
+  collectLeadAfter     Int      @default(3) @map("collect_lead_after")
+  notifyOnLead         Boolean  @default(true) @map("notify_on_lead")
+  brandColor           String?  @map("brand_color")
+  position             String?  // bottom-right | bottom-left
+  avatarUrl            String?  @map("avatar_url")
+  companyName          String?  @map("company_name")
+  autoGreet            Boolean  @default(false) @map("auto_greet")
+  autoGreetDelay       Int      @default(3) @map("auto_greet_delay")
+
   metadata          Json?    @default("{}")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
+
+  conversations     ChatBotConversation[]
 
   @@index([userId, status])
   @@index([userId, createdAt(sort: Desc)])
@@ -1261,15 +1331,16 @@ model Conversation {
 }
 
 model ConversationMessage {
-  id        String   @id @default(cuid())
-  convId    String   @map("conv_id")
-  conv      Conversation @relation(fields: [convId], references: [id], onDelete: Cascade)
-  role      String   // user | assistant | system
-  content   String
-  channel   String   // sms | web | whatsapp
-  lamRunId  String?  @map("lam_run_id")
-  lamRun    LamRun?  @relation(fields: [lamRunId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now()) @map("created_at")
+  id              String   @id @default(cuid())
+  convId          String   @map("conv_id")
+  conv            Conversation @relation(fields: [convId], references: [id], onDelete: Cascade)
+  role            String   // user | assistant | system
+  content         String
+  channel         String   // sms | web | whatsapp
+  responseOptions Json?    @map("response_options")
+  lamRunId        String?  @map("lam_run_id")
+  lamRun          LamRun?  @relation(fields: [lamRunId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now()) @map("created_at")
 
   @@index([convId, createdAt(sort: Asc)])
   @@map("conversation_messages")
@@ -1320,7 +1391,8 @@ model EmailCampaign {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  steps EmailCampaignStep[]
+  steps      EmailCampaignStep[]
+  recipients EmailCampaignRecipient[]
 
   @@index([userId, status])
   @@index([userId, type])
@@ -1372,7 +1444,10 @@ model LandingPage {
   name        String
   slug        String    @unique
   status      String    @default("draft") // draft | published | archived
+  siteType    String    @default("landing_page") @map("site_type")
   templateId  String?   @map("template_id")
+  prompt      String?
+  htmlContent String?   @map("html_content")
   contentJson Json      @map("content_json")
   views       Int       @default(0)
   leads       Int       @default(0)
@@ -1380,6 +1455,8 @@ model LandingPage {
   metadata    Json?     @default("{}")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  revisions   SiteRevision[]
 
   @@index([userId, status])
   @@index([slug])
@@ -1420,6 +1497,7 @@ model CallRecording {
   analysisStatus  String    @default("pending") @map("analysis_status") // pending | transcribing | analyzing | complete | failed
   analysisError   String?   @map("analysis_error")
 
+  occurredAt      DateTime  @default(now()) @map("occurred_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
@@ -1427,4 +1505,725 @@ model CallRecording {
   @@index([contactId])
   @@index([callSid])
   @@map("call_recordings")
+}
+
+// ============================================================================
+// POWER DIALER - Call tracking, lists, and voice AI
+// ============================================================================
+
+model Call {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id") @db.Uuid
+  contactId       String?   @map("contact_id")
+  callListId      String?   @map("call_list_id")
+
+  // Call metadata
+  direction       String    @default("outbound") // outbound | inbound
+  status          String    @default("initiated") // initiated | ringing | in_progress | completed | busy | no_answer | failed
+  outcome         String?   // interested | not_interested | callback_requested | left_voicemail | no_answer | busy | wrong_number | dnc
+  fromNumber      String    @map("from_number")
+  toNumber        String    @map("to_number")
+  twilioCallSid   String?   @unique @map("twilio_call_sid")
+
+  // Timing
+  duration        Int?      // seconds
+  startedAt       DateTime  @default(now()) @map("started_at")
+  answeredAt      DateTime? @map("answered_at")
+  endedAt         DateTime? @map("ended_at")
+
+  // Content
+  notes           String?
+  recordingUrl    String?   @map("recording_url")
+
+  // Voice AI fields
+  isVoiceAI       Boolean   @default(false) @map("is_voice_ai")
+  aiObjective     String?   @map("ai_objective") // qualify | appointment | followup
+  aiTranscript    Json?     @map("ai_transcript")
+  aiSummary       String?   @map("ai_summary")
+  aiSentiment     String?   @map("ai_sentiment") // positive | neutral | negative
+  aiInterestScore Int?      @map("ai_interest_score") // 1-5
+  appointmentSet  Boolean   @default(false) @map("appointment_set")
+  appointmentDate DateTime? @map("appointment_date")
+  leadQualified   Boolean?  @map("lead_qualified")
+  amdResult       String?   @map("amd_result") // human | machine | unknown
+
+  // Relations
+  contact         Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  callList        CallList? @relation(fields: [callListId], references: [id], onDelete: SetNull)
+  actions         CallAction[]
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([contactId])
+  @@index([callListId])
+  @@index([twilioCallSid])
+  @@map("calls")
+}
+
+model CallList {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id") @db.Uuid
+  name        String
+  description String?
+  status      String   @default("active") // active | paused | completed | archived
+  filterJson  Json?    @map("filter_json") // smart list filter config
+  sortOrder   String   @default("lead_score_desc") @map("sort_order")
+
+  // Relations
+  entries     CallListEntry[]
+  calls       Call[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@map("call_lists")
+}
+
+model CallListEntry {
+  id          String    @id @default(cuid())
+  callListId  String    @map("call_list_id")
+  contactId   String    @map("contact_id")
+  position    Int       @default(0)
+  status      String    @default("pending") // pending | completed | skipped
+  outcome     String?
+  notes       String?
+  calledAt    DateTime? @map("called_at")
+
+  // Relations
+  callList    CallList  @relation(fields: [callListId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([callListId, contactId])
+  @@index([callListId, status])
+  @@map("call_list_entries")
+}
+
+model CallAction {
+  id          String    @id @default(cuid())
+  callId      String    @map("call_id")
+  userId      String    @map("user_id") @db.Uuid
+  type        String    // follow_up_call | send_email | schedule_showing | add_note | create_task | score_updated | status_changed | tag_added
+  description String
+  dueDate     DateTime? @map("due_date")
+  completed   Boolean   @default(false)
+  completedAt DateTime? @map("completed_at")
+
+  // Relations
+  call        Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  @@index([callId])
+  @@map("call_actions")
+}
+
+model VoicemailDrop {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id") @db.Uuid
+  name         String
+  recordingUrl String   @map("recording_url")
+  duration     Int?     // seconds
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  @@index([userId])
+  @@map("voicemail_drops")
+}
+
+// ============================================================================
+// COMPANIES
+// ============================================================================
+
+model Company {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id") @db.Uuid
+  name      String
+  domain    String?
+  industry  String?
+  size      String?
+  phone     String?
+  email     String?
+  website   String?
+  address   String?
+  city      String?
+  state     String?
+  zipCode   String?  @map("zip_code")
+  notes     String?
+  logoUrl   String?  @map("logo_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  contacts  Contact[]
+  deals     Deal[]
+
+  @@index([userId])
+  @@map("companies")
+}
+
+// ============================================================================
+// CLOSING TASKS - Transaction management for deals
+// ============================================================================
+
+model ClosingTask {
+  id          String    @id @default(cuid())
+  dealId      String    @map("deal_id")
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  title       String
+  category    String    // contract | title | inspection | appraisal | financing | closing
+  position    Int       @default(0)
+  isCompleted Boolean   @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([dealId])
+  @@map("closing_tasks")
+}
+
+// ============================================================================
+// EMAIL SEQUENCES - Automated drip sequences
+// ============================================================================
+
+model EmailSequence {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id") @db.Uuid
+  name        String
+  description String?
+  steps       Json     @default("[]") // Array of step objects
+  status      String   @default("draft") // draft | active | paused | archived
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  enrollments SequenceEnrollment[]
+
+  @@index([userId, status])
+  @@map("email_sequences")
+}
+
+model SequenceEnrollment {
+  id          String    @id @default(cuid())
+  sequenceId  String    @map("sequence_id")
+  sequence    EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contactId   String    @map("contact_id")
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  currentStep Int       @default(1) @map("current_step")
+  status      String    @default("active") // active | completed | bounced | unsubscribed | paused
+  nextSendAt  DateTime? @map("next_send_at")
+  enrolledAt  DateTime  @default(now()) @map("enrolled_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  events      SequenceEvent[]
+
+  @@index([sequenceId, status])
+  @@index([contactId])
+  @@map("sequence_enrollments")
+}
+
+model SequenceEvent {
+  id           String   @id @default(cuid())
+  enrollmentId String   @map("enrollment_id")
+  enrollment   SequenceEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  step         Int
+  type         String   // sent | opened | clicked | bounced | unsubscribed | replied
+  metadata     Json?
+  occurredAt   DateTime @default(now()) @map("occurred_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([enrollmentId])
+  @@map("sequence_events")
+}
+
+// ============================================================================
+// TEXT CAMPAIGNS - SMS marketing campaigns
+// ============================================================================
+
+model TextCampaign {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id") @db.Uuid
+  name           String
+  message        String
+  status         String    @default("draft") // draft | scheduled | sending | sent | failed
+  scheduledAt    DateTime? @map("scheduled_at")
+  sentAt         DateTime? @map("sent_at")
+  startedAt      DateTime? @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  recipientCount Int       @default(0) @map("recipient_count")
+  sentCount      Int       @default(0) @map("sent_count")
+  failedCount    Int       @default(0) @map("failed_count")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  recipients     TextCampaignRecipient[]
+
+  @@index([userId, status])
+  @@map("text_campaigns")
+}
+
+model TextCampaignRecipient {
+  id           String    @id @default(cuid())
+  campaignId   String    @map("campaign_id")
+  campaign     TextCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId    String    @map("contact_id")
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  phone        String
+  status       String    @default("pending") // pending | sent | failed | unsubscribed
+  sentAt       DateTime? @map("sent_at")
+  twilioSid    String?   @map("twilio_sid")
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([campaignId, status])
+  @@map("text_campaign_recipients")
+}
+
+// ============================================================================
+// EMAIL CAMPAIGN RECIPIENTS - Individual recipient tracking
+// ============================================================================
+
+model EmailCampaignRecipient {
+  id           String        @id @default(cuid())
+  campaignId   String        @map("campaign_id")
+  campaign     EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId    String        @map("contact_id")
+  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status       String        @default("pending") // pending | sent | failed | opened | clicked | bounced | unsubscribed
+  sentAt       DateTime?     @map("sent_at")
+  openedAt     DateTime?     @map("opened_at")
+  clickedAt    DateTime?     @map("clicked_at")
+  errorMessage String?       @map("error_message")
+  currentStep  Int           @default(0) @map("current_step")
+  lastStepSentAt DateTime?   @map("last_step_sent_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  @@unique([campaignId, contactId])
+  @@map("email_campaign_recipients")
+}
+
+// ============================================================================
+// LISTING ALERTS - Automated property alerts for contacts
+// ============================================================================
+
+model ListingAlert {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id") @db.Uuid
+  contactId    String   @map("contact_id")
+  contact      Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  name         String
+  channel      String   @default("email") // email | sms
+  frequency    String   @default("instant") // instant | daily | weekly
+  cities       String[] @default([])
+  states       String[] @default([])
+  zipCodes     String[] @default([]) @map("zip_codes")
+  minPrice     Float?   @map("min_price")
+  maxPrice     Float?   @map("max_price")
+  minBedrooms  Int?     @map("min_bedrooms")
+  maxBedrooms  Int?     @map("max_bedrooms")
+  minBathrooms Float?   @map("min_bathrooms")
+  minSqft      Float?   @map("min_sqft")
+  maxSqft      Float?   @map("max_sqft")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([contactId])
+  @@map("listing_alerts")
+}
+
+// ============================================================================
+// AI ENGAGEMENT - Tara's autonomous contact engagement
+// ============================================================================
+
+model AIEngagement {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id") @db.Uuid
+  contactId     String    @map("contact_id")
+  contact       Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel       String    // sms | email
+  aiObjective   String    @default("qualify") @map("ai_objective") // qualify | schedule_showing | re_engage
+  status        String    @default("active") // active | paused | unresponsive | completed
+  messageCount  Int       @default(0) @map("message_count")
+  lastMessageAt DateTime? @map("last_message_at")
+  lastReplyAt   DateTime? @map("last_reply_at")
+  nextFollowUp  DateTime? @map("next_follow_up")
+  summary       String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  messages      AIEngagementMessage[]
+
+  @@unique([userId, contactId, channel])
+  @@index([userId, status])
+  @@map("ai_engagements")
+}
+
+model AIEngagementMessage {
+  id           String       @id @default(cuid())
+  engagementId String       @map("engagement_id")
+  engagement   AIEngagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  role         String       // assistant | user
+  content      String
+  channel      String       // sms | email
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  @@index([engagementId])
+  @@map("ai_engagement_messages")
+}
+
+// ============================================================================
+// WORKFLOWS - Event-driven automation pipelines
+// ============================================================================
+
+model Workflow {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id") @db.Uuid
+  name        String
+  description String?
+  trigger     Json      // WorkflowTrigger: { type, entityType?, conditions? }
+  steps       Json      // WorkflowStep[] array
+  status      String    @default("active") // active | inactive | archived
+  runCount    Int       @default(0) @map("run_count")
+  lastRunAt   DateTime? @map("last_run_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  runs        WorkflowRun[]
+
+  @@index([userId, status])
+  @@map("workflows")
+}
+
+model WorkflowRun {
+  id          String    @id @default(cuid())
+  workflowId  String    @map("workflow_id")
+  workflow    Workflow   @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  entityId    String    @map("entity_id")
+  entityType  String    @map("entity_type")
+  status      String    @default("running") // running | completed | failed | cancelled | delayed
+  steps       Json      @default("[]") // StepLog[]
+  currentStep Int       @default(0) @map("current_step")
+  scheduledAt DateTime? @map("scheduled_at")
+  error       String?
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([workflowId])
+  @@map("workflow_runs")
+}
+
+// ============================================================================
+// AUTOMATIONS - Simple trigger → action rules
+// ============================================================================
+
+model Automation {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id") @db.Uuid
+  name        String
+  trigger     Json      // { type, conditions? }
+  action      Json      // { type, params }
+  isActive    Boolean   @default(true) @map("is_active")
+  fireCount   Int       @default(0) @map("fire_count")
+  lastFiredAt DateTime? @map("last_fired_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, isActive])
+  @@map("automations")
+}
+
+// ============================================================================
+// CUSTOM FIELDS - User-defined fields for entities
+// ============================================================================
+
+model CustomFieldDefinition {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id") @db.Uuid
+  entityType  String   @map("entity_type") // contact | deal | company | property
+  name        String
+  fieldKey    String   @map("field_key")
+  fieldType   String   @map("field_type") // text | number | date | select | multiselect | boolean | url | email | phone
+  options     String[] @default([])
+  isRequired  Boolean  @default(false) @map("is_required")
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  values      CustomFieldValue[]
+
+  @@index([userId, entityType])
+  @@map("custom_field_definitions")
+}
+
+model CustomFieldValue {
+  id           String                @id @default(cuid())
+  definitionId String                @map("definition_id")
+  definition   CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  entityId     String                @map("entity_id")
+  value        String
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+
+  @@unique([definitionId, entityId])
+  @@map("custom_field_values")
+}
+
+// ============================================================================
+// DOCUSIGN - E-signature integration
+// ============================================================================
+
+model DocuSignAccount {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id") @db.Uuid
+  accountId    String   @map("account_id")
+  baseUri      String   @map("base_uri")
+  email        String
+  accessToken  String   @map("access_token")
+  refreshToken String   @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  envelopes    DocuSignEnvelope[]
+
+  @@unique([userId, accountId])
+  @@map("docu_sign_accounts")
+}
+
+model DocuSignEnvelope {
+  id                String          @id @default(cuid())
+  docuSignAccountId String          @map("docu_sign_account_id")
+  docuSignAccount   DocuSignAccount @relation(fields: [docuSignAccountId], references: [id], onDelete: Cascade)
+  envelopeId        String          @unique @map("envelope_id")
+  subject           String?
+  dealId            String?         @map("deal_id")
+  deal              Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  status            String          @default("sent") // sent | delivered | completed | declined | voided
+  recipients        Json?
+  sentAt            DateTime?       @map("sent_at")
+  completedAt       DateTime?       @map("completed_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  @@index([docuSignAccountId])
+  @@index([dealId])
+  @@map("docu_sign_envelopes")
+}
+
+// ============================================================================
+// LEAD SCORING - AI-powered lead qualification
+// ============================================================================
+
+model LeadScore {
+  id        String   @id @default(cuid())
+  contactId String   @unique @map("contact_id")
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  score     Int      @default(0)
+  grade     String   @default("F") // A | B | C | D | F
+  signals   Json?    // { engagement, fit, recency, activity }
+  scoredAt  DateTime @default(now()) @map("scored_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("lead_scores")
+}
+
+// ============================================================================
+// CHATBOT CONVERSATIONS - Public widget conversations
+// ============================================================================
+
+model ChatBotConversation {
+  id                    String           @id @default(cuid())
+  botId                 String           @map("bot_id")
+  bot                   HoneycombChatBot @relation(fields: [botId], references: [id], onDelete: Cascade)
+  visitorId             String           @map("visitor_id")
+  contactId             String?          @map("contact_id")
+  contact               Contact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  status                String           @default("active") // active | closed | converted
+  pageUrl               String?          @map("page_url")
+  referrer              String?
+  utmSource             String?          @map("utm_source")
+  utmMedium             String?          @map("utm_medium")
+  utmCampaign           String?          @map("utm_campaign")
+  visitorName           String?          @map("visitor_name")
+  visitorEmail          String?          @map("visitor_email")
+  visitorPhone          String?          @map("visitor_phone")
+  qualificationData     Json?            @map("qualification_data")
+  qualificationComplete Boolean          @default(false) @map("qualification_complete")
+  lastMessageAt         DateTime         @default(now()) @map("last_message_at")
+  createdAt             DateTime         @default(now()) @map("created_at")
+
+  messages              ChatBotMessage[]
+
+  @@index([botId])
+  @@index([visitorId])
+  @@map("chat_bot_conversations")
+}
+
+model ChatBotMessage {
+  id             String              @id @default(cuid())
+  conversationId String              @map("conversation_id")
+  conversation   ChatBotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String              // bot | visitor
+  content        String
+  questionId     String?             @map("question_id")
+  fieldMapping   String?             @map("field_mapping")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  @@index([conversationId])
+  @@map("chat_bot_messages")
+}
+
+// ============================================================================
+// SITE REVISIONS - Version history for landing pages
+// ============================================================================
+
+model SiteRevision {
+  id            String      @id @default(cuid())
+  landingPageId String      @map("landing_page_id")
+  landingPage   LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  version       Int
+  prompt        String
+  htmlContent   String      @map("html_content")
+  contentJson   Json        @map("content_json")
+  tokensUsed    Int         @default(0) @map("tokens_used")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@index([landingPageId])
+  @@map("site_revisions")
+}
+
+// ============================================================================
+// AI ATTRIBUTES - AI-computed fields on entities
+// ============================================================================
+
+model AiAttribute {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id") @db.Uuid
+  entityType    String   @map("entity_type") // contact | deal | property
+  name          String
+  slug          String
+  prompt        String
+  outputType    String   @map("output_type") // text | number | boolean | select
+  options       String[] @default([])
+  contextFields String[] @default([]) @map("context_fields")
+  isActive      Boolean  @default(true) @map("is_active")
+  autoRun       Boolean  @default(false) @map("auto_run")
+  isPreset      Boolean  @default(false) @map("is_preset")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  values        AiAttributeValue[]
+
+  @@unique([userId, slug])
+  @@index([userId, entityType])
+  @@map("ai_attributes")
+}
+
+model AiAttributeValue {
+  id          String      @id @default(cuid())
+  attributeId String      @map("attribute_id")
+  attribute   AiAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  entityId    String      @map("entity_id")
+  entityType  String?     @map("entity_type")
+  value       String?
+  confidence  Float?
+  computedAt  DateTime    @default(now()) @map("computed_at")
+
+  @@unique([attributeId, entityId])
+  @@map("ai_attribute_values")
+}
+
+// ============================================================================
+// ENRICHMENT - Contact data enrichment jobs
+// ============================================================================
+
+model EnrichmentJob {
+  id          String    @id @default(cuid())
+  contactId   String    @map("contact_id")
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status      String    @default("pending") // pending | processing | complete | failed
+  attempts    Int       @default(0)
+  provider    String?
+  result      Json?
+  error       String?
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([contactId])
+  @@index([status])
+  @@map("enrichment_jobs")
+}
+
+// ============================================================================
+// EMAIL/CALENDAR SYNC - Background sync tracking
+// ============================================================================
+
+model EmailSync {
+  id         String    @id @default(cuid())
+  profileId  String    @map("profile_id") @db.Uuid
+  provider   String    // gmail
+  status     String    @default("idle") // idle | syncing | error
+  syncCursor String?   @map("sync_cursor")
+  lastSyncAt DateTime? @map("last_sync_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@unique([profileId, provider])
+  @@map("email_syncs")
+}
+
+model CalendarSync {
+  id         String    @id @default(cuid())
+  profileId  String    @map("profile_id") @db.Uuid
+  provider   String    // google
+  status     String    @default("idle") // idle | syncing | error
+  syncToken  String?   @map("sync_token")
+  lastSyncAt DateTime? @map("last_sync_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@unique([profileId, provider])
+  @@map("calendar_syncs")
+}
+
+// ============================================================================
+// EMAIL & MEETING INTERACTIONS - Tracked communication events
+// ============================================================================
+
+model EmailInteraction {
+  id            String   @id @default(cuid())
+  profileId     String   @map("profile_id") @db.Uuid
+  contactId     String   @map("contact_id")
+  contact       Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  externalEmail String   @map("external_email")
+  direction     String   // inbound | outbound
+  subject       String?
+  snippet       String?
+  messageId     String   @unique @map("message_id")
+  threadId      String?  @map("thread_id")
+  occurredAt    DateTime @map("occurred_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([contactId])
+  @@index([profileId])
+  @@map("email_interactions")
+}
+
+model MeetingInteraction {
+  id            String   @id @default(cuid())
+  profileId     String   @map("profile_id") @db.Uuid
+  contactId     String   @map("contact_id")
+  contact       Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  externalEmail String   @map("external_email")
+  title         String
+  eventId       String   @unique @map("event_id")
+  startTime     DateTime @map("start_time")
+  endTime       DateTime @map("end_time")
+  status        String   @default("confirmed") // confirmed | cancelled | tentative
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([contactId])
+  @@index([profileId])
+  @@map("meeting_interactions")
 }
