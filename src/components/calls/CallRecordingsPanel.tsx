@@ -20,6 +20,7 @@ import {
   Play,
   Pause,
   Volume2,
+  Info,
 } from "lucide-react";
 
 // ============================================================================
@@ -88,6 +89,15 @@ function SentimentIcon({ sentiment }: { sentiment: string | null }) {
       return <AlertCircle className="h-3.5 w-3.5 text-amber-400" />;
     default:
       return <Minus className="h-3.5 w-3.5 text-zinc-400" />;
+  }
+}
+
+function sentimentDescription(sentiment: string | null): string {
+  switch (sentiment) {
+    case "positive": return "Client expressed interest, enthusiasm, or satisfaction during the call";
+    case "negative": return "Client showed frustration, disinterest, or dissatisfaction during the call";
+    case "mixed": return "Client showed both positive and negative signals — may need follow-up";
+    default: return "Client tone was neutral — no strong positive or negative signals detected";
   }
 }
 
@@ -288,8 +298,23 @@ function RecordingCard({ recording }: { recording: CallRecording }) {
             {isComplete && recording.sentiment && (
               <>
                 <span style={{ color: withAlpha(theme.text, 0.2) }}>·</span>
-                <span style={{ color: sentimentColor(recording.sentiment) }} className="capitalize">
+                <span
+                  className="capitalize flex items-center gap-1 relative group cursor-help"
+                  style={{ color: sentimentColor(recording.sentiment) }}
+                >
                   {recording.sentiment}
+                  <Info className="h-3 w-3 opacity-50" />
+                  <span
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg text-[11px] leading-tight normal-case w-52 text-center opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50"
+                    style={{
+                      backgroundColor: theme.surface,
+                      color: theme.textSoft,
+                      border: `1px solid ${withAlpha(theme.text, 0.1)}`,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                    }}
+                  >
+                    {sentimentDescription(recording.sentiment)}
+                  </span>
                 </span>
               </>
             )}
