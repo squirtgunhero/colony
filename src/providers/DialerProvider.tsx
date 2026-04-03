@@ -9,6 +9,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 
 // ============================================================================
 // Types
@@ -58,25 +59,29 @@ export function DialerProvider({ children }: { children: ReactNode }) {
   const activeCallRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const initPromiseRef = useRef<Promise<boolean> | null>(null);
 
   // Initialize Twilio Device eagerly on mount
   useEffect(() => {
     mountedRef.current = true;
 
-    async function initDevice() {
+    async function initDevice(): Promise<boolean> {
       try {
-        // Fetch token from our API
+        console.log("[Dialer] Fetching voice token...");
         const tokenRes = await fetch("/api/dialer/token", { method: "POST" });
+
         if (!tokenRes.ok) {
-          // 503 = Twilio not configured (expected in local dev without env vars)
+          const body = await tokenRes.text().catch(() => "");
           if (tokenRes.status === 503) {
-            console.info("Dialer: Twilio not configured, dialer disabled");
+            console.info("[Dialer] Twilio not configured, dialer disabled");
           } else {
-            console.warn("Dialer: failed to fetch token, status", tokenRes.status);
+            console.warn(`[Dialer] Token fetch failed: ${tokenRes.status} ${body}`);
           }
-          return;
+          return false;
         }
+
         const { token } = await tokenRes.json();
+        console.log("[Dialer] Token received, initializing Device...");
 
         // Dynamic import to avoid SSR issues
         const { Device } = await import("@twilio/voice-sdk");
@@ -86,13 +91,14 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         } as Record<string, unknown>);
 
         device.on("registered", () => {
+          console.log("[Dialer] Device registered and ready");
           if (mountedRef.current) {
             setState((s) => ({ ...s, isReady: true }));
           }
         });
 
         device.on("error", (err: Error) => {
-          console.error("Twilio Device error:", err);
+          console.error("[Dialer] Device error:", err);
           if (mountedRef.current) {
             setState((s) => ({ ...s, error: err.message }));
           }
@@ -100,18 +106,21 @@ export function DialerProvider({ children }: { children: ReactNode }) {
 
         await device.register();
         deviceRef.current = device;
+        console.log("[Dialer] Device registration complete");
+        return true;
       } catch (err) {
-        console.error("Failed to initialize dialer:", err);
+        console.error("[Dialer] Init failed:", err);
         if (mountedRef.current) {
           setState((s) => ({
             ...s,
             error: err instanceof Error ? err.message : "Failed to initialize dialer",
           }));
         }
+        return false;
       }
     }
 
-    initDevice();
+    initPromiseRef.current = initDevice();
 
     // Refresh token every 50 minutes
     const refreshInterval = setInterval(async () => {
@@ -151,17 +160,25 @@ export function DialerProvider({ children }: { children: ReactNode }) {
       contactId?: string;
       contactName?: string;
     }) => {
+      // Wait for init to finish if it's still in progress
+      if (initPromiseRef.current) {
+        console.log("[Dialer] Waiting for device init to complete...");
+        await initPromiseRef.current;
+      }
+
       if (!deviceRef.current) {
-        console.warn("Dialer: device not initialized — Twilio may not be configured");
+        console.warn("[Dialer] Device not initialized — cannot place call");
+        toast.error("Dialer not available. Check browser console for details.");
         setState((s) => ({
           ...s,
           isConnecting: false,
-          error: "Dialer not available. Check Twilio configuration.",
+          error: "Dialer not available",
         }));
         return;
       }
 
       setState((s) => ({ ...s, isConnecting: true, error: null }));
+      console.log("[Dialer] Placing call to", to);
 
       try {
         // Place call via Twilio Voice SDK
@@ -173,8 +190,10 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         });
 
         activeCallRef.current = call;
+        console.log("[Dialer] Call connecting...");
 
         call.on("accept", async () => {
+          console.log("[Dialer] Call accepted/connected");
           if (!mountedRef.current) return;
           setState((s) => ({
             ...s,
@@ -206,17 +225,19 @@ export function DialerProvider({ children }: { children: ReactNode }) {
               }),
             });
           } catch (err) {
-            console.error("Failed to register call:", err);
+            console.error("[Dialer] Failed to register call:", err);
           }
         });
 
         call.on("ringing", () => {
+          console.log("[Dialer] Ringing...");
           if (mountedRef.current) {
             setState((s) => ({ ...s, isConnecting: true }));
           }
         });
 
         call.on("disconnect", () => {
+          console.log("[Dialer] Call disconnected");
           if (timerRef.current) clearInterval(timerRef.current);
           activeCallRef.current = null;
           if (mountedRef.current) {
@@ -230,6 +251,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         });
 
         call.on("cancel", () => {
+          console.log("[Dialer] Call cancelled");
           if (timerRef.current) clearInterval(timerRef.current);
           activeCallRef.current = null;
           if (mountedRef.current) {
@@ -242,9 +264,11 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         });
 
         call.on("error", (err: Error) => {
+          console.error("[Dialer] Call error:", err);
           if (timerRef.current) clearInterval(timerRef.current);
           activeCallRef.current = null;
           if (mountedRef.current) {
+            toast.error(`Call failed: ${err.message}`);
             setState((s) => ({
               ...s,
               isOnCall: false,
@@ -254,6 +278,8 @@ export function DialerProvider({ children }: { children: ReactNode }) {
           }
         });
       } catch (err) {
+        console.error("[Dialer] Connect failed:", err);
+        toast.error(err instanceof Error ? err.message : "Call failed");
         setState((s) => ({
           ...s,
           isConnecting: false,
