@@ -9,15 +9,15 @@ import dynamic from "next/dynamic";
 
 const PipelineBarChart = dynamic(
   () => import("@/components/dashboard/charts/pipeline-bar-chart").then((m) => m.PipelineBarChart),
-  { ssr: false }
+  { loading: () => null }
 );
 const LeadSourcesChart = dynamic(
   () => import("@/components/dashboard/charts/lead-sources-chart").then((m) => m.LeadSourcesChart),
-  { ssr: false }
+  { loading: () => null }
 );
 const DealsTrendChart = dynamic(
   () => import("@/components/dashboard/charts/deals-trend-chart").then((m) => m.DealsTrendChart),
-  { ssr: false }
+  { loading: () => null }
 );
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 
