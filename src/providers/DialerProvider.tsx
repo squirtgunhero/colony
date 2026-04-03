@@ -88,6 +88,8 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         const device = new Device(token, {
           closeProtection: true,
           logLevel: "warn",
+          // Stop infinite reconnect attempts if WebSocket fails (e.g. CSP blocking)
+          maxCallSignalingTimeoutMs: 10000,
         } as Record<string, unknown>);
 
         device.on("registered", () => {
@@ -97,10 +99,19 @@ export function DialerProvider({ children }: { children: ReactNode }) {
           }
         });
 
+        let errorCount = 0;
         device.on("error", (err: Error) => {
+          errorCount++;
           console.error("[Dialer] Device error:", err);
           if (mountedRef.current) {
             setState((s) => ({ ...s, error: err.message }));
+          }
+          // If we get repeated errors (e.g. CSP blocking WebSocket), destroy device
+          // to stop the infinite reconnect loop
+          if (errorCount >= 3) {
+            console.warn("[Dialer] Too many errors, destroying device");
+            try { device.destroy(); } catch { /* noop */ }
+            deviceRef.current = null;
           }
         });
 
