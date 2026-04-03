@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateVoiceToken } from "@/lib/twilio-voice";
 
-export async function POST() {
+async function handleTokenRequest() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -23,4 +23,12 @@ export async function POST() {
       { status: 500 }
     );
   }
+}
+
+export async function GET() {
+  return handleTokenRequest();
+}
+
+export async function POST() {
+  return handleTokenRequest();
 }

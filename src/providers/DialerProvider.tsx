@@ -57,52 +57,84 @@ export function DialerProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const activeCallRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
 
-  // Clean up on unmount
+  // Initialize Twilio Device eagerly on mount
   useEffect(() => {
+    mountedRef.current = true;
+
+    async function initDevice() {
+      try {
+        // Fetch token from our API
+        const tokenRes = await fetch("/api/dialer/token", { method: "POST" });
+        if (!tokenRes.ok) {
+          console.warn("Dialer: failed to fetch token, status", tokenRes.status);
+          return;
+        }
+        const { token } = await tokenRes.json();
+
+        // Dynamic import to avoid SSR issues
+        const { Device } = await import("@twilio/voice-sdk");
+        const device = new Device(token, {
+          closeProtection: true,
+          logLevel: "warn",
+        } as Record<string, unknown>);
+
+        device.on("registered", () => {
+          if (mountedRef.current) {
+            setState((s) => ({ ...s, isReady: true }));
+          }
+        });
+
+        device.on("error", (err: Error) => {
+          console.error("Twilio Device error:", err);
+          if (mountedRef.current) {
+            setState((s) => ({ ...s, error: err.message }));
+          }
+        });
+
+        await device.register();
+        deviceRef.current = device;
+      } catch (err) {
+        console.error("Failed to initialize dialer:", err);
+        if (mountedRef.current) {
+          setState((s) => ({
+            ...s,
+            error: err instanceof Error ? err.message : "Failed to initialize dialer",
+          }));
+        }
+      }
+    }
+
+    initDevice();
+
+    // Refresh token every 50 minutes
+    const refreshInterval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/dialer/token", { method: "POST" });
+        if (!res.ok) return;
+        const { token } = await res.json();
+        if (deviceRef.current?.updateToken) {
+          deviceRef.current.updateToken(token);
+        }
+      } catch {
+        // Token refresh failed, will retry next interval
+      }
+    }, 50 * 60 * 1000);
+
     return () => {
+      mountedRef.current = false;
+      clearInterval(refreshInterval);
       if (timerRef.current) clearInterval(timerRef.current);
       if (deviceRef.current) {
-        try { deviceRef.current.destroy(); } catch { /* noop */ }
+        try {
+          deviceRef.current.destroy();
+        } catch {
+          /* noop */
+        }
+        deviceRef.current = null;
       }
     };
-  }, []);
-
-  const initDevice = useCallback(async () => {
-    if (deviceRef.current) return;
-
-    try {
-      // Dynamically import Twilio Voice SDK (browser-only)
-      const { Device } = await import("@twilio/voice-sdk");
-
-      // Fetch token from our API
-      const tokenRes = await fetch("/api/dialer/token", { method: "POST" });
-      if (!tokenRes.ok) throw new Error("Failed to get voice token");
-      const { token } = await tokenRes.json();
-
-      const device = new Device(token, {
-        codecPreferences: ["opus" as never, "pcmu" as never],
-        logLevel: "warn",
-      });
-
-      device.on("registered", () => {
-        setState((s) => ({ ...s, isReady: true }));
-      });
-
-      device.on("error", (err: Error) => {
-        console.error("Twilio Device error:", err);
-        setState((s) => ({ ...s, error: err.message }));
-      });
-
-      await device.register();
-      deviceRef.current = device;
-    } catch (err) {
-      console.error("Failed to initialize dialer:", err);
-      setState((s) => ({
-        ...s,
-        error: err instanceof Error ? err.message : "Failed to initialize dialer",
-      }));
-    }
   }, []);
 
   const makeCall = useCallback(
@@ -114,18 +146,14 @@ export function DialerProvider({ children }: { children: ReactNode }) {
       contactId?: string;
       contactName?: string;
     }) => {
+      if (!deviceRef.current) {
+        setState((s) => ({ ...s, error: "Dialer not ready. Please wait a moment and try again." }));
+        return;
+      }
+
       setState((s) => ({ ...s, isConnecting: true, error: null }));
 
       try {
-        // Initialize device if needed
-        if (!deviceRef.current) {
-          await initDevice();
-        }
-
-        if (!deviceRef.current) {
-          throw new Error("Dialer not ready");
-        }
-
         // Place call via Twilio Voice SDK
         const call = await deviceRef.current.connect({
           params: {
@@ -137,6 +165,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         activeCallRef.current = call;
 
         call.on("accept", async () => {
+          if (!mountedRef.current) return;
           setState((s) => ({
             ...s,
             isConnecting: false,
@@ -152,7 +181,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
             }));
           }, 1000);
 
-          // Register call in our API
+          // Register call recording in our API
           try {
             const callSid =
               call.parameters?.CallSid || call.outboundConnectionId || `browser-${Date.now()}`;
@@ -163,8 +192,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
                 callSid,
                 contactId,
                 toNumber: to,
-                fromNumber:
-                  process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || "",
+                fromNumber: process.env.NEXT_PUBLIC_TWILIO_PHONE_NUMBER || "",
               }),
             });
           } catch (err) {
@@ -172,36 +200,48 @@ export function DialerProvider({ children }: { children: ReactNode }) {
           }
         });
 
+        call.on("ringing", () => {
+          if (mountedRef.current) {
+            setState((s) => ({ ...s, isConnecting: true }));
+          }
+        });
+
         call.on("disconnect", () => {
           if (timerRef.current) clearInterval(timerRef.current);
           activeCallRef.current = null;
-          setState((s) => ({
-            ...s,
-            isOnCall: false,
-            isConnecting: false,
-            callDuration: 0,
-          }));
+          if (mountedRef.current) {
+            setState((s) => ({
+              ...s,
+              isOnCall: false,
+              isConnecting: false,
+              callDuration: 0,
+            }));
+          }
         });
 
         call.on("cancel", () => {
           if (timerRef.current) clearInterval(timerRef.current);
           activeCallRef.current = null;
-          setState((s) => ({
-            ...s,
-            isOnCall: false,
-            isConnecting: false,
-          }));
+          if (mountedRef.current) {
+            setState((s) => ({
+              ...s,
+              isOnCall: false,
+              isConnecting: false,
+            }));
+          }
         });
 
         call.on("error", (err: Error) => {
           if (timerRef.current) clearInterval(timerRef.current);
           activeCallRef.current = null;
-          setState((s) => ({
-            ...s,
-            isOnCall: false,
-            isConnecting: false,
-            error: err.message,
-          }));
+          if (mountedRef.current) {
+            setState((s) => ({
+              ...s,
+              isOnCall: false,
+              isConnecting: false,
+              error: err.message,
+            }));
+          }
         });
       } catch (err) {
         setState((s) => ({
@@ -211,7 +251,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         }));
       }
     },
-    [initDevice]
+    []
   );
 
   const hangUp = useCallback(() => {
