@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import {
@@ -17,6 +17,9 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
+  Play,
+  Pause,
+  Volume2,
 } from "lucide-react";
 
 // ============================================================================
@@ -46,6 +49,7 @@ interface CallRecording {
   talkListenRatio: number | null;
   actionItems: string[] | null;
   analysisStatus: string;
+  recordingUrl: string | null;
   createdAt: string;
 }
 
@@ -140,6 +144,94 @@ function TalkListenBar({
 // Individual Recording Card
 // ============================================================================
 
+function AudioPlayer({
+  recordingId,
+  theme,
+}: {
+  recordingId: string;
+  theme: ReturnType<typeof useColonyTheme>["theme"];
+}) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio(`/api/calls/audio?id=${recordingId}`);
+    audioRef.current = audio;
+
+    audio.addEventListener("loadedmetadata", () => {
+      setDuration(audio.duration);
+    });
+    audio.addEventListener("timeupdate", () => {
+      if (audio.duration) setProgress(audio.currentTime / audio.duration);
+    });
+    audio.addEventListener("ended", () => {
+      setPlaying(false);
+      setProgress(0);
+    });
+
+    return () => {
+      audio.pause();
+      audio.src = "";
+    };
+  }, [recordingId]);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setPlaying(!playing);
+  };
+
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audioRef.current.currentTime = pct * duration;
+    setProgress(pct);
+  };
+
+  const elapsed = audioRef.current?.currentTime || 0;
+  const remaining = duration - elapsed;
+
+  return (
+    <div className="flex items-center gap-2.5 pt-3">
+      <button
+        onClick={toggle}
+        className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 transition-colors"
+        style={{ backgroundColor: withAlpha(theme.accent, 0.15) }}
+      >
+        {playing ? (
+          <Pause className="h-3.5 w-3.5" style={{ color: theme.accent }} />
+        ) : (
+          <Play className="h-3.5 w-3.5 ml-0.5" style={{ color: theme.accent }} />
+        )}
+      </button>
+      <div className="flex-1 min-w-0 space-y-1">
+        <div
+          className="h-1.5 rounded-full cursor-pointer"
+          style={{ backgroundColor: withAlpha(theme.text, 0.08) }}
+          onClick={seek}
+        >
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${progress * 100}%`, backgroundColor: theme.accent }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px]" style={{ color: theme.textMuted }}>
+          <span>{formatDuration(Math.floor(elapsed))}</span>
+          <span>-{formatDuration(Math.floor(remaining > 0 ? remaining : 0))}</span>
+        </div>
+      </div>
+      <Volume2 className="h-3.5 w-3.5 shrink-0" style={{ color: theme.textMuted }} />
+    </div>
+  );
+}
+
 function RecordingCard({ recording }: { recording: CallRecording }) {
   const { theme } = useColonyTheme();
   const [expanded, setExpanded] = useState(false);
@@ -212,6 +304,11 @@ function RecordingCard({ recording }: { recording: CallRecording }) {
       {/* Expanded details */}
       {expanded && (
         <div className="px-4 pb-4 space-y-4" style={{ borderTop: `1px solid ${withAlpha(theme.text, 0.06)}` }}>
+          {/* Audio Player */}
+          {recording.recordingUrl && recording.status === "completed" && (
+            <AudioPlayer recordingId={recording.id} theme={theme} />
+          )}
+
           {/* Summary */}
           {recording.summary && (
             <div className="pt-3">

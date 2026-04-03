@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
         talkListenRatio: true,
         actionItems: true,
         analysisStatus: true,
+        recordingUrl: true,
         createdAt: true,
       },
     });
