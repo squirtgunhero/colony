@@ -40,6 +40,19 @@ export async function POST(request: NextRequest) {
           status: "in-progress",
         },
       });
+
+      // Create an activity so the call shows in the timeline immediately
+      if (contactId) {
+        await prisma.activity.create({
+          data: {
+            userId,
+            contactId,
+            type: "call",
+            title: `Outbound call to ${to}`,
+            description: "Call placed via Colony dialer",
+          },
+        });
+      }
     } catch (err) {
       // Log but don't fail the TwiML response — call should still go through
       console.error("Failed to create call recording entry:", err);
@@ -51,6 +64,9 @@ export async function POST(request: NextRequest) {
     callerId: callerId || process.env.TWILIO_PHONE_NUMBER!,
     callSid,
   });
+
+  console.log("[Outbound] TwiML generated for CallSid:", callSid, "Caller:", caller, "To:", to);
+  console.log("[Outbound] TwiML:", twiml);
 
   return new NextResponse(twiml, {
     headers: { "Content-Type": "text/xml" },

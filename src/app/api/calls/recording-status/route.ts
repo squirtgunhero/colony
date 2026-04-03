@@ -15,6 +15,8 @@ export async function POST(request: NextRequest) {
   const recordingStatus = formData.get("RecordingStatus") as string;
   const recordingDuration = formData.get("RecordingDuration") as string;
 
+  console.log("[RecordingStatus] Webhook received:", { callSid, recordingSid, recordingStatus, recordingDuration });
+
   if (!callSid) {
     return NextResponse.json({ error: "Missing CallSid" }, { status: 400 });
   }
