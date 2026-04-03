@@ -3,6 +3,19 @@ import { createClient } from "@/lib/supabase/server";
 import { generateVoiceToken } from "@/lib/twilio-voice";
 
 async function handleTokenRequest() {
+  // Check Twilio env vars are configured
+  if (
+    !process.env.TWILIO_ACCOUNT_SID ||
+    !process.env.TWILIO_API_KEY_SID ||
+    !process.env.TWILIO_API_KEY_SECRET ||
+    !process.env.TWILIO_TWIML_APP_SID
+  ) {
+    return NextResponse.json(
+      { error: "Twilio not configured" },
+      { status: 503 }
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

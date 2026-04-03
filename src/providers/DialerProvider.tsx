@@ -68,7 +68,12 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         // Fetch token from our API
         const tokenRes = await fetch("/api/dialer/token", { method: "POST" });
         if (!tokenRes.ok) {
-          console.warn("Dialer: failed to fetch token, status", tokenRes.status);
+          // 503 = Twilio not configured (expected in local dev without env vars)
+          if (tokenRes.status === 503) {
+            console.info("Dialer: Twilio not configured, dialer disabled");
+          } else {
+            console.warn("Dialer: failed to fetch token, status", tokenRes.status);
+          }
           return;
         }
         const { token } = await tokenRes.json();
@@ -147,7 +152,12 @@ export function DialerProvider({ children }: { children: ReactNode }) {
       contactName?: string;
     }) => {
       if (!deviceRef.current) {
-        setState((s) => ({ ...s, error: "Dialer not ready. Please wait a moment and try again." }));
+        console.warn("Dialer: device not initialized — Twilio may not be configured");
+        setState((s) => ({
+          ...s,
+          isConnecting: false,
+          error: "Dialer not available. Check Twilio configuration.",
+        }));
         return;
       }
 
