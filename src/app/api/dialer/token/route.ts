@@ -27,6 +27,12 @@ async function handleTokenRequest() {
   }
 
   try {
+    // Debug: log env var prefixes to diagnose AccessTokenInvalid
+    console.log("[token] API_KEY_SID:", process.env.TWILIO_API_KEY_SID?.substring(0, 8));
+    console.log("[token] TWIML_APP_SID:", process.env.TWILIO_TWIML_APP_SID?.substring(0, 8));
+    console.log("[token] TWIML_APP_SID length:", process.env.TWILIO_TWIML_APP_SID?.length);
+    console.log("[token] ACCOUNT_SID:", process.env.TWILIO_ACCOUNT_SID?.substring(0, 8));
+
     const token = generateVoiceToken(user.id);
     return NextResponse.json({ token });
   } catch (error) {
