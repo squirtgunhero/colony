@@ -176,6 +176,13 @@ export function ContactDetailView({
 
   const dialer = useDialer();
 
+  // Refresh the page data when a call ends so timeline + recordings update
+  useEffect(() => {
+    return dialer.onCallEnd(() => {
+      router.refresh();
+    });
+  }, [dialer, router]);
+
   const dividerColor = withAlpha(theme.text, 0.06);
   const neumorphicRaised = `4px 4px 8px rgba(0,0,0,0.4), -4px -4px 8px rgba(255,255,255,0.04)`;
   const neumorphicPressed = `inset 3px 3px 6px rgba(0,0,0,0.4), inset -3px -3px 6px rgba(255,255,255,0.04)`;

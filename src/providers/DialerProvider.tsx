@@ -30,6 +30,7 @@ interface DialerContextType extends DialerState {
     contactName?: string;
   }) => Promise<void>;
   hangUp: () => void;
+  onCallEnd: (callback: () => void) => () => void;
 }
 
 const DialerContext = createContext<DialerContextType | null>(null);
@@ -60,6 +61,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
   const initPromiseRef = useRef<Promise<boolean> | null>(null);
+  const callEndListenersRef = useRef<Set<() => void>>(new Set());
 
   // Initialize Twilio Device eagerly on mount
   useEffect(() => {
@@ -245,6 +247,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
               isConnecting: false,
               callDuration: 0,
             }));
+            notifyCallEnd();
           }
         });
 
@@ -258,6 +261,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
               isOnCall: false,
               isConnecting: false,
             }));
+            notifyCallEnd();
           }
         });
 
@@ -288,6 +292,15 @@ export function DialerProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const onCallEnd = useCallback((callback: () => void) => {
+    callEndListenersRef.current.add(callback);
+    return () => { callEndListenersRef.current.delete(callback); };
+  }, []);
+
+  const notifyCallEnd = useCallback(() => {
+    callEndListenersRef.current.forEach((cb) => cb());
+  }, []);
+
   const hangUp = useCallback(() => {
     if (activeCallRef.current) {
       activeCallRef.current.disconnect();
@@ -303,7 +316,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <DialerContext.Provider value={{ ...state, makeCall, hangUp }}>
+    <DialerContext.Provider value={{ ...state, makeCall, hangUp, onCallEnd }}>
       {children}
     </DialerContext.Provider>
   );

@@ -53,7 +53,7 @@ export function outboundCallTwiml({
     record: "record-from-answer-dual",
     recordingStatusCallback: `${appUrl}/api/calls/recording-status`,
     recordingStatusCallbackMethod: "POST",
-    recordingStatusCallbackEvent: ["completed", "absent"],
+    recordingStatusCallbackEvent: "completed absent",
   });
 
   dial.number(to);
