@@ -30,6 +30,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Twilio Voice webhooks (recording callbacks, TwiML)
+  if (
+    request.nextUrl.pathname.startsWith("/api/calls/recording-status") ||
+    request.nextUrl.pathname.startsWith("/api/dialer/outbound")
+  ) {
+    return NextResponse.next();
+  }
+
   return await updateSession(request);
 }
 
