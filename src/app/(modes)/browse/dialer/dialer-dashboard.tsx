@@ -26,6 +26,7 @@ import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { SectionCard } from "@/components/ui/section-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ActionButton } from "@/components/ui/action-button";
+import { CallActionQueue } from "@/components/dialer/CallActionQueue";
 
 interface CallListItem {
   id: string;
@@ -145,6 +146,9 @@ export function DialerDashboard({ callLists, recentCalls, todayStats }: Props) {
           setTaraSession({ id: listId, name: listName, objective })
         }
       />
+
+      {/* Pending Actions Queue */}
+      <CallActionQueue />
 
       {/* Call Lists */}
       <SectionCard

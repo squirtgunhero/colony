@@ -66,6 +66,8 @@ export default async function CallListDetailPage({ params }: Props) {
         name: list.name,
         description: list.description,
         status: list.status,
+        filterJson: list.filterJson as Record<string, unknown>[] | null,
+        lastRefreshedAt: list.lastRefreshedAt?.toISOString() ?? null,
       }}
       entries={entries}
     />

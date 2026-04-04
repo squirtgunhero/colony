@@ -19,6 +19,7 @@ import {
   MessageSquare,
   Sparkles,
 } from "lucide-react";
+import { TransferNotification } from "./TransferNotification";
 
 interface CallResult {
   id: string;
@@ -76,7 +77,15 @@ export function TaraSession({ callListId, callListName, objective, onExit }: Pro
   const [outcomes, setOutcomes] = useState<{ outcome: string; count: number }[]>([]);
   const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingTransfer, setPendingTransfer] = useState<{
+    callId: string;
+    contactName: string;
+    conferenceName: string;
+    duration: number;
+    objective: string;
+  } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const transferPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Start the batch session
   const startBatch = useCallback(async () => {
@@ -137,6 +146,59 @@ export function TaraSession({ callListId, callListName, objective, onExit }: Pro
     }
   }, [callListId]);
 
+  // Poll for pending transfers
+  const pollTransfers = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/dialer/voice-ai/transfer/check?callListId=${callListId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.pending) {
+        setPendingTransfer({
+          callId: data.callId,
+          contactName: data.contactName,
+          conferenceName: data.conferenceName,
+          duration: data.duration,
+          objective: data.objective,
+        });
+      } else {
+        setPendingTransfer(null);
+      }
+    } catch {
+      // ignore polling errors
+    }
+  }, [callListId]);
+
+  // Handle transfer accept
+  const handleAcceptTransfer = useCallback(async (callId: string, conferenceName: string) => {
+    try {
+      // Accept the transfer on the server
+      await fetch("/api/dialer/voice-ai/transfer/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callId }),
+      });
+
+      // Connect the agent's browser to the conference via Twilio Device
+      // We dispatch a custom event that DialerProvider listens for
+      window.dispatchEvent(
+        new CustomEvent("colony:accept-transfer", {
+          detail: { callId, conferenceName },
+        })
+      );
+
+      setPendingTransfer(null);
+    } catch (err) {
+      console.error("Failed to accept transfer:", err);
+    }
+  }, []);
+
+  // Handle transfer decline
+  const handleDeclineTransfer = useCallback(async (callId: string) => {
+    setPendingTransfer(null);
+    // Optionally: notify the server to hang up / play unavailable message
+    // For now just dismiss the notification
+  }, []);
+
   // Start on mount
   useEffect(() => {
     startBatch();
@@ -146,14 +208,18 @@ export function TaraSession({ callListId, callListName, objective, onExit }: Pro
   useEffect(() => {
     if (status === "active") {
       pollRef.current = setInterval(pollStatus, 5000);
+      // Poll for transfers every 3s
+      transferPollRef.current = setInterval(pollTransfers, 3000);
       return () => {
         if (pollRef.current) clearInterval(pollRef.current);
+        if (transferPollRef.current) clearInterval(transferPollRef.current);
       };
     }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (transferPollRef.current) clearInterval(transferPollRef.current);
     };
-  }, [status, pollStatus]);
+  }, [status, pollStatus, pollTransfers]);
 
   // Stop/pause the session
   const handleStop = async () => {
@@ -486,6 +552,19 @@ export function TaraSession({ callListId, callListName, objective, onExit }: Pro
             Back to Dialer
           </button>
         </div>
+      )}
+
+      {/* Transfer notification overlay */}
+      {pendingTransfer && (
+        <TransferNotification
+          callId={pendingTransfer.callId}
+          contactName={pendingTransfer.contactName}
+          conferenceName={pendingTransfer.conferenceName}
+          duration={pendingTransfer.duration}
+          objective={pendingTransfer.objective}
+          onAccept={handleAcceptTransfer}
+          onDecline={handleDeclineTransfer}
+        />
       )}
     </div>
   );

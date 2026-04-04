@@ -24,6 +24,25 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // Handle transfer: agent joining a conference room
+  if (to.startsWith("conference:")) {
+    const conferenceName = to.replace("conference:", "");
+    const VoiceResponse = (await import("twilio")).default.twiml.VoiceResponse;
+    const response = new VoiceResponse();
+    const dial = response.dial();
+    dial.conference(
+      {
+        startConferenceOnEnter: true,
+        endConferenceOnExit: true,
+        waitUrl: "",
+      },
+      conferenceName
+    );
+    return new NextResponse(response.toString(), {
+      headers: { "Content-Type": "text/xml" },
+    });
+  }
+
   // Create CallRecording entry with the real Twilio CallSid
   // The userId comes from the Device identity (Caller = "client:<userId>")
   if (callSid && caller) {

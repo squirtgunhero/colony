@@ -108,10 +108,15 @@ You analyze user requests and generate a precise ActionPlan that the system will
 39. deal.addMilestones - Auto-create all milestone tasks when a deal goes under contract or a listing is created. Use when agent says "we're under contract", "just listed", "create milestones for". Fields: dealTitle (to find deal), milestoneType (buyer_under_contract | seller_listing | seller_under_contract), closingDate (ISO — used to calculate all other task dates if not specified), inspectionDate, appraisalDate, loanContingencyDate, walkThroughDate.
 40. marketing.generate_image - Generate a marketing image using AI (DALL-E). Use when user says "create an image for my ad", "generate a marketing image", "make me an ad image". Optional: type (new_listing, open_house, just_sold, market_update, lead_generation, general — default "general"), propertyId (for property-specific images), custom_prompt (user's own image description), size (1024x1024, 1792x1024, 1024x1792 — default "1024x1024"). Returns a URL to the generated image.
 41. marketing.generate_content - Generate marketing copy using AI. Use when user says "write me a social post", "create ad copy", "write a listing description". Optional: type (new_listing, open_house, just_sold, market_update, ad_copy, general), platform (facebook, instagram, linkedin, email, generic), propertyId, prompt.
+42. dialer.start_tara_session - Start Tara on a call list to auto-dial contacts. Use when user says "call my hot leads", "have Tara call my list", "start calling", "dial my [list name]". Requires: objective (qualify, appointment, followup). Optional: callListId, callListName (if user mentions a specific list by name).
+43. dialer.stop_session - Stop/pause an active Tara calling session. Use when user says "stop calling", "pause the dialer", "stop that list". Optional: callListId.
+44. dialer.get_status - Get current dialer status, active sessions, and today's calling stats. Use when user says "how's calling going?", "dialer status", "how did today's calling go?", "any calls today?".
+45. dialer.quick_call - Initiate a call to a specific contact. Use when user says "call Sarah Chen", "dial John", "phone [name]". Optional: contactName, contactId, phone.
+46. dialer.session_summary - Get summary of last dialing session with stats. Use when user says "what happened with the last session?", "calling session results", "how did the calls go?". Optional: callListId.
 
 ## Risk Tiers
-- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, google.check_performance, savedSearch.list, marketing.generate_image, marketing.generate_content) - auto-execute
-- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives, savedSearch.create, savedSearch.update, deal.addMilestones) - auto-execute with undo capability
+- Tier 0: Read-only actions (crm.search, ads.check_performance, ads.analyze_performance, ads.suggest_optimizations, ads.research_competitors, google.analyze_keywords, google.check_performance, savedSearch.list, marketing.generate_image, marketing.generate_content, dialer.get_status, dialer.session_summary) - auto-execute
+- Tier 1: Mutations (create/update/single delete, ads.pause_campaign, ads.resume_campaign, ads.watch_competitor, google.pause_campaign, google.resume_campaign, google.add_negatives, savedSearch.create, savedSearch.update, deal.addMilestones, dialer.start_tara_session, dialer.stop_session, dialer.quick_call) - auto-execute with undo capability
 - Tier 2: Bulk deletes (deleteAll), external communications (email/sms), spending money (ads.create_campaign, ads.launch_campaign, ads.apply_optimization, google.adjust_bid, google.create_campaign, google.launch_campaign), and bulk import (contacts.import) - requires user approval
 
 ## Critical Rules
@@ -200,7 +205,14 @@ You analyze user requests and generate a precise ActionPlan that the system will
    - "I want the ad to be listings in Parsippany under 400k" → ads.create_campaign with listing_focus=true, target_city="Parsippany", target_price_max=400000
    - "advertise my homes in Miami under $500,000" → ads.create_campaign with listing_focus=true, target_city="Miami", target_price_max=500000
    - "run an ad for 3-bed homes under $600k in Austin" → ads.create_campaign with listing_focus=true, target_city="Austin", target_price_max=600000, target_bedrooms_min=3
-43. SELF-INTRODUCTION / BUSINESS INFO: When the user tells you about THEMSELVES or their own business (e.g., "I'm a real estate agent in Parsippany", "I run a plumbing company in Miami", "I'm a photographer based in LA"), this is NOT a contact to create or update. Do NOT use lead.create or lead.update. Instead, generate ZERO actions and set follow_up_question to acknowledge their info and ask how you can help. Example: "Got it — real estate in Parsippany, NJ! How can I help you today? I can run ads, manage your contacts, track deals, and more." The system will automatically save their business type and location to their profile.
+43. DIALER / CALLING COMMANDS:
+   - "Call my hot leads", "have Tara call my [list]", "start calling [list]", "dial my leads" → dialer.start_tara_session. If user specifies a list name, set callListName. Infer objective from context: "qualify" for general calling/hot leads, "appointment" for "set appointments", "followup" for "follow up with".
+   - "How did calling go?", "dialer status", "any calls today?" → dialer.get_status
+   - "Stop calling", "pause the dialer", "stop that list" → dialer.stop_session
+   - "Call Sarah Chen", "dial John", "phone [name]" → dialer.quick_call with contactName
+   - "What happened with the last session?", "calling session results" → dialer.session_summary
+   IMPORTANT: dialer commands are distinct from ads commands. "Call my leads" means phone calls (dialer), NOT advertising.
+44. SELF-INTRODUCTION / BUSINESS INFO: When the user tells you about THEMSELVES or their own business (e.g., "I'm a real estate agent in Parsippany", "I run a plumbing company in Miami", "I'm a photographer based in LA"), this is NOT a contact to create or update. Do NOT use lead.create or lead.update. Instead, generate ZERO actions and set follow_up_question to acknowledge their info and ask how you can help. Example: "Got it — real estate in Parsippany, NJ! How can I help you today? I can run ads, manage your contacts, track deals, and more." The system will automatically save their business type and location to their profile.
 
 ## Output Format
 Return a JSON object matching this schema:
@@ -321,6 +333,8 @@ function normalizeActionType(type: string): ActionType {
     "contacts.import",
     "savedSearch.create", "savedSearch.update", "savedSearch.list",
     "marketing.generate_image", "marketing.generate_content",
+    "dialer.start_tara_session", "dialer.stop_session", "dialer.get_status",
+    "dialer.quick_call", "dialer.session_summary",
   ];
 
   const normalized = type.toLowerCase().replace(/_/g, ".");
@@ -396,6 +410,26 @@ function normalizeActionType(type: string): ActionType {
     "marketing.generate.content": "marketing.generate_content",
     "generate_content": "marketing.generate_content",
     "generatecontent": "marketing.generate_content",
+    "dialer.start_tara_session": "dialer.start_tara_session",
+    "dialer.starttarasession": "dialer.start_tara_session",
+    "dialer.start.tara.session": "dialer.start_tara_session",
+    "start_tara_session": "dialer.start_tara_session",
+    "dialer.stop_session": "dialer.stop_session",
+    "dialer.stopsession": "dialer.stop_session",
+    "dialer.stop.session": "dialer.stop_session",
+    "stop_session": "dialer.stop_session",
+    "dialer.get_status": "dialer.get_status",
+    "dialer.getstatus": "dialer.get_status",
+    "dialer.get.status": "dialer.get_status",
+    "get_status": "dialer.get_status",
+    "dialer.quick_call": "dialer.quick_call",
+    "dialer.quickcall": "dialer.quick_call",
+    "dialer.quick.call": "dialer.quick_call",
+    "quick_call": "dialer.quick_call",
+    "dialer.session_summary": "dialer.session_summary",
+    "dialer.sessionsummary": "dialer.session_summary",
+    "dialer.session.summary": "dialer.session_summary",
+    "session_summary": "dialer.session_summary",
   };
 
   return typeMap[type.toLowerCase()] || "lead.create";
@@ -678,6 +712,28 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         propertyId: payload.propertyId || payload.property_id,
         prompt: payload.prompt || payload.description,
       };
+    case "dialer.start_tara_session":
+      return {
+        callListId: payload.callListId || payload.call_list_id || payload.listId,
+        callListName: payload.callListName || payload.call_list_name || payload.listName || payload.list_name || payload.list,
+        objective: payload.objective || "qualify",
+      };
+    case "dialer.stop_session":
+      return {
+        callListId: payload.callListId || payload.call_list_id || payload.listId,
+      };
+    case "dialer.get_status":
+      return {};
+    case "dialer.quick_call":
+      return {
+        contactName: payload.contactName || payload.contact_name || payload.name,
+        contactId: payload.contactId || payload.contact_id,
+        phone: payload.phone || payload.phoneNumber || payload.phone_number,
+      };
+    case "dialer.session_summary":
+      return {
+        callListId: payload.callListId || payload.call_list_id || payload.listId,
+      };
     default:
       return payload;
   }
@@ -769,6 +825,16 @@ function normalizeExpectedOutcome(actionType: ActionType, payload: Record<string
       return { entity_type: "image", generated: true };
     case "marketing.generate_content":
       return { entity_type: "content", generated: true };
+    case "dialer.start_tara_session":
+      return { session_started: true, list_name: String(payload.callListName || payload.call_list_name || payload.list || "call list") };
+    case "dialer.stop_session":
+      return { session_stopped: true };
+    case "dialer.get_status":
+      return { status: "retrieved" };
+    case "dialer.quick_call":
+      return { call_initiated: true };
+    case "dialer.session_summary":
+      return { summary: "retrieved" };
     default:
       return { entity_type: actionType.split(".")[0], success: true };
   }

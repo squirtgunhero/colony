@@ -11,6 +11,11 @@ import {
 
 export type CallState = "idle" | "connecting" | "ringing" | "connected" | "disconnected";
 
+export interface PendingTransfer {
+  callId: string;
+  conferenceName: string;
+}
+
 export interface DialerContextValue {
   callState: CallState;
   isMuted: boolean;
@@ -21,6 +26,7 @@ export interface DialerContextValue {
   currentCallId: string | null;
   currentCallListId: string | null;
   queueProgress: { total: number; completed: number; remaining: number } | null;
+  pendingTransfer: PendingTransfer | null;
   call: (number: string, contactId?: string, contactName?: string, callListId?: string) => Promise<void>;
   hangup: () => void;
   toggleMute: () => void;
@@ -28,6 +34,7 @@ export interface DialerContextValue {
   setOutcome: (outcome: string) => void;
   setNotes: (notes: string) => void;
   dropVoicemail: (voicemailDropId: string) => Promise<void>;
+  acceptTransfer: (callId: string, conferenceName: string) => Promise<void>;
   onCallEnd: (callback: () => void) => () => void;
   isReady: boolean;
 }
@@ -45,6 +52,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
   const [currentCallListId, setCurrentCallListId] = useState<string | null>(null);
   const [queueProgress, setQueueProgress] = useState<{ total: number; completed: number; remaining: number } | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [pendingTransfer, setPendingTransfer] = useState<PendingTransfer | null>(null);
 
   const deviceRef = useRef<unknown>(null);
   const connectionRef = useRef<unknown>(null);
@@ -255,6 +263,83 @@ export function DialerProvider({ children }: { children: ReactNode }) {
     [currentCallId]
   );
 
+  const acceptTransfer = useCallback(
+    async (callId: string, conferenceName: string) => {
+      const device = deviceRef.current as {
+        connect?: (opts: { params: Record<string, string> }) => Promise<unknown>;
+      } | null;
+
+      if (!device?.connect) {
+        console.error("Twilio Device not ready for transfer");
+        return;
+      }
+
+      try {
+        setCallState("connecting");
+        setPendingTransfer({ callId, conferenceName });
+
+        // Connect the agent's browser to the Twilio conference
+        // The TwiML app will route this with the conference parameter
+        const conn = await device.connect({
+          params: {
+            To: `conference:${conferenceName}`,
+            TransferCallId: callId,
+          },
+        });
+
+        connectionRef.current = conn;
+
+        const connection = conn as {
+          on: (event: string, fn: () => void) => void;
+        };
+
+        connection.on("accept", () => {
+          setCallState("connected");
+          setCurrentCallId(callId);
+        });
+        connection.on("disconnect", () => {
+          setCallState("disconnected");
+          connectionRef.current = null;
+          setPendingTransfer(null);
+          setTimeout(() => {
+            setCallState((prev) => {
+              if (prev === "disconnected") {
+                setCurrentNumber(null);
+                setCurrentContactId(null);
+                setCurrentContactName(null);
+                setCurrentCallId(null);
+                return "idle";
+              }
+              return prev;
+            });
+          }, 30000);
+        });
+        connection.on("cancel", () => {
+          setCallState("idle");
+          connectionRef.current = null;
+          setPendingTransfer(null);
+        });
+      } catch (err) {
+        console.error("Failed to accept transfer:", err);
+        setCallState("idle");
+        setPendingTransfer(null);
+      }
+    },
+    []
+  );
+
+  // Listen for transfer accept events from TaraSession
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { callId: string; conferenceName: string };
+      if (detail?.callId && detail?.conferenceName) {
+        acceptTransfer(detail.callId, detail.conferenceName);
+      }
+    };
+    window.addEventListener("colony:accept-transfer", handler);
+    return () => window.removeEventListener("colony:accept-transfer", handler);
+  }, [acceptTransfer]);
+
   const onCallEnd = useCallback((callback: () => void) => {
     callEndListenersRef.current.add(callback);
     return () => { callEndListenersRef.current.delete(callback); };
@@ -283,6 +368,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         currentCallId,
         currentCallListId,
         queueProgress,
+        pendingTransfer,
         call,
         hangup,
         toggleMute,
@@ -290,6 +376,7 @@ export function DialerProvider({ children }: { children: ReactNode }) {
         setOutcome,
         setNotes,
         dropVoicemail,
+        acceptTransfer,
         onCallEnd,
         isReady,
       }}

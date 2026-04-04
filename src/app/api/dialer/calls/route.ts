@@ -55,7 +55,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const userId = await requireUserId();
     const body = await request.json();
-    const { callId, notes, outcome } = body;
+    const { callId, notes, outcome, appointmentSet, appointmentDate, calendarEventId } = body;
 
     const call = await prisma.call.findFirst({
       where: { id: callId, userId },
@@ -70,6 +70,9 @@ export async function PATCH(request: NextRequest) {
       data: {
         ...(notes !== undefined && { notes }),
         ...(outcome !== undefined && { outcome }),
+        ...(appointmentSet !== undefined && { appointmentSet }),
+        ...(appointmentDate !== undefined && { appointmentDate: new Date(appointmentDate) }),
+        ...(calendarEventId !== undefined && { calendarEventId }),
       },
     });
 

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { selectScript } from "@/lib/dialer/script-selector";
+import { prisma } from "@/lib/prisma";
 
 /**
  * TwiML webhook — Twilio hits this when the call connects.
@@ -12,23 +14,36 @@ export async function POST(request: NextRequest) {
 
   const firstName = contactName.split(" ")[0];
 
-  // Build opening based on objective
+  // Try to select a custom script variant for A/B testing
+  let scriptId: string | null = null;
   let greeting: string;
-  switch (objective) {
-    case "appointment":
-      greeting = `Hi ${firstName}, this is Tara calling from Colony Real Estate. I'm reaching out because we noticed you were looking at some properties and I'd love to help schedule a time for you to see them in person. Do you have a moment to chat?`;
-      break;
-    case "followup":
-      greeting = `Hi ${firstName}, this is Tara from Colony Real Estate following up on our earlier conversation. I wanted to check in and see if you had any questions or if there's anything I can help you with?`;
-      break;
-    default: // qualify
-      greeting = `Hi ${firstName}, this is Tara calling from Colony Real Estate. I understand you might be interested in buying or selling property. I'd love to learn more about what you're looking for. Do you have a quick moment?`;
-      break;
+
+  // Look up the userId from the call record to select a script
+  const call = await prisma.call.findUnique({ where: { id: callId }, select: { userId: true } });
+  if (call) {
+    const selected = await selectScript(call.userId, objective);
+    if (selected) {
+      scriptId = selected.id;
+      // Replace {firstName} placeholder in custom greeting
+      greeting = selected.greeting.replace(/\{firstName\}/g, firstName);
+
+      // Save scriptId on the call record
+      await prisma.call.update({
+        where: { id: callId },
+        data: { scriptId },
+      });
+    } else {
+      greeting = getDefaultGreeting(objective, firstName);
+    }
+  } else {
+    greeting = getDefaultGreeting(objective, firstName);
   }
+
+  const scriptParam = scriptId ? `&amp;scriptId=${scriptId}` : "";
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Gather input="speech" timeout="5" speechTimeout="auto" action="${baseUrl}/api/dialer/voice-ai/respond?callId=${callId}&amp;contactName=${encodeURIComponent(contactName)}&amp;objective=${objective}&amp;turn=1" method="POST">
+  <Gather input="speech" timeout="5" speechTimeout="auto" action="${baseUrl}/api/dialer/voice-ai/respond?callId=${callId}&amp;contactName=${encodeURIComponent(contactName)}&amp;objective=${objective}&amp;turn=1${scriptParam}" method="POST">
     <Say voice="Polly.Joanna">${escapeXml(greeting)}</Say>
   </Gather>
   <Say voice="Polly.Joanna">It seems like you might be busy. No worries, we'll try again another time. Have a great day!</Say>
@@ -42,6 +57,17 @@ export async function POST(request: NextRequest) {
 // Also handle GET for Twilio
 export async function GET(request: NextRequest) {
   return POST(request);
+}
+
+function getDefaultGreeting(objective: string, firstName: string): string {
+  switch (objective) {
+    case "appointment":
+      return `Hi ${firstName}, this is Tara calling from Colony Real Estate. I'm reaching out because we noticed you were looking at some properties and I'd love to help schedule a time for you to see them in person. Do you have a moment to chat?`;
+    case "followup":
+      return `Hi ${firstName}, this is Tara from Colony Real Estate following up on our earlier conversation. I wanted to check in and see if you had any questions or if there's anything I can help you with?`;
+    default: // qualify
+      return `Hi ${firstName}, this is Tara calling from Colony Real Estate. I understand you might be interested in buying or selling property. I'd love to learn more about what you're looking for. Do you have a quick moment?`;
+  }
 }
 
 function escapeXml(str: string): string {

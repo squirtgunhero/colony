@@ -15,6 +15,7 @@ import {
   SkipForward,
   BotMessageSquare,
   Play,
+  RefreshCw,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { ActionButton } from "@/components/ui/action-button";
@@ -43,7 +44,14 @@ interface Entry {
 }
 
 interface Props {
-  list: { id: string; name: string; description: string | null; status: string };
+  list: {
+    id: string;
+    name: string;
+    description: string | null;
+    status: string;
+    filterJson: Record<string, unknown>[] | null;
+    lastRefreshedAt: string | null;
+  };
   entries: Entry[];
 }
 
@@ -66,6 +74,42 @@ export function CallListDetail({ list, entries }: Props) {
   const [isPending, startTransition] = useTransition();
   const [isDialing, setIsDialing] = useState(false);
   const [isTaraActive, setIsTaraActive] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshResult, setRefreshResult] = useState<{ added: number; total: number } | null>(null);
+
+  const isSmartList = !!list.filterJson;
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshResult(null);
+    try {
+      const res = await fetch("/api/dialer/call-lists/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callListId: list.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRefreshResult(data);
+        router.refresh();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const formatTimeAgo = (iso: string): string => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
 
   const completed = entries.filter((e) => e.status === "completed").length;
   const pending = entries.filter((e) => e.status === "pending").length;
@@ -134,6 +178,46 @@ export function CallListDetail({ list, entries }: Props) {
               <ArrowLeft className="h-4 w-4" />
               All Lists
             </Link>
+            {isSmartList && (
+              <>
+                {list.lastRefreshedAt && (
+                  <span
+                    className="text-[11px] px-2 py-1 rounded-lg"
+                    style={{
+                      backgroundColor: withAlpha(theme.text, 0.04),
+                      color: withAlpha(theme.text, 0.45),
+                    }}
+                  >
+                    Last refreshed: {formatTimeAgo(list.lastRefreshedAt)}
+                  </span>
+                )}
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium transition-all duration-150 hover:opacity-90"
+                  style={{
+                    backgroundColor: withAlpha(theme.accent, 0.1),
+                    color: theme.accent,
+                    border: `1px solid ${withAlpha(theme.accent, 0.2)}`,
+                    opacity: isRefreshing ? 0.6 : 1,
+                  }}
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                  {isRefreshing ? "Refreshing..." : "Refresh Now"}
+                </button>
+                {refreshResult && refreshResult.added > 0 && (
+                  <span
+                    className="text-[11px] font-medium px-2 py-1 rounded-lg"
+                    style={{
+                      backgroundColor: withAlpha("#22c55e", 0.1),
+                      color: "#22c55e",
+                    }}
+                  >
+                    +{refreshResult.added} added
+                  </span>
+                )}
+              </>
+            )}
             {pending > 0 && (
               <>
                 <button

@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
   try {
     const userId = await requireUserId();
     const body = await request.json();
-    const { name, description, contactIds, filterJson, sortOrder } = body;
+    const { name, description, contactIds, filterJson, sortOrder, refreshIntervalMin } = body;
+
+    const hasFilters = !!filterJson;
 
     const list = await prisma.callList.create({
       data: {
@@ -44,6 +46,8 @@ export async function POST(request: NextRequest) {
         description: description || null,
         filterJson: filterJson || null,
         sortOrder: sortOrder || "lead_score_desc",
+        isSmartList: hasFilters,
+        refreshIntervalMin: hasFilters ? (refreshIntervalMin ?? null) : null,
       },
     });
 

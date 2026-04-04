@@ -59,6 +59,7 @@ export function CallListsPage({ lists, contacts }: Props) {
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [smartFilters, setSmartFilters] = useState<{ field: string; operator: string; value: string }[]>([]);
   const [smartContactIds, setSmartContactIds] = useState<string[]>([]);
+  const [refreshIntervalMin, setRefreshIntervalMin] = useState<number | null>(null);
   const [contactSearch, setContactSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [createError, setCreateError] = useState<string | null>(null);
@@ -83,6 +84,7 @@ export function CallListsPage({ lists, contacts }: Props) {
           description,
           contactIds: ids,
           filterJson: listType === "smart" ? smartFilters : null,
+          refreshIntervalMin: listType === "smart" ? refreshIntervalMin : null,
         }),
       });
       if (res.ok) {
@@ -93,6 +95,7 @@ export function CallListsPage({ lists, contacts }: Props) {
         setSelectedContacts([]);
         setSmartFilters([]);
         setSmartContactIds([]);
+        setRefreshIntervalMin(null);
         setListType("manual");
         setCreateError(null);
         router.push(`/browse/dialer/lists/${data.id}`);
@@ -234,6 +237,7 @@ export function CallListsPage({ lists, contacts }: Props) {
               <SmartListBuilder
                 onChange={setSmartFilters}
                 onContactIdsResolved={setSmartContactIds}
+                onRefreshIntervalChange={setRefreshIntervalMin}
               />
             )}
 

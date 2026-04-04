@@ -933,6 +933,83 @@ export const MarketingGenerateContentActionSchema = BaseActionSchema.extend({
 });
 
 // ============================================================================
+// Dialer Command Actions (Chat → Dialer integration)
+// ============================================================================
+
+export const DialerStartTaraSessionPayloadSchema = z.object({
+  callListId: z.string().optional(),
+  callListName: z.string().optional(),
+  objective: z.enum(["qualify", "appointment", "followup"]),
+});
+
+export const DialerStartTaraSessionExpectedOutcomeSchema = z.object({
+  session_started: z.literal(true),
+  list_name: z.string(),
+});
+
+export const DialerStartTaraSessionActionSchema = BaseActionSchema.extend({
+  type: z.literal("dialer.start_tara_session"),
+  payload: DialerStartTaraSessionPayloadSchema,
+  expected_outcome: DialerStartTaraSessionExpectedOutcomeSchema,
+});
+
+export const DialerStopSessionPayloadSchema = z.object({
+  callListId: z.string().optional(),
+});
+
+export const DialerStopSessionExpectedOutcomeSchema = z.object({
+  session_stopped: z.literal(true),
+});
+
+export const DialerStopSessionActionSchema = BaseActionSchema.extend({
+  type: z.literal("dialer.stop_session"),
+  payload: DialerStopSessionPayloadSchema,
+  expected_outcome: DialerStopSessionExpectedOutcomeSchema,
+});
+
+export const DialerGetStatusPayloadSchema = z.object({});
+
+export const DialerGetStatusExpectedOutcomeSchema = z.object({
+  status: z.string(),
+});
+
+export const DialerGetStatusActionSchema = BaseActionSchema.extend({
+  type: z.literal("dialer.get_status"),
+  payload: DialerGetStatusPayloadSchema,
+  expected_outcome: DialerGetStatusExpectedOutcomeSchema,
+});
+
+export const DialerQuickCallPayloadSchema = z.object({
+  contactName: z.string().optional(),
+  contactId: z.string().optional(),
+  phone: z.string().optional(),
+});
+
+export const DialerQuickCallExpectedOutcomeSchema = z.object({
+  call_initiated: z.literal(true),
+});
+
+export const DialerQuickCallActionSchema = BaseActionSchema.extend({
+  type: z.literal("dialer.quick_call"),
+  payload: DialerQuickCallPayloadSchema,
+  expected_outcome: DialerQuickCallExpectedOutcomeSchema,
+});
+
+export const DialerSessionSummaryPayloadSchema = z.object({
+  callListId: z.string().optional(),
+});
+
+export const DialerSessionSummaryExpectedOutcomeSchema = z.object({
+  summary: z.string(),
+});
+
+export const DialerSessionSummaryActionSchema = BaseActionSchema.extend({
+  type: z.literal("dialer.session_summary"),
+  payload: DialerSessionSummaryPayloadSchema,
+  expected_outcome: DialerSessionSummaryExpectedOutcomeSchema,
+});
+
+// ============================================================================
 // Automation Actions
 // ============================================================================
 
@@ -1061,6 +1138,11 @@ export const ActionSchema = z.discriminatedUnion("type", [
   AutomationListActionSchema,
   DocuSignSendEnvelopeActionSchema,
   DocuSignCheckStatusActionSchema,
+  DialerStartTaraSessionActionSchema,
+  DialerStopSessionActionSchema,
+  DialerGetStatusActionSchema,
+  DialerQuickCallActionSchema,
+  DialerSessionSummaryActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -1121,6 +1203,8 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "marketing.generate_content":
     case "automation.list":
     case "docusign.check_status":
+    case "dialer.get_status":
+    case "dialer.session_summary":
       return 0;
     // Tier 1: Mutations with undo capability
     case "lead.create":
@@ -1146,6 +1230,9 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "savedSearch.update":
     case "deal.addMilestones":
     case "automation.create":
+    case "dialer.start_tara_session":
+    case "dialer.stop_session":
+    case "dialer.quick_call":
       return 1;
     // Tier 2: Destructive bulk actions + external communications + spending money
     case "lead.deleteAll":
@@ -1300,6 +1387,16 @@ export function getActionDescription(action: Action): string {
       return `List saved searches${action.payload.contactName ? ` for ${action.payload.contactName}` : ""}`;
     case "deal.addMilestones":
       return `Add milestone tasks for deal${action.payload.dealTitle ? `: ${action.payload.dealTitle}` : ""}`;
+    case "dialer.start_tara_session":
+      return `Start Tara calling session${action.payload.callListName ? ` on "${action.payload.callListName}"` : ""} (${action.payload.objective})`;
+    case "dialer.stop_session":
+      return `Stop/pause active calling session`;
+    case "dialer.get_status":
+      return `Get dialer status`;
+    case "dialer.quick_call":
+      return `Quick call${action.payload.contactName ? `: ${action.payload.contactName}` : ""}`;
+    case "dialer.session_summary":
+      return `Get calling session summary`;
     default:
       return "Unknown action";
   }

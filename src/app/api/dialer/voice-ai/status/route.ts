@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { scoreContact } from "@/lib/lead-scoring";
+import { executeCallAction } from "@/lib/dialer/action-executor";
+import { updateScriptMetrics } from "@/lib/dialer/script-selector";
+import { createCalendarEvent } from "@/lib/google-calendar";
 
 /**
  * Voice AI status callback — receives call lifecycle updates from Twilio.
@@ -96,6 +99,32 @@ export async function POST(request: NextRequest) {
               priority: "high",
             },
           });
+
+          // Best-effort: auto-create Google Calendar event if not already created
+          if (call.appointmentDate && !call.calendarEventId) {
+            try {
+              const apptStart = new Date(call.appointmentDate);
+              const apptEnd = new Date(apptStart.getTime() + 60 * 60 * 1000);
+              const contactEmail = call.contact?.email || undefined;
+
+              const calResult = await createCalendarEvent(call.userId, {
+                summary: `Meeting with ${call.contact?.name || "Contact"}`,
+                description: call.aiSummary || "Appointment set by Voice AI",
+                startTime: apptStart,
+                endTime: apptEnd,
+                attendeeEmail: contactEmail,
+              });
+
+              if (calResult) {
+                await prisma.call.update({
+                  where: { id: call.id },
+                  data: { calendarEventId: calResult.eventId },
+                });
+              }
+            } catch {
+              // Non-critical — skip silently if no calendar connected
+            }
+          }
         } else if (call.leadQualified) {
           // Create callback task for qualified leads without appointment
           await prisma.task.create({
@@ -109,6 +138,35 @@ export async function POST(request: NextRequest) {
             },
           });
         }
+      }
+
+      // Update A/B test script metrics if a script was used
+      if (call.scriptId) {
+        try {
+          const durationSecs = duration ? parseInt(duration, 10) : 0;
+          await updateScriptMetrics(call.scriptId, {
+            connected: mappedStatus === "completed",
+            appointmentSet: call.appointmentSet || false,
+            duration: durationSecs,
+          });
+        } catch (e) {
+          console.error("[Voice AI Status] Failed to update script metrics:", e);
+        }
+      }
+
+      // Auto-execute tier-0 CallActions (safe, reversible operations)
+      // Tier-0: add_note, score_updated, status_changed, tag_added
+      // Tier-1 actions (create_task, send_email, schedule_showing, follow_up_call) are left for user approval
+      const tier0Types = ["add_note", "score_updated", "status_changed", "tag_added"];
+      try {
+        const pendingActions = await prisma.callAction.findMany({
+          where: { callId: call.id, completed: false, type: { in: tier0Types } },
+        });
+        for (const action of pendingActions) {
+          await executeCallAction(action);
+        }
+      } catch (e) {
+        console.error("[Voice AI Status] Failed to auto-execute tier-0 actions:", e);
       }
 
       // Mark CallListEntry as completed and trigger next batch call

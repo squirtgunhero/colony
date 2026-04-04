@@ -16,9 +16,18 @@ interface PreviewResult {
   contacts: { id: string; name: string; phone: string | null; type: string }[];
 }
 
+const REFRESH_OPTIONS = [
+  { value: null, label: "Off" },
+  { value: 15, label: "Every 15 min" },
+  { value: 60, label: "Every hour" },
+  { value: 240, label: "Every 4 hours" },
+  { value: 1440, label: "Daily" },
+] as const;
+
 interface Props {
   onChange: (filters: SmartFilter[]) => void;
   onContactIdsResolved: (ids: string[]) => void;
+  onRefreshIntervalChange?: (interval: number | null) => void;
 }
 
 const FIELDS = [
@@ -81,7 +90,7 @@ const isSelectField = (field: string) => field === "type" || field === "source";
 const isNumericField = (field: string) =>
   field === "leadScore" || field === "lastContactedAt" || field === "createdAt";
 
-export function SmartListBuilder({ onChange, onContactIdsResolved }: Props) {
+export function SmartListBuilder({ onChange, onContactIdsResolved, onRefreshIntervalChange }: Props) {
   const { theme } = useColonyTheme();
   const borderColor = withAlpha(theme.text, 0.06);
   const [filters, setFilters] = useState<SmartFilter[]>([
@@ -245,6 +254,33 @@ export function SmartListBuilder({ onChange, onContactIdsResolved }: Props) {
         <Plus className="h-3 w-3" />
         Add filter
       </button>
+
+      {/* Auto-refresh interval */}
+      {onRefreshIntervalChange && (
+        <div className="flex items-center gap-2 pt-2">
+          <label
+            className="text-[11px] uppercase tracking-wider font-medium shrink-0"
+            style={{ color: withAlpha(theme.text, 0.5) }}
+          >
+            Auto-refresh
+          </label>
+          <select
+            defaultValue=""
+            onChange={(e) => {
+              const val = e.target.value;
+              onRefreshIntervalChange(val === "" ? null : parseInt(val, 10));
+            }}
+            className="h-9 px-2 rounded-lg text-[12px] outline-none"
+            style={inputStyle}
+          >
+            {REFRESH_OPTIONS.map((opt) => (
+              <option key={String(opt.value)} value={opt.value ?? ""}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Preview */}
       {preview && (

@@ -1533,19 +1533,24 @@ model Call {
 
   // Content
   notes           String?
+  liveTranscript  Json?     @map("live_transcript") // Array of {speaker, text, timestamp}
   recordingUrl    String?   @map("recording_url")
 
   // Voice AI fields
   isVoiceAI       Boolean   @default(false) @map("is_voice_ai")
   aiObjective     String?   @map("ai_objective") // qualify | appointment | followup
+  scriptId        String?   @map("script_id")
   aiTranscript    Json?     @map("ai_transcript")
   aiSummary       String?   @map("ai_summary")
   aiSentiment     String?   @map("ai_sentiment") // positive | neutral | negative
   aiInterestScore Int?      @map("ai_interest_score") // 1-5
   appointmentSet  Boolean   @default(false) @map("appointment_set")
   appointmentDate DateTime? @map("appointment_date")
+  calendarEventId String?   @map("calendar_event_id")
   leadQualified   Boolean?  @map("lead_qualified")
   amdResult       String?   @map("amd_result") // human | machine | unknown
+  transferRequested Boolean   @default(false) @map("transfer_requested")
+  transferredAt     DateTime? @map("transferred_at")
 
   // Relations
   contact         Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
@@ -1570,6 +1575,9 @@ model CallList {
   status      String   @default("active") // active | paused | completed | archived
   filterJson  Json?    @map("filter_json") // smart list filter config
   sortOrder   String   @default("lead_score_desc") @map("sort_order")
+  isSmartList          Boolean   @default(false) @map("is_smart_list")
+  refreshIntervalMin   Int?      @map("refresh_interval_min") // null = no auto-refresh
+  lastRefreshedAt      DateTime? @map("last_refreshed_at")
 
   // Relations
   entries     CallListEntry[]
@@ -1629,6 +1637,55 @@ model VoicemailDrop {
   createdAt    DateTime @default(now()) @map("created_at")
   @@index([userId])
   @@map("voicemail_drops")
+}
+
+model DNCEntry {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id") @db.Uuid
+  phone     String
+  reason    String?  // manual | requested | regulatory
+  source    String?  // import | call_outcome | manual
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  @@unique([userId, phone])
+  @@index([userId])
+  @@map("dnc_entries")
+}
+
+model DialerSettings {
+  id                 String  @id @default(cuid())
+  userId             String  @unique @map("user_id") @db.Uuid
+  callingHoursStart  String  @default("09:00") @map("calling_hours_start")
+  callingHoursEnd    String  @default("20:00") @map("calling_hours_end")
+  callingTimezone    String  @default("America/New_York") @map("calling_timezone")
+  maxCallsPerDay     Int     @default(200) @map("max_calls_per_day")
+  cooldownDays       Int     @default(3) @map("cooldown_days")
+  recordingConsent   Boolean @default(true) @map("recording_consent")
+
+  @@map("dialer_settings")
+}
+
+model TaraScript {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id") @db.Uuid
+  name         String
+  objective    String   // qualify | appointment | followup
+  greeting     String   @db.Text
+  systemPrompt String   @map("system_prompt") @db.Text
+  isActive     Boolean  @default(true) @map("is_active")
+  weight       Int      @default(50) // 0-100 traffic percentage weight
+
+  // Performance metrics (denormalized for fast display)
+  totalCalls      Int @default(0) @map("total_calls")
+  connectedCalls  Int @default(0) @map("connected_calls")
+  appointmentsSet Int @default(0) @map("appointments_set")
+  avgDuration     Int @default(0) @map("avg_duration") // seconds
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, objective, isActive])
+  @@map("tara_scripts")
 }
 
 // ============================================================================

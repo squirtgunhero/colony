@@ -20,7 +20,10 @@ import {
   User,
   Tag,
   Sparkles,
+  Calendar,
 } from "lucide-react";
+import { AppointmentScheduler } from "./AppointmentScheduler";
+import { LiveTranscript } from "./LiveTranscript";
 
 // ============================================================================
 // Types
@@ -102,6 +105,7 @@ export function DialingSession({ callListId, callListName, onExit }: Props) {
   const [selectedOutcome, setSelectedOutcome] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
   const [currentEntryContactId, setCurrentEntryContactId] = useState<string | null>(null);
+  const [showScheduler, setShowScheduler] = useState(false);
 
   const borderColor = withAlpha(theme.text, 0.06);
 
@@ -486,6 +490,17 @@ export function DialingSession({ callListId, callListName, onExit }: Props) {
                 {dialer.callState === "ringing" && "Ringing..."}
                 {dialer.callState === "connected" && "Connected"}
               </span>
+              {dialer.callState === "connected" && (
+                <span
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-full ml-2"
+                  style={{
+                    backgroundColor: withAlpha("#8b5cf6", 0.1),
+                    color: "#8b5cf6",
+                  }}
+                >
+                  Transcribing
+                </span>
+              )}
             </div>
 
             {/* Timer */}
@@ -544,6 +559,14 @@ export function DialingSession({ callListId, callListName, onExit }: Props) {
               </button>
             </div>
           </div>
+
+          {/* Live Transcript */}
+          {dialer.currentCallId && (
+            <LiveTranscript
+              callId={dialer.currentCallId}
+              isActive={dialer.callState === "connected"}
+            />
+          )}
 
           {/* Quick notes during call */}
           <div
@@ -615,6 +638,14 @@ export function DialingSession({ callListId, callListName, onExit }: Props) {
             </div>
           </div>
 
+          {/* Post-call transcript (read-only) */}
+          {dialer.currentCallId && (
+            <LiveTranscript
+              callId={dialer.currentCallId}
+              isActive={false}
+            />
+          )}
+
           {/* Outcome selection */}
           <div
             className="rounded-2xl p-5 space-y-4"
@@ -671,6 +702,20 @@ export function DialingSession({ callListId, callListName, onExit }: Props) {
             </div>
           </div>
 
+          {/* Schedule Appointment */}
+          <button
+            onClick={() => setShowScheduler(true)}
+            className="w-full h-10 rounded-xl text-[13px] font-medium transition-all hover:brightness-110 flex items-center justify-center gap-2"
+            style={{
+              backgroundColor: withAlpha(theme.accent, 0.08),
+              color: theme.accent,
+              border: `1px solid ${withAlpha(theme.accent, 0.15)}`,
+            }}
+          >
+            <Calendar className="h-4 w-4" />
+            Schedule Appointment
+          </button>
+
           {/* Action buttons */}
           <div className="flex items-center gap-3">
             <button
@@ -693,6 +738,19 @@ export function DialingSession({ callListId, callListName, onExit }: Props) {
               Save & End
             </button>
           </div>
+
+          {/* Appointment Scheduler overlay */}
+          {showScheduler && briefing && (
+            <AppointmentScheduler
+              contactName={briefing.contact.name}
+              contactEmail={briefing.contact.email || undefined}
+              callId={dialer.currentCallId || undefined}
+              onScheduled={() => {
+                setShowScheduler(false);
+              }}
+              onClose={() => setShowScheduler(false)}
+            />
+          )}
         </div>
       )}
 
