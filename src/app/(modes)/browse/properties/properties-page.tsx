@@ -121,9 +121,8 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         const place = autocomplete.getPlace();
         const addr = place?.formatted_address || searchInputRef.current?.value || "";
         if (addr) {
-          setAddressQuery(addr);
-          // Use a ref-based direct call instead of clicking a button
-          pendingSearchRef.current = addr;
+          // Directly trigger search with the selected address
+          handleSearchDirect(addr);
         }
       });
 
@@ -133,15 +132,6 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
     });
   }, []);
 
-  // Auto-trigger search when Google Places selects an address
-  useEffect(() => {
-    if (pendingSearchRef.current && addressQuery === pendingSearchRef.current) {
-      const addr = pendingSearchRef.current;
-      pendingSearchRef.current = null;
-      handleSearch(addr);
-    }
-  }, [addressQuery]);
-
   useEffect(() => {
     fetch("/api/properties/usage")
       .then((r) => r.json())
@@ -149,8 +139,15 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
       .catch(() => {});
   }, []);
 
+  // Direct search used by autocomplete — bypasses React state
+  async function handleSearchDirect(addr: string) {
+    setAddressQuery(addr);
+    if (searchInputRef.current) searchInputRef.current.value = addr;
+    await handleSearch(addr);
+  }
+
   async function handleSearch(overrideAddress?: string) {
-    const query = overrideAddress || addressQuery;
+    const query = overrideAddress || searchInputRef.current?.value || addressQuery;
     if (!query.trim() || query.trim().length < 5) return;
     setSearching(true);
     setSearchResult(null);
@@ -191,6 +188,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         router.refresh();
         setSearchResult(null);
         setAddressQuery("");
+        if (searchInputRef.current) searchInputRef.current.value = "";
       }
     } catch {
       // ignore
@@ -240,7 +238,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
           <input
             ref={searchInputRef}
             placeholder="Search any address... (e.g. 123 Main St, Austin TX)"
-            value={addressQuery}
+            defaultValue={addressQuery}
             onChange={(e) => setAddressQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             className="w-full h-10 pl-9 pr-3 rounded-xl text-sm outline-none transition-all"
@@ -256,7 +254,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         <button
           id="melissa-lookup-btn"
           onClick={() => handleSearch()}
-          disabled={searching || !addressQuery.trim()}
+          disabled={searching}
           className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
           style={{ backgroundColor: theme.accent, color: theme.bg }}
         >
@@ -322,7 +320,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
                 >
                   {addingProperty ? "Adding..." : "Add to Properties"}
                 </button>
-                <button onClick={() => { setSearchResult(null); setAddressQuery(""); }}>
+                <button onClick={() => { setSearchResult(null); setAddressQuery(""); if (searchInputRef.current) searchInputRef.current.value = ""; }}>
                   <X className="h-4 w-4" style={{ color: theme.textMuted }} />
                 </button>
               </div>
@@ -388,19 +386,6 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
             {showSidebar ? "Hide" : "Show"} List ({properties.length})
           </button>
 
-          {/* No map data message */}
-          {!searchResult && properties.length > 0 && properties.filter((p) => p.latitude && p.longitude).length === 0 && (
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] text-center p-6 rounded-xl pointer-events-none"
-              style={{ backgroundColor: withAlpha(theme.bg, 0.85), maxWidth: 300 }}
-            >
-              <MapPin className="h-8 w-8 mx-auto mb-3" style={{ color: theme.accent, opacity: 0.5 }} />
-              <p className="text-sm font-medium mb-1" style={{ color: theme.text }}>No map data yet</p>
-              <p className="text-xs" style={{ color: theme.textMuted }}>
-                Search an address above to enrich properties with location data.
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Sidebar — Property List */}
