@@ -45,6 +45,7 @@ interface PropertyMapProps {
   searchResult: any;
   selectedId: string | null;
   onSelectProperty: (id: string | null) => void;
+  defaultCenter?: { lat: number; lng: number; zoom: number };
 }
 
 export default function PropertyMap({
@@ -52,6 +53,7 @@ export default function PropertyMap({
   searchResult,
   selectedId,
   onSelectProperty,
+  defaultCenter,
 }: PropertyMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -65,7 +67,10 @@ export default function PropertyMap({
 
     const map = L.map(mapRef.current, {
       zoomControl: false,
-    }).setView([39.8283, -98.5795], 4);
+    }).setView(
+      defaultCenter ? [defaultCenter.lat, defaultCenter.lng] : [39.8283, -98.5795],
+      defaultCenter?.zoom ?? 4
+    );
 
     L.control.zoom({ position: "bottomright" }).addTo(map);
 

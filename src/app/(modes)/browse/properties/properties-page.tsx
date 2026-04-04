@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -18,8 +18,6 @@ import { withAlpha } from "@/lib/themes";
 import { formatCurrency } from "@/lib/date-utils";
 
 const PropertyMap = dynamic(() => import("./property-map"), { ssr: false });
-
-const GOOGLE_MAPS_API_KEY = "AIzaSyDUz1ye3oS-oExVT7oc9Ta1u9PcWBpg2ko";
 
 interface Property {
   id: string;
@@ -97,106 +95,39 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dividerColor = withAlpha(theme.text, 0.06);
 
-  // Fetch autocomplete suggestions from Google Places API
-  async function fetchSuggestions(input: string) {
-    if (input.length < 3) {
+  // Compute default map center from properties with coordinates
+  const defaultCenter = useMemo(() => {
+    const withCoords = properties.filter((p) => p.latitude && p.longitude);
+    if (withCoords.length === 0) return undefined;
+    const avgLat = withCoords.reduce((sum, p) => sum + p.latitude!, 0) / withCoords.length;
+    const avgLng = withCoords.reduce((sum, p) => sum + p.longitude!, 0) / withCoords.length;
+    return { lat: avgLat, lng: avgLng, zoom: withCoords.length === 1 ? 14 : 10 };
+  }, [properties]);
+
+  // Handle input change with debounced autocomplete via server proxy
+  function handleInputChange(value: string) {
+    setAddressQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
-    try {
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&components=country:us&key=${GOOGLE_MAPS_API_KEY}`
-      );
-      const data = await res.json();
-      if (data.predictions?.length > 0) {
-        setSuggestions(
-          data.predictions.map((p: any) => ({
-            description: p.description,
-            place_id: p.place_id,
-          }))
-        );
-        setShowSuggestions(true);
-        setSelectedSuggestionIdx(-1);
-      } else {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      }
-    } catch {
-      // CORS will block client-side calls to the Places API REST endpoint.
-      // Fall back to loading the Google Maps JS SDK.
-      loadGooglePlacesJS(input);
-    }
-  }
-
-  // Fallback: use Google Maps JS SDK for autocomplete
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const googleLoadedRef = useRef(false);
-
-  function loadGooglePlacesJS(input?: string) {
-    if (googleLoadedRef.current && autocompleteServiceRef.current) {
-      if (input) fetchSuggestionsViaSDK(input);
-      return;
-    }
-    if (typeof window !== "undefined" && window.google?.maps?.places) {
-      googleLoadedRef.current = true;
-      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
-      if (input) fetchSuggestionsViaSDK(input);
-      return;
-    }
-    // Load script
-    if (document.querySelector(`script[src*="maps.googleapis.com"]`)) return;
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async = true;
-    script.onload = () => {
-      googleLoadedRef.current = true;
-      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
-      if (input) fetchSuggestionsViaSDK(input);
-    };
-    document.head.appendChild(script);
-  }
-
-  function fetchSuggestionsViaSDK(input: string) {
-    if (!autocompleteServiceRef.current || input.length < 3) return;
-    autocompleteServiceRef.current.getPlacePredictions(
-      {
-        input,
-        types: ["address"],
-        componentRestrictions: { country: "us" },
-      },
-      (predictions, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-          setSuggestions(
-            predictions.map((p) => ({
-              description: p.description,
-              place_id: p.place_id,
-            }))
-          );
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/properties/autocomplete?input=${encodeURIComponent(value)}`);
+        const data = await res.json();
+        if (data.predictions?.length > 0) {
+          setSuggestions(data.predictions);
           setShowSuggestions(true);
           setSelectedSuggestionIdx(-1);
         } else {
           setSuggestions([]);
           setShowSuggestions(false);
         }
-      }
-    );
-  }
-
-  // Eagerly load Google Maps JS SDK
-  useEffect(() => {
-    loadGooglePlacesJS();
-  }, []);
-
-  // Handle input change with debounced autocomplete
-  function handleInputChange(value: string) {
-    setAddressQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      if (autocompleteServiceRef.current) {
-        fetchSuggestionsViaSDK(value);
-      } else {
-        fetchSuggestions(value);
+      } catch {
+        setSuggestions([]);
+        setShowSuggestions(false);
       }
     }, 250);
   }
@@ -507,6 +438,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
               searchResult={searchResult}
               selectedId={selectedPropertyId}
               onSelectProperty={handleSelectProperty}
+              defaultCenter={defaultCenter}
             />
           </div>
 
