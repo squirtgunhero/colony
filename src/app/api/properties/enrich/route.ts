@@ -33,12 +33,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Look up property data via Melissa
-    const fullAddress = [property.address, property.city, property.state, property.zipCode]
-      .filter(Boolean)
-      .join(", ");
-
-    const result = await lookupProperty(fullAddress, userId);
+    // Look up property data via Melissa using structured address for precision
+    const result = await lookupProperty({
+      addressLine1: property.address,
+      city: property.city || undefined,
+      state: property.state || undefined,
+      postalCode: property.zipCode || undefined,
+    }, userId);
 
     if (!result) {
       const usage = await getUsage(userId);

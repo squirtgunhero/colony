@@ -119,8 +119,16 @@ export async function getUsage(
   return { used, limit, remaining: Math.max(0, limit - used), month };
 }
 
+export interface MelissaLookupInput {
+  freeform?: string;
+  addressLine1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+}
+
 export async function lookupProperty(
-  address: string,
+  input: string | MelissaLookupInput,
   userId: string
 ): Promise<MelissaPropertyData | null> {
   const apiKey = process.env.MELISSA_DATA_API_KEY;
@@ -139,11 +147,36 @@ export async function lookupProperty(
     );
   }
 
-  // Build request URL
+  // Build request URL — use structured params when available (more precise),
+  // fall back to freeform address string
   const url = new URL(MELISSA_API_URL);
   url.searchParams.set("id", apiKey);
-  url.searchParams.set("ff", address);
   url.searchParams.set("cols", "GrpAll");
+
+  let addressForLog: string;
+
+  if (typeof input === "string") {
+    url.searchParams.set("ff", input);
+    addressForLog = input;
+  } else if (input.addressLine1) {
+    // Set F: a1 + postal  OR  Set G: a1 + city + state
+    url.searchParams.set("a1", input.addressLine1);
+    if (input.postalCode) {
+      url.searchParams.set("postal", input.postalCode);
+    }
+    if (input.city) {
+      url.searchParams.set("city", input.city);
+    }
+    if (input.state) {
+      url.searchParams.set("state", input.state);
+    }
+    addressForLog = [input.addressLine1, input.city, input.state, input.postalCode].filter(Boolean).join(", ");
+  } else if (input.freeform) {
+    url.searchParams.set("ff", input.freeform);
+    addressForLog = input.freeform;
+  } else {
+    return null;
+  }
 
   let data: any;
   try {
@@ -169,7 +202,7 @@ export async function lookupProperty(
     data: {
       userId,
       endpoint: "LookupProperty",
-      address,
+      address: addressForLog,
       month,
     },
   });
