@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,9 @@ import {
   Target,
   Calendar,
   Building,
+  Sparkles,
+  Database,
+  RefreshCw,
 } from "lucide-react";
 import { usePresence } from "@/lib/realtime/presence";
 import { useRealtimeUpdates } from "@/lib/realtime/broadcast";
@@ -41,9 +44,47 @@ const statusLabels: Record<string, string> = {
   pre_listing: "Pre-Listing",
 };
 
+const GRADE_COLORS: Record<string, string> = {
+  A: "#22c55e",
+  B: "#3b82f6",
+  C: "#eab308",
+  D: "#f97316",
+  F: "#ef4444",
+};
+
 export function PropertyDetailView({ property, contacts, currentUser }: PropertyDetailViewProps) {
   const { theme } = useColonyTheme();
   const router = useRouter();
+  const [scoring, setScoring] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+
+  async function handleScore() {
+    setScoring(true);
+    try {
+      await fetch(`/api/properties/${property.id}/score`, { method: "POST" });
+      router.refresh();
+    } catch {
+      // ignore
+    } finally {
+      setScoring(false);
+    }
+  }
+
+  async function handleEnrich() {
+    setEnriching(true);
+    try {
+      await fetch("/api/properties/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propertyId: property.id }),
+      });
+      router.refresh();
+    } catch {
+      // ignore
+    } finally {
+      setEnriching(false);
+    }
+  }
 
   // Realtime presence
   const { others } = usePresence("property", property.id, {
@@ -245,6 +286,87 @@ export function PropertyDetailView({ property, contacts, currentUser }: Property
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Opportunity Score */}
+            <div
+              className="rounded-xl p-5"
+              style={{
+                backgroundColor: theme.bgGlow,
+                boxShadow: "none",
+              }}
+            >
+              <h3
+                className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 mb-4"
+                style={{ color: theme.textMuted }}
+              >
+                <Sparkles className="h-4 w-4" style={{ color: theme.accent }} />
+                Opportunity Score
+              </h3>
+              {property.opportunityGrade ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="flex items-center justify-center h-14 w-14 rounded-full text-xl font-bold"
+                      style={{
+                        backgroundColor: withAlpha(
+                          GRADE_COLORS[property.opportunityGrade] || theme.textMuted,
+                          0.15
+                        ),
+                        color: GRADE_COLORS[property.opportunityGrade] || theme.textMuted,
+                      }}
+                    >
+                      {property.opportunityGrade}
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" style={{ color: theme.text }}>
+                        {property.opportunityScore ?? "—"}{" "}
+                        <span className="text-sm font-normal" style={{ color: theme.textMuted }}>
+                          / 100
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  {property.opportunityReasoning && (
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: theme.textMuted, fontFamily: "'DM Sans', sans-serif" }}
+                    >
+                      {property.opportunityReasoning}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleScore}
+                    disabled={scoring}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 disabled:opacity-50"
+                    style={{
+                      backgroundColor: withAlpha(theme.accent, 0.15),
+                      color: theme.accent,
+                    }}
+                  >
+                    <RefreshCw className={`h-3 w-3 ${scoring ? "animate-spin" : ""}`} />
+                    {scoring ? "Scoring..." : "Re-score"}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm" style={{ color: theme.textMuted }}>
+                    Not scored
+                  </p>
+                  <button
+                    onClick={handleScore}
+                    disabled={scoring}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 disabled:opacity-50"
+                    style={{
+                      backgroundColor: theme.accent,
+                      color: theme.bg,
+                    }}
+                  >
+                    <Sparkles className={`h-3 w-3 ${scoring ? "animate-spin" : ""}`} />
+                    {scoring ? "Scoring..." : "Score Now"}
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Owner */}
             {property.owner && (
               <div
@@ -433,6 +555,186 @@ export function PropertyDetailView({ property, contacts, currentUser }: Property
                     {formatDistanceToNow(property.updatedAt)}
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Property Data (Enrichment) */}
+            <div
+              className="rounded-xl p-5"
+              style={{
+                backgroundColor: theme.bgGlow,
+                boxShadow: "none",
+              }}
+            >
+              <h3
+                className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2 mb-4"
+                style={{ color: theme.textMuted }}
+              >
+                <Database className="h-4 w-4" style={{ color: theme.accent }} />
+                Property Data
+              </h3>
+              <div className="space-y-3">
+                {property.assessedValue != null && (
+                  <div
+                    className="flex items-center justify-between text-sm"
+                    style={{ color: theme.textMuted }}
+                  >
+                    <span>Assessed Value</span>
+                    <span style={{ color: theme.textSoft }}>{formatCurrency(property.assessedValue)}</span>
+                  </div>
+                )}
+                {property.marketValue != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Market Value</span>
+                    <span style={{ color: theme.textSoft }}>{formatCurrency(property.marketValue)}</span>
+                  </div>
+                )}
+                {property.taxAmount != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Tax Amount</span>
+                    <span style={{ color: theme.textSoft }}>{formatCurrency(property.taxAmount)}</span>
+                  </div>
+                )}
+                {property.yearBuilt != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Year Built</span>
+                    <span style={{ color: theme.textSoft }}>{property.yearBuilt}</span>
+                  </div>
+                )}
+                {property.lotSize != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Lot Size</span>
+                    <span style={{ color: theme.textSoft }}>{property.lotSize}</span>
+                  </div>
+                )}
+                {property.zoning != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Zoning</span>
+                    <span style={{ color: theme.textSoft }}>{property.zoning}</span>
+                  </div>
+                )}
+                {property.ownerName != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Owner (Public Records)</span>
+                    <span style={{ color: theme.textSoft }}>{property.ownerName}</span>
+                  </div>
+                )}
+                {property.ownerOccupied != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Owner Occupied</span>
+                    <span style={{ color: theme.textSoft }}>{property.ownerOccupied ? "Yes" : "No"}</span>
+                  </div>
+                )}
+                {property.lastSaleDate != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Last Sale Date</span>
+                    <span style={{ color: theme.textSoft }}>{formatDistanceToNow(property.lastSaleDate)}</span>
+                  </div>
+                )}
+                {property.lastSalePrice != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Last Sale Price</span>
+                    <span style={{ color: theme.textSoft }}>{formatCurrency(property.lastSalePrice)}</span>
+                  </div>
+                )}
+                {property.apn != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>APN</span>
+                    <span style={{ color: theme.textSoft }}>{property.apn}</span>
+                  </div>
+                )}
+                {property.county != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>County</span>
+                    <span style={{ color: theme.textSoft }}>{property.county}</span>
+                  </div>
+                )}
+                {property.latitude != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Latitude</span>
+                    <span style={{ color: theme.textSoft }}>{property.latitude}</span>
+                  </div>
+                )}
+                {property.longitude != null && (
+                  <div
+                    className="flex items-center justify-between text-sm pt-3"
+                    style={{ borderTop: `1px solid ${dividerColor}`, color: theme.textMuted }}
+                  >
+                    <span>Longitude</span>
+                    <span style={{ color: theme.textSoft }}>{property.longitude}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 flex items-center gap-3">
+                {property.melissaEnrichedAt ? (
+                  <>
+                    <button
+                      onClick={handleEnrich}
+                      disabled={enriching}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 disabled:opacity-50"
+                      style={{
+                        backgroundColor: withAlpha(theme.accent, 0.15),
+                        color: theme.accent,
+                      }}
+                    >
+                      <RefreshCw className={`h-3 w-3 ${enriching ? "animate-spin" : ""}`} />
+                      {enriching ? "Enriching..." : "Re-enrich"}
+                    </button>
+                    <span className="text-xs" style={{ color: theme.textMuted }}>
+                      Last enriched {formatDistanceToNow(property.melissaEnrichedAt)}
+                    </span>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleEnrich}
+                    disabled={enriching}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 disabled:opacity-50"
+                    style={{
+                      backgroundColor: theme.accent,
+                      color: theme.bg,
+                    }}
+                  >
+                    <Database className={`h-3 w-3 ${enriching ? "animate-spin" : ""}`} />
+                    {enriching ? "Enriching..." : "Enrich"}
+                  </button>
+                )}
               </div>
             </div>
           </div>

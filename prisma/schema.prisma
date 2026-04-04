@@ -282,6 +282,39 @@ model Property {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Melissa enrichment data
+  parcelId        String?   @map("parcel_id")
+  fips            String?
+  yearBuilt       Int?      @map("year_built")
+  lotSizeSqft     Float?    @map("lot_size_sqft")
+  lotSizeAcres    Float?    @map("lot_size_acres")
+  zoning          String?
+  propertyType    String?   @map("property_type")
+  stories         Int?
+  assessedValue   Float?    @map("assessed_value")
+  marketValue     Float?    @map("market_value")
+  taxAmount       Float?    @map("tax_amount")
+  taxYear         Int?      @map("tax_year")
+  ownerName       String?   @map("owner_name")
+  ownerOccupied   Boolean?  @map("owner_occupied")
+  lastSaleDate    DateTime? @map("last_sale_date")
+  lastSalePrice   Float?    @map("last_sale_price")
+  county          String?
+  subdivision     String?
+  latitude        Float?
+  longitude       Float?
+
+  // AI opportunity scoring
+  opportunityScore     Int?      @map("opportunity_score")
+  opportunityGrade     String?   @map("opportunity_grade")
+  opportunityReasoning String?   @map("opportunity_reasoning")
+  opportunityScoredAt  DateTime? @map("opportunity_scored_at")
+
+  // Enrichment tracking
+  melissaEnrichedAt   DateTime? @map("melissa_enriched_at")
+  melissaRawResponse  Json?     @map("melissa_raw_response")
+  importSource        String?   @map("import_source")
+
   // Relations
   ownerId    String?
   owner      Contact?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
@@ -2283,4 +2316,16 @@ model MeetingInteraction {
   @@index([contactId])
   @@index([profileId])
   @@map("meeting_interactions")
+}
+
+model MelissaApiUsage {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String
+  address   String?
+  month     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, month])
+  @@map("melissa_api_usage")
 }

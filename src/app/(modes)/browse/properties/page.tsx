@@ -5,7 +5,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/supabase/auth";
-import { PropertiesListView } from "@/components/browse/PropertiesListView";
+import { PropertiesPage } from "./properties-page";
 
 async function getProperties(userId: string) {
   return prisma.property.findMany({
@@ -26,5 +26,5 @@ export default async function BrowsePropertiesPage() {
   const userId = await requireUserId();
   const properties = await getProperties(userId);
 
-  return <PropertiesListView properties={properties} />;
+  return <PropertiesPage properties={properties} />;
 }
