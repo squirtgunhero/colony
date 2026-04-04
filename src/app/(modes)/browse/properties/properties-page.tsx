@@ -83,11 +83,27 @@ function PropertyMap({
   const markersRef = useRef<any[]>([]);
   const { theme } = useColonyTheme();
 
+  // Load Leaflet CSS first, then init map
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    // Dynamically import Leaflet to avoid SSR
-    import("leaflet").then((L) => {
+    // Inject Leaflet CSS before initializing the map
+    const loadCSS = new Promise<void>((resolve) => {
+      if (document.getElementById("leaflet-css")) {
+        resolve();
+        return;
+      }
+      const link = document.createElement("link");
+      link.id = "leaflet-css";
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      link.onload = () => resolve();
+      document.head.appendChild(link);
+    });
+
+    loadCSS.then(() => import("leaflet")).then((L) => {
+      if (!mapRef.current || mapInstanceRef.current) return;
+
       // Fix default icon paths
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
@@ -110,14 +126,8 @@ function PropertyMap({
 
       mapInstanceRef.current = map;
 
-      // Add CSS for leaflet
-      if (!document.getElementById("leaflet-css")) {
-        const link = document.createElement("link");
-        link.id = "leaflet-css";
-        link.rel = "stylesheet";
-        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        document.head.appendChild(link);
-      }
+      // Force resize after a tick so Leaflet picks up the container size
+      setTimeout(() => map.invalidateSize(), 100);
     });
 
     return () => {
@@ -220,7 +230,7 @@ function PropertyMap({
   }, [properties, searchResult, selectedId, theme.accent, onSelectProperty]);
 
   return (
-    <div ref={mapRef} className="w-full h-full rounded-xl" style={{ minHeight: "100%" }} />
+    <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
   );
 }
 
@@ -478,7 +488,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
       {/* Map + Sidebar */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Map */}
-        <div className="flex-1 relative">
+        <div className="flex-1" style={{ position: "relative", minHeight: 0 }}>
           <PropertyMap
             properties={properties}
             searchResult={searchResult}
@@ -610,7 +620,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         )}
       </div>
 
-      {/* Pulse animation style */}
+      {/* Leaflet + animation styles */}
       <style jsx global>{`
         @keyframes pulse {
           0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
@@ -619,6 +629,21 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         }
         .leaflet-container {
           background: #1a1a2e !important;
+          width: 100% !important;
+          height: 100% !important;
+        }
+        .leaflet-control-attribution {
+          background: rgba(0,0,0,0.5) !important;
+          color: rgba(255,255,255,0.4) !important;
+          font-size: 10px !important;
+        }
+        .leaflet-control-attribution a {
+          color: rgba(255,255,255,0.5) !important;
+        }
+        .leaflet-control-zoom a {
+          background: rgba(30,30,30,0.9) !important;
+          color: white !important;
+          border-color: rgba(255,255,255,0.1) !important;
         }
       `}</style>
     </div>
