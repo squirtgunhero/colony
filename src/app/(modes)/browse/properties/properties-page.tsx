@@ -1,28 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   Search,
   MapPin,
-  DollarSign,
-  Bed,
-  Bath,
-  Maximize,
   Upload,
-  ChevronDown,
-  ChevronUp,
   X,
   Loader2,
   Sparkles,
-  Building2,
   List,
-  Map as MapIcon,
 } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
-import { formatCurrency, formatDate } from "@/lib/date-utils";
+import { formatCurrency } from "@/lib/date-utils";
+
+const PropertyMap = dynamic(() => import("./property-map"), { ssr: false });
 
 interface Property {
   id: string;
@@ -62,181 +57,6 @@ const GRADE_COLORS: Record<string, string> = {
   D: "#f97316",
   F: "#ef4444",
 };
-
-// ============================================================================
-// Leaflet Map Component (loaded dynamically to avoid SSR issues)
-// ============================================================================
-
-function PropertyMap({
-  properties,
-  searchResult,
-  selectedId,
-  onSelectProperty,
-}: {
-  properties: Property[];
-  searchResult: any;
-  selectedId: string | null;
-  onSelectProperty: (id: string | null) => void;
-}) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const { theme } = useColonyTheme();
-
-  // Load Leaflet CSS first, then init map
-  useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
-
-    // Inject Leaflet CSS before initializing the map
-    const loadCSS = new Promise<void>((resolve) => {
-      if (document.getElementById("leaflet-css")) {
-        resolve();
-        return;
-      }
-      const link = document.createElement("link");
-      link.id = "leaflet-css";
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      link.onload = () => resolve();
-      document.head.appendChild(link);
-    });
-
-    loadCSS.then(() => import("leaflet")).then((L) => {
-      if (!mapRef.current || mapInstanceRef.current) return;
-
-      // Fix default icon paths
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
-
-      const map = L.map(mapRef.current!, {
-        zoomControl: false,
-      }).setView([39.8283, -98.5795], 4); // Center US
-
-      L.control.zoom({ position: "bottomright" }).addTo(map);
-
-      // Dark tile layer
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        maxZoom: 19,
-      }).addTo(map);
-
-      mapInstanceRef.current = map;
-
-      // Force resize after a tick so Leaflet picks up the container size
-      setTimeout(() => map.invalidateSize(), 100);
-    });
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, []);
-
-  // Update markers when properties or search result change
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-
-    import("leaflet").then((L) => {
-      const map = mapInstanceRef.current;
-
-      // Clear existing markers
-      markersRef.current.forEach((m) => map.removeLayer(m));
-      markersRef.current = [];
-
-      const bounds: [number, number][] = [];
-
-      // Add property markers
-      properties.forEach((p) => {
-        if (!p.latitude || !p.longitude) return;
-        const isSelected = p.id === selectedId;
-        const gradeColor = p.opportunityGrade ? GRADE_COLORS[p.opportunityGrade] || theme.accent : theme.accent;
-
-        const icon = L.divIcon({
-          className: "custom-marker",
-          html: `<div style="
-            width: ${isSelected ? "32px" : "24px"};
-            height: ${isSelected ? "32px" : "24px"};
-            border-radius: 50%;
-            background: ${gradeColor};
-            border: 2px solid white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: 700;
-            color: white;
-            transition: all 0.2s;
-            cursor: pointer;
-          ">${p.opportunityGrade || ""}</div>`,
-          iconSize: [isSelected ? 32 : 24, isSelected ? 32 : 24],
-          iconAnchor: [isSelected ? 16 : 12, isSelected ? 16 : 12],
-        });
-
-        const marker = L.marker([p.latitude, p.longitude], { icon })
-          .addTo(map)
-          .on("click", () => onSelectProperty(p.id));
-
-        marker.bindPopup(
-          `<div style="font-family: 'DM Sans', sans-serif; color: #1a1a1a; min-width: 180px;">
-            <strong style="font-size: 13px;">${p.address}</strong><br/>
-            <span style="font-size: 12px; color: #666;">${[p.city, p.state].filter(Boolean).join(", ")}</span><br/>
-            <span style="font-size: 14px; font-weight: 600; color: #1a1a1a;">${formatCurrency(p.price)}</span>
-            ${p.bedrooms || p.bathrooms || p.sqft ? `<br/><span style="font-size: 11px; color: #888;">${[p.bedrooms ? `${p.bedrooms} bd` : "", p.bathrooms ? `${p.bathrooms} ba` : "", p.sqft ? `${p.sqft.toLocaleString()} sqft` : ""].filter(Boolean).join(" · ")}</span>` : ""}
-          </div>`,
-          { closeButton: false }
-        );
-
-        markersRef.current.push(marker);
-        bounds.push([p.latitude, p.longitude]);
-      });
-
-      // Add search result marker
-      if (searchResult?.latitude && searchResult?.longitude) {
-        const icon = L.divIcon({
-          className: "search-marker",
-          html: `<div style="
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: ${theme.accent};
-            border: 3px solid white;
-            box-shadow: 0 0 16px ${withAlpha(theme.accent, 0.5)};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: pulse 2s infinite;
-          "><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>`,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18],
-        });
-
-        const marker = L.marker([searchResult.latitude, searchResult.longitude], { icon }).addTo(map);
-        markersRef.current.push(marker);
-        bounds.push([searchResult.latitude, searchResult.longitude]);
-
-        // Fly to search result
-        map.flyTo([searchResult.latitude, searchResult.longitude], 15, { duration: 1 });
-      } else if (bounds.length > 0) {
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-      }
-    });
-  }, [properties, searchResult, selectedId, theme.accent, onSelectProperty]);
-
-  return (
-    <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
-  );
-}
-
-// ============================================================================
-// Main Properties Page
-// ============================================================================
 
 export function PropertiesPage({ properties }: PropertiesPageProps) {
   const { theme } = useColonyTheme();
@@ -344,10 +164,6 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
     setShowSidebar(true);
   }, []);
 
-  const selectedProperty = selectedPropertyId
-    ? properties.find((p) => p.id === selectedPropertyId)
-    : null;
-
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
       {/* Search Bar */}
@@ -396,10 +212,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
           <span className="hidden sm:inline">Import</span>
         </button>
         {usage && (
-          <span
-            className="text-xs whitespace-nowrap hidden md:block"
-            style={{ color: theme.textMuted }}
-          >
+          <span className="text-xs whitespace-nowrap hidden md:block" style={{ color: theme.textMuted }}>
             {usage.remaining.toLocaleString()} lookups left
           </span>
         )}
@@ -427,7 +240,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
                     {searchResult.address}{searchResult.city ? `, ${searchResult.city}` : ""}{searchResult.state ? ` ${searchResult.state}` : ""}
                   </span>
                 </div>
-                <div className="flex items-center gap-4 mt-1 text-xs" style={{ color: theme.textMuted }}>
+                <div className="flex items-center gap-4 mt-1 text-xs flex-wrap" style={{ color: theme.textMuted }}>
                   {searchResult.ownerName && <span>Owner: {searchResult.ownerName}</span>}
                   {searchResult.assessedValue != null && <span>Assessed: {formatCurrency(searchResult.assessedValue)}</span>}
                   {searchResult.yearBuilt && <span>Built {searchResult.yearBuilt}</span>}
@@ -486,15 +299,17 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
       )}
 
       {/* Map + Sidebar */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden">
         {/* Map */}
-        <div className="flex-1" style={{ position: "relative", minHeight: 0 }}>
-          <PropertyMap
-            properties={properties}
-            searchResult={searchResult}
-            selectedId={selectedPropertyId}
-            onSelectProperty={handleSelectProperty}
-          />
+        <div style={{ flex: 1, position: "relative" }}>
+          <div style={{ position: "absolute", inset: 0 }}>
+            <PropertyMap
+              properties={properties}
+              searchResult={searchResult}
+              selectedId={selectedPropertyId}
+              onSelectProperty={handleSelectProperty}
+            />
+          </div>
 
           {/* Toggle sidebar button */}
           <button
@@ -510,16 +325,16 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
             {showSidebar ? "Hide" : "Show"} List ({properties.length})
           </button>
 
-          {/* Property count with no coords message */}
+          {/* No map data message */}
           {properties.length > 0 && properties.filter((p) => p.latitude && p.longitude).length === 0 && (
             <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[500] text-center p-6 rounded-xl"
-              style={{ backgroundColor: withAlpha(theme.bg, 0.9), maxWidth: 320 }}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] text-center p-6 rounded-xl pointer-events-none"
+              style={{ backgroundColor: withAlpha(theme.bg, 0.85), maxWidth: 300 }}
             >
               <MapPin className="h-8 w-8 mx-auto mb-3" style={{ color: theme.accent, opacity: 0.5 }} />
               <p className="text-sm font-medium mb-1" style={{ color: theme.text }}>No map data yet</p>
               <p className="text-xs" style={{ color: theme.textMuted }}>
-                Search an address above to enrich properties with location data, or enrich existing properties from their detail page.
+                Search an address above to enrich properties with location data.
               </p>
             </div>
           )}
@@ -528,10 +343,10 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         {/* Sidebar — Property List */}
         {showSidebar && (
           <div
-            className="w-[380px] flex-shrink-0 overflow-y-auto border-l"
-            style={{ borderColor: dividerColor, backgroundColor: theme.bg }}
+            className="w-[380px] flex-shrink-0 overflow-y-auto"
+            style={{ borderLeft: `1px solid ${dividerColor}`, backgroundColor: theme.bg }}
           >
-            <div className="p-3 space-y-2">
+            <div className="p-3 space-y-1">
               {properties.length === 0 ? (
                 <div className="text-center py-12">
                   <MapPin className="h-10 w-10 mx-auto mb-3" style={{ color: theme.accent, opacity: 0.3 }} />
@@ -572,14 +387,12 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {/* Enrichment dot */}
                           <div
                             className="h-1.5 w-1.5 rounded-full"
                             style={{
                               backgroundColor: property.melissaEnrichedAt ? "#22c55e" : withAlpha(theme.text, 0.15),
                             }}
                           />
-                          {/* Grade badge */}
                           {gradeColor && property.opportunityGrade && (
                             <span
                               className="text-[10px] font-bold px-1.5 py-0.5 rounded"
@@ -590,7 +403,6 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
                           )}
                         </div>
                       </div>
-
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="text-sm font-semibold" style={{ color: theme.accent }}>
                           {formatCurrency(property.price)}
@@ -600,12 +412,9 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
                             property.bedrooms != null ? `${property.bedrooms} bd` : null,
                             property.bathrooms != null ? `${property.bathrooms} ba` : null,
                             property.sqft != null ? `${property.sqft.toLocaleString()} sqft` : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
+                          ].filter(Boolean).join(" · ")}
                         </span>
                       </div>
-
                       {(property.ownerName || property.owner?.name) && (
                         <p className="text-xs mt-1" style={{ color: theme.textMuted }}>
                           {property.ownerName || property.owner?.name}
@@ -620,17 +429,10 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         )}
       </div>
 
-      {/* Leaflet + animation styles */}
+      {/* Leaflet styles */}
       <style jsx global>{`
-        @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
-          70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
-        }
         .leaflet-container {
           background: #1a1a2e !important;
-          width: 100% !important;
-          height: 100% !important;
         }
         .leaflet-control-attribution {
           background: rgba(0,0,0,0.5) !important;
