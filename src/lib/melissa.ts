@@ -187,9 +187,20 @@ export async function lookupProperty(
         `Melissa API returned HTTP ${response.status}: ${response.statusText}`
       );
     }
-    data = await response.json();
+    const text = await response.text();
+    console.log("[Melissa] Raw response (first 500 chars):", text.substring(0, 500));
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`Melissa API returned non-JSON: ${text.substring(0, 100)}`);
+    }
+    console.log("[Melissa] TransmissionResults:", data?.TransmissionResults);
+    console.log("[Melissa] Records count:", data?.Records?.length ?? 0);
+    if (data?.Records?.[0]) {
+      console.log("[Melissa] First record keys:", Object.keys(data.Records[0]).join(", "));
+    }
   } catch (error: any) {
-    if (error.message?.includes("Melissa API returned HTTP")) {
+    if (error.message?.includes("Melissa API")) {
       throw error;
     }
     throw new Error(
