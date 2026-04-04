@@ -21,25 +21,6 @@ const PropertyMap = dynamic(() => import("./property-map"), { ssr: false });
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyDUz1ye3oS-oExVT7oc9Ta1u9PcWBpg2ko";
 
-// Load Google Maps Places script once
-let googlePlacesPromise: Promise<void> | null = null;
-function loadGooglePlaces(): Promise<void> {
-  if (googlePlacesPromise) return googlePlacesPromise;
-  if (typeof window !== "undefined" && window.google?.maps?.places) {
-    return Promise.resolve();
-  }
-  googlePlacesPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Places"));
-    document.head.appendChild(script);
-  });
-  return googlePlacesPromise;
-}
-
 interface Property {
   id: string;
   address: string;
@@ -79,6 +60,11 @@ const GRADE_COLORS: Record<string, string> = {
   F: "#ef4444",
 };
 
+interface Suggestion {
+  description: string;
+  place_id: string;
+}
+
 export function PropertiesPage({ properties }: PropertiesPageProps) {
   const { theme } = useColonyTheme();
   const router = useRouter();
@@ -89,6 +75,13 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
   const [searchResult, setSearchResult] = useState<any>(null);
   const [searchError, setSearchError] = useState("");
   const [addingProperty, setAddingProperty] = useState(false);
+
+  // Autocomplete state
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIdx, setSelectedSuggestionIdx] = useState(-1);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   // Usage
   const [usage, setUsage] = useState<{ remaining: number; used: number } | null>(null);
@@ -102,34 +95,129 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
   const [csvStatus, setCsvStatus] = useState("");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const pendingSearchRef = useRef<string | null>(null);
   const dividerColor = withAlpha(theme.text, 0.06);
 
-  // Initialize Google Places Autocomplete
-  useEffect(() => {
-    loadGooglePlaces().then(() => {
-      if (!searchInputRef.current || autocompleteRef.current) return;
+  // Fetch autocomplete suggestions from Google Places API
+  async function fetchSuggestions(input: string) {
+    if (input.length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    try {
+      const res = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&components=country:us&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      const data = await res.json();
+      if (data.predictions?.length > 0) {
+        setSuggestions(
+          data.predictions.map((p: any) => ({
+            description: p.description,
+            place_id: p.place_id,
+          }))
+        );
+        setShowSuggestions(true);
+        setSelectedSuggestionIdx(-1);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } catch {
+      // CORS will block client-side calls to the Places API REST endpoint.
+      // Fall back to loading the Google Maps JS SDK.
+      loadGooglePlacesJS(input);
+    }
+  }
 
-      const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
+  // Fallback: use Google Maps JS SDK for autocomplete
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const googleLoadedRef = useRef(false);
+
+  function loadGooglePlacesJS(input?: string) {
+    if (googleLoadedRef.current && autocompleteServiceRef.current) {
+      if (input) fetchSuggestionsViaSDK(input);
+      return;
+    }
+    if (typeof window !== "undefined" && window.google?.maps?.places) {
+      googleLoadedRef.current = true;
+      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      if (input) fetchSuggestionsViaSDK(input);
+      return;
+    }
+    // Load script
+    if (document.querySelector(`script[src*="maps.googleapis.com"]`)) return;
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.async = true;
+    script.onload = () => {
+      googleLoadedRef.current = true;
+      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      if (input) fetchSuggestionsViaSDK(input);
+    };
+    document.head.appendChild(script);
+  }
+
+  function fetchSuggestionsViaSDK(input: string) {
+    if (!autocompleteServiceRef.current || input.length < 3) return;
+    autocompleteServiceRef.current.getPlacePredictions(
+      {
+        input,
         types: ["address"],
         componentRestrictions: { country: "us" },
-        fields: ["formatted_address"],
-      });
-
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        const addr = place?.formatted_address || searchInputRef.current?.value || "";
-        if (addr) {
-          // Directly trigger search with the selected address
-          handleSearchDirect(addr);
+      },
+      (predictions, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+          setSuggestions(
+            predictions.map((p) => ({
+              description: p.description,
+              place_id: p.place_id,
+            }))
+          );
+          setShowSuggestions(true);
+          setSelectedSuggestionIdx(-1);
+        } else {
+          setSuggestions([]);
+          setShowSuggestions(false);
         }
-      });
+      }
+    );
+  }
 
-      autocompleteRef.current = autocomplete;
-    }).catch(() => {
-      // Google Places failed to load — fallback to plain text input
-    });
+  // Eagerly load Google Maps JS SDK
+  useEffect(() => {
+    loadGooglePlacesJS();
+  }, []);
+
+  // Handle input change with debounced autocomplete
+  function handleInputChange(value: string) {
+    setAddressQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (autocompleteServiceRef.current) {
+        fetchSuggestionsViaSDK(value);
+      } else {
+        fetchSuggestions(value);
+      }
+    }, 250);
+  }
+
+  function handleSelectSuggestion(suggestion: Suggestion) {
+    setAddressQuery(suggestion.description);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    // Auto-trigger lookup
+    handleSearch(suggestion.description);
+  }
+
+  // Close suggestions on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -139,19 +227,13 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
       .catch(() => {});
   }, []);
 
-  // Direct search used by autocomplete — bypasses React state
-  async function handleSearchDirect(addr: string) {
-    setAddressQuery(addr);
-    if (searchInputRef.current) searchInputRef.current.value = addr;
-    await handleSearch(addr);
-  }
-
   async function handleSearch(overrideAddress?: string) {
-    const query = overrideAddress || searchInputRef.current?.value || addressQuery;
+    const query = overrideAddress || addressQuery;
     if (!query.trim() || query.trim().length < 5) return;
     setSearching(true);
     setSearchResult(null);
     setSearchError("");
+    setShowSuggestions(false);
     try {
       const res = await fetch("/api/properties/search", {
         method: "POST",
@@ -188,7 +270,6 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         router.refresh();
         setSearchResult(null);
         setAddressQuery("");
-        if (searchInputRef.current) searchInputRef.current.value = "";
       }
     } catch {
       // ignore
@@ -223,6 +304,29 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
     setShowSidebar(true);
   }, []);
 
+  // Keyboard nav for suggestions
+  function handleSearchKeyDown(e: React.KeyboardEvent) {
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedSuggestionIdx((prev) => Math.min(prev + 1, suggestions.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedSuggestionIdx((prev) => Math.max(prev - 1, -1));
+      } else if (e.key === "Enter" && selectedSuggestionIdx >= 0) {
+        e.preventDefault();
+        handleSelectSuggestion(suggestions[selectedSuggestionIdx]);
+        return;
+      } else if (e.key === "Escape") {
+        setShowSuggestions(false);
+        return;
+      }
+    }
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)]">
       {/* Search Bar */}
@@ -230,7 +334,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         className="px-4 py-3 flex items-center gap-3 flex-shrink-0"
         style={{ borderBottom: `1px solid ${dividerColor}` }}
       >
-        <div className="relative flex-1">
+        <div className="relative flex-1" ref={suggestionsRef}>
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
             style={{ color: theme.textMuted }}
@@ -238,9 +342,10 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
           <input
             ref={searchInputRef}
             placeholder="Search any address... (e.g. 123 Main St, Austin TX)"
-            defaultValue={addressQuery}
-            onChange={(e) => setAddressQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            value={addressQuery}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
             className="w-full h-10 pl-9 pr-3 rounded-xl text-sm outline-none transition-all"
             style={{
               backgroundColor: withAlpha(theme.text, 0.04),
@@ -250,9 +355,42 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
               fontFamily: "'DM Sans', sans-serif",
             }}
           />
+
+          {/* Autocomplete dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden"
+              style={{
+                backgroundColor: "#1e1e1e",
+                border: "1px solid rgba(255,255,255,0.1)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                zIndex: 9999,
+              }}
+            >
+              {suggestions.map((s, i) => (
+                <button
+                  key={s.place_id}
+                  className="w-full text-left px-4 py-3 text-sm flex items-center gap-3 transition-colors"
+                  style={{
+                    backgroundColor: i === selectedSuggestionIdx ? "rgba(255,255,255,0.08)" : "transparent",
+                    color: "#e0e0e0",
+                    borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                  onMouseEnter={() => setSelectedSuggestionIdx(i)}
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // prevent input blur
+                    handleSelectSuggestion(s);
+                  }}
+                >
+                  <MapPin className="h-4 w-4 flex-shrink-0" style={{ color: theme.accent, opacity: 0.6 }} />
+                  <span>{s.description}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <button
-          id="melissa-lookup-btn"
           onClick={() => handleSearch()}
           disabled={searching}
           className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
@@ -320,7 +458,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
                 >
                   {addingProperty ? "Adding..." : "Add to Properties"}
                 </button>
-                <button onClick={() => { setSearchResult(null); setAddressQuery(""); if (searchInputRef.current) searchInputRef.current.value = ""; }}>
+                <button onClick={() => { setSearchResult(null); setAddressQuery(""); }}>
                   <X className="h-4 w-4" style={{ color: theme.textMuted }} />
                 </button>
               </div>
@@ -385,7 +523,6 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
             <List className="h-3.5 w-3.5" />
             {showSidebar ? "Hide" : "Show"} List ({properties.length})
           </button>
-
         </div>
 
         {/* Sidebar — Property List */}
@@ -477,7 +614,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         )}
       </div>
 
-      {/* Leaflet + Google Places Autocomplete styles */}
+      {/* Leaflet styles */}
       <style jsx global>{`
         .leaflet-container {
           background: #f0ede8 !important;
@@ -494,44 +631,6 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
           background: rgba(255,255,255,0.95) !important;
           color: #333 !important;
           border-color: rgba(0,0,0,0.1) !important;
-        }
-        /* Google Places Autocomplete dropdown */
-        .pac-container {
-          background-color: #1e1e1e !important;
-          border: 1px solid rgba(255,255,255,0.1) !important;
-          border-radius: 12px !important;
-          margin-top: 4px !important;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-          font-family: 'DM Sans', sans-serif !important;
-          z-index: 9999 !important;
-        }
-        .pac-item {
-          padding: 8px 12px !important;
-          border-top: 1px solid rgba(255,255,255,0.05) !important;
-          color: #e0e0e0 !important;
-          cursor: pointer !important;
-          font-size: 13px !important;
-        }
-        .pac-item:first-child {
-          border-top: none !important;
-        }
-        .pac-item:hover,
-        .pac-item-selected {
-          background-color: rgba(255,255,255,0.08) !important;
-        }
-        .pac-item-query {
-          color: #ffffff !important;
-          font-weight: 500 !important;
-        }
-        .pac-icon {
-          filter: invert(0.8) !important;
-        }
-        .pac-matched {
-          color: ${theme.accent} !important;
-          font-weight: 600 !important;
-        }
-        .pac-logo::after {
-          display: none !important;
         }
       `}</style>
     </div>
