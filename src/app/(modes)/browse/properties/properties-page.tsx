@@ -432,20 +432,20 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
       {/* Leaflet styles */}
       <style jsx global>{`
         .leaflet-container {
-          background: #1a1a2e !important;
+          background: #f0ede8 !important;
         }
         .leaflet-control-attribution {
-          background: rgba(0,0,0,0.5) !important;
-          color: rgba(255,255,255,0.4) !important;
+          background: rgba(255,255,255,0.8) !important;
+          color: rgba(0,0,0,0.5) !important;
           font-size: 10px !important;
         }
         .leaflet-control-attribution a {
-          color: rgba(255,255,255,0.5) !important;
+          color: rgba(0,0,0,0.6) !important;
         }
         .leaflet-control-zoom a {
-          background: rgba(30,30,30,0.9) !important;
-          color: white !important;
-          border-color: rgba(255,255,255,0.1) !important;
+          background: rgba(255,255,255,0.95) !important;
+          color: #333 !important;
+          border-color: rgba(0,0,0,0.1) !important;
         }
       `}</style>
     </div>
