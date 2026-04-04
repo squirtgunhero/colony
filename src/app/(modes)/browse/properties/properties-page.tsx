@@ -103,6 +103,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const pendingSearchRef = useRef<string | null>(null);
   const dividerColor = withAlpha(theme.text, 0.06);
 
   // Initialize Google Places Autocomplete
@@ -118,13 +119,11 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
 
       autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
-        if (place?.formatted_address) {
-          setAddressQuery(place.formatted_address);
-          // Auto-trigger lookup on selection
-          setTimeout(() => {
-            const btn = document.getElementById("melissa-lookup-btn");
-            if (btn) btn.click();
-          }, 100);
+        const addr = place?.formatted_address || searchInputRef.current?.value || "";
+        if (addr) {
+          setAddressQuery(addr);
+          // Use a ref-based direct call instead of clicking a button
+          pendingSearchRef.current = addr;
         }
       });
 
@@ -134,6 +133,15 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
     });
   }, []);
 
+  // Auto-trigger search when Google Places selects an address
+  useEffect(() => {
+    if (pendingSearchRef.current && addressQuery === pendingSearchRef.current) {
+      const addr = pendingSearchRef.current;
+      pendingSearchRef.current = null;
+      handleSearch(addr);
+    }
+  }, [addressQuery]);
+
   useEffect(() => {
     fetch("/api/properties/usage")
       .then((r) => r.json())
@@ -141,8 +149,9 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
       .catch(() => {});
   }, []);
 
-  async function handleSearch() {
-    if (!addressQuery.trim() || addressQuery.trim().length < 5) return;
+  async function handleSearch(overrideAddress?: string) {
+    const query = overrideAddress || addressQuery;
+    if (!query.trim() || query.trim().length < 5) return;
     setSearching(true);
     setSearchResult(null);
     setSearchError("");
@@ -150,7 +159,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
       const res = await fetch("/api/properties/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: addressQuery }),
+        body: JSON.stringify({ address: query }),
       });
       const data = await res.json();
       if (data.error) {
@@ -246,7 +255,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         </div>
         <button
           id="melissa-lookup-btn"
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           disabled={searching || !addressQuery.trim()}
           className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
           style={{ backgroundColor: theme.accent, color: theme.bg }}
@@ -380,7 +389,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
           </button>
 
           {/* No map data message */}
-          {properties.length > 0 && properties.filter((p) => p.latitude && p.longitude).length === 0 && (
+          {!searchResult && properties.length > 0 && properties.filter((p) => p.latitude && p.longitude).length === 0 && (
             <div
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] text-center p-6 rounded-xl pointer-events-none"
               style={{ backgroundColor: withAlpha(theme.bg, 0.85), maxWidth: 300 }}
