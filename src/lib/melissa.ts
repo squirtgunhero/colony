@@ -151,6 +151,7 @@ export async function lookupProperty(
   // fall back to freeform address string
   const url = new URL(MELISSA_API_URL);
   url.searchParams.set("id", apiKey);
+  url.searchParams.set("format", "json");
   url.searchParams.set("cols", "GrpAll");
 
   let addressForLog: string;
