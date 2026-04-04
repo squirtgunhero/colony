@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -18,6 +18,27 @@ import { withAlpha } from "@/lib/themes";
 import { formatCurrency } from "@/lib/date-utils";
 
 const PropertyMap = dynamic(() => import("./property-map"), { ssr: false });
+
+const GOOGLE_MAPS_API_KEY = "AIzaSyDUz1ye3oS-oExVT7oc9Ta1u9PcWBpg2ko";
+
+// Load Google Maps Places script once
+let googlePlacesPromise: Promise<void> | null = null;
+function loadGooglePlaces(): Promise<void> {
+  if (googlePlacesPromise) return googlePlacesPromise;
+  if (typeof window !== "undefined" && window.google?.maps?.places) {
+    return Promise.resolve();
+  }
+  googlePlacesPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Google Places"));
+    document.head.appendChild(script);
+  });
+  return googlePlacesPromise;
+}
 
 interface Property {
   id: string;
@@ -80,7 +101,38 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvStatus, setCsvStatus] = useState("");
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const dividerColor = withAlpha(theme.text, 0.06);
+
+  // Initialize Google Places Autocomplete
+  useEffect(() => {
+    loadGooglePlaces().then(() => {
+      if (!searchInputRef.current || autocompleteRef.current) return;
+
+      const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
+        types: ["address"],
+        componentRestrictions: { country: "us" },
+        fields: ["formatted_address"],
+      });
+
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        if (place?.formatted_address) {
+          setAddressQuery(place.formatted_address);
+          // Auto-trigger lookup on selection
+          setTimeout(() => {
+            const btn = document.getElementById("melissa-lookup-btn");
+            if (btn) btn.click();
+          }, 100);
+        }
+      });
+
+      autocompleteRef.current = autocomplete;
+    }).catch(() => {
+      // Google Places failed to load — fallback to plain text input
+    });
+  }, []);
 
   useEffect(() => {
     fetch("/api/properties/usage")
@@ -177,6 +229,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
             style={{ color: theme.textMuted }}
           />
           <input
+            ref={searchInputRef}
             placeholder="Search any address... (e.g. 123 Main St, Austin TX)"
             value={addressQuery}
             onChange={(e) => setAddressQuery(e.target.value)}
@@ -192,6 +245,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
           />
         </div>
         <button
+          id="melissa-lookup-btn"
           onClick={handleSearch}
           disabled={searching || !addressQuery.trim()}
           className="px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
@@ -429,7 +483,7 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
         )}
       </div>
 
-      {/* Leaflet styles */}
+      {/* Leaflet + Google Places Autocomplete styles */}
       <style jsx global>{`
         .leaflet-container {
           background: #f0ede8 !important;
@@ -446,6 +500,44 @@ export function PropertiesPage({ properties }: PropertiesPageProps) {
           background: rgba(255,255,255,0.95) !important;
           color: #333 !important;
           border-color: rgba(0,0,0,0.1) !important;
+        }
+        /* Google Places Autocomplete dropdown */
+        .pac-container {
+          background-color: #1e1e1e !important;
+          border: 1px solid rgba(255,255,255,0.1) !important;
+          border-radius: 12px !important;
+          margin-top: 4px !important;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+          font-family: 'DM Sans', sans-serif !important;
+          z-index: 9999 !important;
+        }
+        .pac-item {
+          padding: 8px 12px !important;
+          border-top: 1px solid rgba(255,255,255,0.05) !important;
+          color: #e0e0e0 !important;
+          cursor: pointer !important;
+          font-size: 13px !important;
+        }
+        .pac-item:first-child {
+          border-top: none !important;
+        }
+        .pac-item:hover,
+        .pac-item-selected {
+          background-color: rgba(255,255,255,0.08) !important;
+        }
+        .pac-item-query {
+          color: #ffffff !important;
+          font-weight: 500 !important;
+        }
+        .pac-icon {
+          filter: invert(0.8) !important;
+        }
+        .pac-matched {
+          color: ${theme.accent} !important;
+          font-weight: 600 !important;
+        }
+        .pac-logo::after {
+          display: none !important;
         }
       `}</style>
     </div>
