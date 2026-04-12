@@ -24,22 +24,27 @@ interface AssistantState {
   slashMenuIndex: number;
   isListening: boolean;
   interimTranscript: string;
-  
+
   // Messages
   messages: AssistantMessage[];
-  
+
   // Last executed run (for undo)
   lastRunId: string | null;
   canUndo: boolean;
-  
+
   // Pending Actions (for Tier 2 approval)
   pendingApprovalRunId: string | null;
-  
+
   // Pending Actions (mutations awaiting confirmation - legacy)
   pendingActions: PendingAction[];
 
   // Action Execution UI
   executions: Map<string, ActionExecution>;
+
+  // Agent Mode (Managed Agent vs legacy LAM)
+  agentMode: boolean;
+  agentSessionId: string | null;
+  activeAgentThreads: Map<string, { status: "started" | "completed" }>;
 
   // Actions
   setInput: (input: string) => void;
@@ -47,27 +52,37 @@ interface AssistantState {
   closeDrawer: () => void;
   toggleDrawer: () => void;
   setLoading: (loading: boolean) => void;
-  
+
   // Voice State
   setListening: (listening: boolean) => void;
   setInterimTranscript: (transcript: string) => void;
-  
+
   // Slash Menu
   openSlashMenu: () => void;
   closeSlashMenu: () => void;
   setSlashMenuIndex: (index: number) => void;
-  
+
   // Messages
   addMessage: (message: AssistantMessage) => void;
   clearMessages: () => void;
-  
+
   // History
   loadHistory: () => Promise<void>;
-  
+
   // LAM Integration
   sendToLam: (message: string, context?: AssistantContext) => Promise<void>;
   approveRun: (runId: string) => Promise<void>;
   undoLastRun: () => Promise<void>;
+
+  // Agent Mode
+  setAgentMode: (enabled: boolean) => void;
+  sendToAgent: (message: string) => Promise<void>;
+  confirmAgentTool: (
+    sessionId: string,
+    toolUseId: string,
+    approved: boolean,
+    threadId?: string
+  ) => Promise<void>;
   
   // Execution UI
   startExecution: (id: string, actionType: string) => void;
@@ -100,6 +115,11 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   pendingApprovalRunId: null,
   pendingActions: [],
   executions: new Map(),
+
+  // Agent Mode
+  agentMode: false,
+  agentSessionId: null,
+  activeAgentThreads: new Map(),
 
   // UI Actions
   setInput: (input) => {
@@ -137,6 +157,8 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
     canUndo: false,
     pendingApprovalRunId: null,
     executions: new Map(),
+    agentSessionId: null,
+    activeAgentThreads: new Map(),
   }),
 
   // ============================================
@@ -210,8 +232,13 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
   // LAM Integration - Send to AI
   // ============================================
   sendToLam: async (message: string, context?: AssistantContext) => {
+    // Branch to agent mode if enabled
+    if (get().agentMode) {
+      return get().sendToAgent(message);
+    }
+
     const { addMessage, setLoading, closeSlashMenu, setInput } = get();
-    
+
     if (!message.trim()) return;
 
     // Handle /undo command
@@ -423,6 +450,202 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
       });
     } finally {
       setLoading(false);
+    }
+  },
+
+  // ============================================
+  // Agent Mode
+  // ============================================
+  setAgentMode: (enabled: boolean) => set({ agentMode: enabled }),
+
+  sendToAgent: async (message: string) => {
+    const { addMessage, setLoading, closeSlashMenu, setInput } = get();
+
+    if (!message.trim()) return;
+
+    // Handle /undo in agent mode — falls through to legacy undo
+    if (message.trim().toLowerCase() === "/undo") {
+      setInput("");
+      closeSlashMenu();
+      await get().undoLastRun();
+      return;
+    }
+
+    setInput("");
+    closeSlashMenu();
+
+    // Add user message
+    addMessage({
+      id: `user-${Date.now()}`,
+      role: "user",
+      content: message.trim(),
+      timestamp: new Date(),
+    });
+
+    setLoading(true);
+
+    // Add placeholder assistant message that will be built up via streaming
+    const assistantMsgId = `assistant-${Date.now()}`;
+    addMessage({
+      id: assistantMsgId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+      messageType: "text",
+    });
+
+    try {
+      const response = await fetch("/api/agents/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: message.trim() }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response stream");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || ""; // Keep incomplete chunk
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = JSON.parse(line.slice(6));
+
+          switch (data.type) {
+            case "text": {
+              // Append text to the current assistant message
+              set((state) => ({
+                messages: state.messages.map((m) =>
+                  m.id === assistantMsgId
+                    ? { ...m, content: m.content + data.text }
+                    : m
+                ),
+              }));
+              break;
+            }
+
+            case "tool_use": {
+              // Show tool execution in the chat
+              // TODO: Wire to ActionExecutionCard when execution UI is ready
+              break;
+            }
+
+            case "confirmation_required": {
+              // Store session ID and surface confirmation to the user
+              set({ agentSessionId: data.sessionId });
+              set((state) => ({
+                messages: state.messages.map((m) =>
+                  m.id === assistantMsgId
+                    ? {
+                        ...m,
+                        content:
+                          m.content +
+                          `\n\n_Awaiting your approval to execute **${data.tool}**._`,
+                        messageType: "approval" as const,
+                      }
+                    : m
+                ),
+              }));
+              break;
+            }
+
+            case "agent_activity": {
+              // Track sub-agent threads (Phase 3)
+              set((state) => {
+                const threads = new Map(state.activeAgentThreads);
+                threads.set(data.threadId, { status: data.status });
+                return { activeAgentThreads: threads };
+              });
+              break;
+            }
+
+            case "error": {
+              set((state) => ({
+                messages: state.messages.map((m) =>
+                  m.id === assistantMsgId
+                    ? {
+                        ...m,
+                        content: `Sorry, I encountered an error: ${data.message}. Please try again.`,
+                      }
+                    : m
+                ),
+              }));
+              break;
+            }
+
+            case "done": {
+              // Stream finished
+              break;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m.id === assistantMsgId
+            ? {
+                ...m,
+                content: `Sorry, I encountered an error: ${errorMessage}. Please try again.`,
+              }
+            : m
+        ),
+      }));
+    } finally {
+      setLoading(false);
+    }
+  },
+
+  confirmAgentTool: async (
+    sessionId: string,
+    toolUseId: string,
+    approved: boolean,
+    threadId?: string
+  ) => {
+    try {
+      const res = await fetch("/api/agents/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, toolUseId, approved, threadId }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to confirm");
+      }
+
+      get().addMessage({
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: approved
+          ? "Approved. Executing now..."
+          : "OK, I won't do that.",
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      get().addMessage({
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content: `Failed to confirm: ${errorMessage}`,
+        timestamp: new Date(),
+      });
     }
   },
 
