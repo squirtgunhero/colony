@@ -540,6 +540,35 @@ const MARKETING_GENERATE_IMAGE: ActionUIDef = {
   resultRenderer: "SocialResult",
 };
 
+const MARKETING_GENERATE_LANDING_PAGE: ActionUIDef = {
+  actionType: "marketing.generate_landing_page",
+  label: "Building Landing Page",
+  icon: "Globe",
+  steps: [
+    { id: "context", label: "Loading agent data", detail: "Pulling your profile, properties, and branding...", estimatedDuration: 600 },
+    { id: "design", label: "Designing page", detail: "AI is building a premium lead capture page...", estimatedDuration: 3000 },
+    { id: "publish", label: "Publishing", detail: "Making the page live at your custom URL...", estimatedDuration: 500 },
+  ],
+  resultRenderer: "CRMResult",
+};
+
+// Composite: Full campaign builder flow (research + image + landing page + campaign)
+const CAMPAIGN_BUILDER_COMPOSITE: ActionUIDef = {
+  actionType: "__campaign_builder",
+  label: "Building Your Campaign",
+  icon: "Rocket",
+  steps: [
+    { id: "research", label: "Researching competitors", detail: "Scanning the Meta Ad Library for competitor ads in your area...", estimatedDuration: 2000 },
+    { id: "differentiate", label: "Finding your angle", detail: "Identifying gaps and differentiation opportunities...", estimatedDuration: 1500 },
+    { id: "image", label: "Generating ad creative", detail: "Creating a professional ad image with headline and CTA...", estimatedDuration: 3000 },
+    { id: "landing", label: "Building landing page", detail: "Designing a premium lead capture page for your campaign...", estimatedDuration: 4000 },
+    { id: "copy", label: "Writing ad copy", detail: "Crafting differentiated headlines and body text...", estimatedDuration: 1500 },
+    { id: "campaign", label: "Assembling campaign", detail: "Setting up targeting, budget, and schedule on Facebook...", estimatedDuration: 1000 },
+    { id: "review", label: "Ready for review", detail: "Your campaign is built — review and approve to publish.", estimatedDuration: 500 },
+  ],
+  resultRenderer: "CRMResult",
+};
+
 const MARKETING_GENERATE_CONTENT: ActionUIDef = {
   actionType: "marketing.generate_content",
   label: "Generating Content",
@@ -741,7 +770,8 @@ const ALL_ACTIONS: ActionUIDef[] = [
   GOOGLE_PAUSE_CAMPAIGN, GOOGLE_RESUME_CAMPAIGN,
   GOOGLE_ADD_NEGATIVES, GOOGLE_ADJUST_BID, GOOGLE_LAUNCH_CAMPAIGN,
   // Marketing Content
-  MARKETING_GENERATE_IMAGE, MARKETING_GENERATE_CONTENT,
+  MARKETING_GENERATE_IMAGE, MARKETING_GENERATE_LANDING_PAGE, MARKETING_GENERATE_CONTENT,
+  CAMPAIGN_BUILDER_COMPOSITE,
   // Referrals
   REFERRAL_CREATE,
   // Import

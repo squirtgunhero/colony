@@ -12,6 +12,12 @@ export const marketingExecutors: Record<string, ActionExecutor> = {
       propertyId?: string;
       custom_prompt?: string;
       size?: string;
+      // Ad creative overlay fields (used by campaign builder)
+      headline?: string;
+      subtext?: string;
+      cta_text?: string;
+      lead_type?: string;
+      ad_creative?: boolean; // true = composite text overlay onto photo
     };
 
     if (!process.env.OPENAI_API_KEY) {
@@ -47,32 +53,107 @@ export const marketingExecutors: Record<string, ActionExecutor> = {
         }
       }
 
-      const prompt = payload.custom_prompt || buildAdImagePrompt({
+      const city = profile?.serviceAreaCity || "your area";
+      const leadType = payload.lead_type?.toLowerCase() || "seller";
+
+      // Build a CLEAN background photo prompt (no text — DALL-E can't render text)
+      const bgPrompt = payload.custom_prompt || buildAdImagePrompt({
         type: payload.type || "general",
         city: profile?.serviceAreaCity || undefined,
         businessType: profile?.businessType || undefined,
         agentName: profile?.fullName || undefined,
+        leadType,
         propertyDetails: propertyDetails as Parameters<typeof buildAdImagePrompt>[0]["propertyDetails"],
       });
 
-      const result = await generateImage({
-        prompt,
+      // Generate the background photo
+      const bgResult = await generateImage({
+        prompt: bgPrompt,
         size: (payload.size as "1024x1024" | "1792x1024" | "1024x1792") || "1024x1024",
       });
 
+      // If ad_creative mode, composite text overlay onto the photo
+      const isAdCreative = payload.ad_creative !== false;
+
+      if (isAdCreative && (payload.headline || payload.type === "lead_generation" || payload.lead_type)) {
+        try {
+          const { composeAdImage } = await import("@/lib/ad-compositor");
+          const { uploadFromBuffer } = await import("@/lib/upload");
+
+          const headline = payload.headline ||
+            (leadType === "buyer"
+              ? `Find Your Dream Home in ${city}`
+              : `What's Your Home Worth in ${city}?`);
+
+          const subtext = payload.subtext ||
+            (leadType === "buyer"
+              ? "Browse available homes today"
+              : "Free, No-Obligation Estimate");
+
+          const ctaText = payload.cta_text ||
+            (leadType === "buyer" ? "Search Homes Now" : "Get Free Estimate");
+
+          const composite = await composeAdImage({
+            backgroundUrl: bgResult.url,
+            headline,
+            subtext,
+            ctaText,
+            agentName: profile?.fullName || undefined,
+            width: 1080,
+            height: 1080,
+          });
+
+          // Upload composited image to permanent storage
+          const uploaded = await uploadFromBuffer(
+            composite.buffer,
+            `ad-creative-${Date.now()}.png`,
+            "image/png",
+            ctx.user_id
+          );
+
+          return {
+            action_id: action.action_id,
+            action_type: action.type,
+            status: "success" as const,
+            data: {
+              image_url: uploaded.url,
+              background_url: bgResult.url,
+              headline,
+              subtext,
+              cta_text: ctaText,
+              composited: true,
+              note: "Here's your ad creative! The headline and CTA are composited with pixel-perfect typography onto a DALL-E background photo.",
+              __action_card: {
+                type: "generated_image",
+                data: {
+                  image_url: uploaded.url,
+                  revised_prompt: bgResult.revised_prompt,
+                  composited: true,
+                },
+              },
+            },
+          };
+        } catch (compositeError) {
+          // Compositor failed — fall back to the raw DALL-E photo
+          console.error("Ad compositor failed, returning raw photo:", compositeError);
+        }
+      }
+
+      // Return raw DALL-E photo (no text overlay)
       return {
         action_id: action.action_id,
         action_type: action.type,
         status: "success" as const,
         data: {
-          image_url: result.url,
-          revised_prompt: result.revised_prompt,
+          image_url: bgResult.url,
+          revised_prompt: bgResult.revised_prompt,
+          composited: false,
           note: "Here's your AI-generated marketing image! You can use this for your ads, social posts, or email campaigns. The image URL is valid for about 1 hour — download it or use it right away.",
           __action_card: {
             type: "generated_image",
             data: {
-              image_url: result.url,
-              revised_prompt: result.revised_prompt,
+              image_url: bgResult.url,
+              revised_prompt: bgResult.revised_prompt,
             },
           },
         },

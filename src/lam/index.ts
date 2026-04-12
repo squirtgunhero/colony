@@ -148,6 +148,8 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
           } as ActionPlan["actions"][0];
 
           // Image generation (Tier 0 — auto-execute)
+          // DALL-E generates a clean background photo, then the compositor
+          // overlays pixel-perfect headline + CTA text via sharp/SVG.
           const imageAction = {
             action_id: randomUUID(),
             idempotency_key: `${input.user_id}:marketing.generate_image:${now}`,
@@ -155,7 +157,12 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
             risk_tier: getRiskTier("marketing.generate_image"),
             requires_approval: false,
             payload: {
-              custom_prompt: `Facebook ad creative for real estate lead generation in ${city}. Background: photorealistic stunning home exterior, golden hour lighting, luxury curb appeal. Bold white headline "What's Your Home Worth in ${city}?" in clean sans-serif font with dark cinematic gradient overlay for contrast. Subtext "Free, No-Obligation Estimate" in lighter weight. Bright gold CTA button "Get Free Estimate" at bottom. Professional premium ad design, ready to publish on Facebook/Instagram. Photorealistic background, clean modern typography.`,
+              type: "lead_generation",
+              lead_type: "seller",
+              ad_creative: true,
+              headline: `What's Your Home Worth in ${city}?`,
+              subtext: "Free, No-Obligation Estimate",
+              cta_text: "Get Free Estimate",
               size: "1024x1024",
             },
             expected_outcome: { entity_type: "image" as const, generated: true as const },

@@ -106,7 +106,7 @@ You analyze user requests and generate a precise ActionPlan that the system will
 37. savedSearch.update - Update an existing buyer's search criteria. Use when agent says "John also wants X" or "update John's search". Fields: contactName (to find the search), patch (object with fields to change).
 38. savedSearch.list - View saved searches. Use for "show John's search", "what is John looking for", "show all active searches". Fields: contactName (optional filter), active (optional boolean).
 39. deal.addMilestones - Auto-create all milestone tasks when a deal goes under contract or a listing is created. Use when agent says "we're under contract", "just listed", "create milestones for". Fields: dealTitle (to find deal), milestoneType (buyer_under_contract | seller_listing | seller_under_contract), closingDate (ISO — used to calculate all other task dates if not specified), inspectionDate, appraisalDate, loanContingencyDate, walkThroughDate.
-40. marketing.generate_image - Generate a marketing image using AI (DALL-E). Use when user says "create an image for my ad", "generate a marketing image", "make me an ad image". Optional: type (new_listing, open_house, just_sold, market_update, lead_generation, general — default "general"), propertyId (for property-specific images), custom_prompt (user's own image description), size (1024x1024, 1792x1024, 1024x1792 — default "1024x1024"). Returns a URL to the generated image.
+40. marketing.generate_image - Generate a marketing image using AI. DALL-E generates a clean photorealistic background, then our compositor overlays pixel-perfect text (headline, CTA, agent name). Optional: type (new_listing, open_house, just_sold, market_update, lead_generation, general — default "general"), propertyId, custom_prompt (for background photo description only — no text instructions), size (1024x1024, 1792x1024, 1024x1792), ad_creative (true to composite text overlay — default true), headline (text for the headline overlay), subtext (secondary text line), cta_text (CTA button text), lead_type (seller/buyer — determines default headline/CTA if not specified).
 41. marketing.generate_content - Generate marketing copy using AI. Use when user says "write me a social post", "create ad copy", "write a listing description". Optional: type (new_listing, open_house, just_sold, market_update, ad_copy, general), platform (facebook, instagram, linkedin, email, generic), propertyId, prompt.
 47. marketing.generate_landing_page - Generate an AI-powered landing page for lead capture. Creates a full, published landing page with a form, agent branding, and local market content. Use when user says "create a landing page", "build me a landing page", "I need a landing page for my ads", "make me a lead capture page". Also use automatically as part of the ad campaign flow when the user wants a custom landing page. Optional: lead_type (seller, buyer, both — default "seller"), target_city, campaign_name, headline, description, style (modern, luxury, minimal — default "luxury"), include_listings (boolean), custom_prompt (for full control over design).
 42. dialer.start_tara_session - Start Tara on a call list to auto-dial contacts. Use when user says "call my hot leads", "have Tara call my list", "start calling", "dial my [list name]". Requires: objective (qualify, appointment, followup). Optional: callListId, callListName (if user mentions a specific list by name).
@@ -136,9 +136,9 @@ You analyze user requests and generate a precise ActionPlan that the system will
 
    D) AUTO-GENERATE & ASK TO PUBLISH — Once lead type, area, and budget are known, generate ALL FOUR actions in a single plan:
       1. ads.research_competitors — searches the Meta Ad Library for competitor ads in the area (set search_term to "real estate [city]"). This reveals what competitors are doing so we can DIFFERENTIATE. We never copy their imagery or copy.
-      2. marketing.generate_image — auto-generates a complete ad creative with photo + text overlay (set custom_prompt to describe the full ad, e.g. "Facebook ad creative for real estate in [city]. Photorealistic luxury home background, golden hour. Bold white headline 'What's Your Home Worth?' with dark gradient overlay. Agent name, CTA button 'Get Free Estimate'. Professional ad design.")
+      2. marketing.generate_image — generates a polished ad creative. DALL-E creates a clean background photo and our compositor overlays pixel-perfect text. Set: type="lead_generation", lead_type, ad_creative=true, headline (e.g. "What's Your Home Worth in [city]?"), subtext (e.g. "Free, No-Obligation Estimate"), cta_text (e.g. "Get Free Estimate"). Do NOT use custom_prompt with text instructions — text is handled by the compositor, not DALL-E.
       3. marketing.generate_landing_page — auto-creates a lead capture landing page tailored to the lead type and area (set lead_type, target_city, and style)
-      4. ads.create_campaign — creates the Facebook/Instagram campaign (Tier 2, requires approval). Include target_city, daily_budget, lead_type, and image_prompt. Leave ad_headline/ad_body empty so they're auto-generated using differentiation insights from competitor research. Leave website empty — the executor will auto-detect the landing page.
+      4. ads.create_campaign — creates the Facebook/Instagram campaign (Tier 2, requires approval). Include target_city, daily_budget, lead_type. Leave ad_headline/ad_body empty so they're auto-generated using differentiation insights from competitor research. Leave website empty — the executor will auto-detect the landing page.
 
       The runtime will auto-execute research + image + landing page (Tier 0 in parallel), then hold the campaign for approval.
       The user sees: competitor analysis + ad image preview + landing page preview + campaign card with "Approve & Execute".
@@ -189,13 +189,13 @@ You analyze user requests and generate a precise ActionPlan that the system will
 35. MULTI-TURN AWARENESS: When in the middle of the guided ad builder flow (Rule 0), check the ENTIRE conversation history (including "Previous conversation:" context) for previously provided info. NEVER re-ask for budget, area, lead type, copy, or image if already stated. Extract and use what's already known. If the user's profile has a service area, use it as the default — don't ask again.
    - AUTO-GENERATE: When all 3 essentials are known (lead type, area, budget), ALWAYS generate all 4 actions together:
      * ads.research_competitors with search_term="real estate [city]" to analyze the competitive landscape. We use this to DIFFERENTIATE, never to copy.
-     * marketing.generate_image with a custom_prompt describing a complete ad creative (e.g. "Facebook ad creative targeting home sellers in [city]. Background: photorealistic luxury home, golden hour lighting. Bold white headline 'What's Your Home Worth in [city]?' with dark gradient. Subtext 'Free Home Valuation'. CTA button 'Get Free Estimate'. Professional premium ad design, ready to publish.")
+     * marketing.generate_image with type="lead_generation", lead_type, ad_creative=true, headline (e.g. "What's Your Home Worth in [city]?"), subtext, cta_text. The system generates a DALL-E background photo and composites pixel-perfect text on top. Do NOT put text instructions in custom_prompt.
      * marketing.generate_landing_page with lead_type, target_city, and style="luxury"
-     * ads.create_campaign with target_city, daily_budget, lead_type, and image_prompt (same as the generate_image prompt). Leave ad_headline/ad_body empty — the executor auto-generates differentiated copy using competitor research insights. Leave website empty — the executor auto-detects the landing page.
+     * ads.create_campaign with target_city, daily_budget, lead_type. Leave ad_headline/ad_body empty — the executor auto-generates differentiated copy using competitor research insights. Leave website empty — the executor auto-detects the landing page.
    - INTERACTIVE AD CONTENT MAPPING (when user provides specifics):
-     * "headline should be ..." / "use this headline: ..." → ad_headline on ads.create_campaign
+     * "headline should be ..." / "use this headline: ..." → headline on marketing.generate_image AND ad_headline on ads.create_campaign
      * "the text should say ..." / "body: ..." → ad_body on ads.create_campaign
-     * "use an image of ..." / "picture of ..." → custom_prompt on marketing.generate_image AND image_prompt on ads.create_campaign
+     * "use an image of ..." / "picture of ..." → custom_prompt on marketing.generate_image (photo description only, no text instructions)
      * "target [city]" / "audience in [city]" → target_city
    - LANDING PAGE (standalone): When the user asks for a landing page OUTSIDE the ad flow ("create a landing page", "build me a landing page"), use marketing.generate_landing_page alone.
 36. AD ACCOUNT ONBOARDING: The runtime will check for a connected Meta ad account when executing ads.create_campaign. If no account is connected, it returns a helpful error guiding the user to Settings. However, to give a smoother experience: if the user asks to run ads and you suspect they may not have connected their account yet (e.g. they're a new user or this is their first ads request), you can proactively include in the follow_up_question a note like "Make sure you've connected your Facebook account in Settings > Integrations first — it takes about 30 seconds. Once connected, I can set everything up."
@@ -708,6 +708,12 @@ function normalizePayload(actionType: ActionType, payload: Record<string, unknow
         propertyId: payload.propertyId || payload.property_id,
         custom_prompt: payload.custom_prompt || payload.prompt || payload.description,
         size: payload.size || "1024x1024",
+        // Ad creative overlay fields (compositor will add text on top of DALL-E photo)
+        ad_creative: payload.ad_creative,
+        headline: payload.headline,
+        subtext: payload.subtext,
+        cta_text: payload.cta_text,
+        lead_type: payload.lead_type,
       };
     case "marketing.generate_content":
       return {

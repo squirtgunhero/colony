@@ -369,21 +369,34 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         set({ pendingApprovalRunId: data.run_id });
       }
 
-      // Determine if this action has an execution UI
-      const primaryActionType = data.plan?.actions?.[0]?.type;
-      const hasExecUI = primaryActionType ? !!getActionUIDef(primaryActionType) : false;
+      // Determine if this action has an execution UI.
+      // For multi-action campaign builds (research + image + landing page + campaign),
+      // use the composite __campaign_builder step definition instead of individual actions.
+      const actions = data.plan?.actions || [];
+      const actionTypes = actions.map((a: { type: string }) => a.type);
+      const isCampaignBuilder =
+        actionTypes.some((t: string) => t === "ads.research_competitors") &&
+        actionTypes.some((t: string) => t === "marketing.generate_image") &&
+        actionTypes.some((t: string) => t === "marketing.generate_landing_page") &&
+        actionTypes.some((t: string) => t === "ads.create_campaign");
+
+      const effectiveActionType = isCampaignBuilder
+        ? "__campaign_builder"
+        : actions[0]?.type;
+
+      const hasExecUI = effectiveActionType ? !!getActionUIDef(effectiveActionType) : false;
       const hasExecution = data.execution_result && (
         data.execution_result.status === "completed" ||
         data.execution_result.status === "partial" ||
         data.execution_result.status === "approval_required"
       );
 
-      if (hasExecUI && primaryActionType && hasExecution) {
+      if (hasExecUI && effectiveActionType && hasExecution) {
         // Use execution card UI
         const execId = `exec-${data.run_id}`;
 
         // Start the execution animation
-        get().startExecution(execId, primaryActionType);
+        get().startExecution(execId, effectiveActionType);
 
         // Add execution message to chat
         addMessage({
@@ -401,7 +414,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => ({
         });
 
         // Calculate total animation time from step defs
-        const uiDef = getActionUIDef(primaryActionType);
+        const uiDef = getActionUIDef(effectiveActionType);
         const totalAnimTime = uiDef
           ? uiDef.steps.reduce((sum, s) => sum + Math.max(s.estimatedDuration, 400), 0)
           : 2000;
