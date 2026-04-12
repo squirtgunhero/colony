@@ -131,6 +131,22 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
           const { getRiskTier, requiresApproval } = await import("./actionSchema");
           const now = Date.now();
 
+          // Competitor research (Tier 0 — auto-execute, runs in parallel)
+          const researchAction = {
+            action_id: randomUUID(),
+            idempotency_key: `${input.user_id}:ads.research_competitors:${now}`,
+            type: "ads.research_competitors" as const,
+            risk_tier: getRiskTier("ads.research_competitors"),
+            requires_approval: false,
+            payload: {
+              search_term: `real estate ${city}`,
+              country: "US",
+              active_only: true,
+              limit: 25,
+            },
+            expected_outcome: { entity_type: "competitor_research" as const, research_returned: true as const },
+          } as ActionPlan["actions"][0];
+
           // Image generation (Tier 0 — auto-execute)
           const imageAction = {
             action_id: randomUUID(),
@@ -175,7 +191,7 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
             expected_outcome: { entity_type: "campaign" as const, created: true as const },
           } as ActionPlan["actions"][0];
 
-          plan.actions = [imageAction, landingPageAction, campaignAction];
+          plan.actions = [researchAction, imageAction, landingPageAction, campaignAction];
           plan.follow_up_question = null;
           plan.requires_approval = true;
           plan.highest_risk_tier = 2;

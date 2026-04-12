@@ -320,6 +320,30 @@ export const adsExecutors: Record<string, ActionExecutor> = {
           if (!hasUserCopy) try {
             const llm = getDefaultProvider();
 
+            // Look up competitor research from the same run (if available)
+            let competitorContext = "";
+            if (ctx.run_id) {
+              try {
+                const researchAction = await prisma.lamAction.findFirst({
+                  where: {
+                    runId: ctx.run_id,
+                    actionType: "ads.research_competitors",
+                    status: "executed",
+                  },
+                  select: { resultJson: true },
+                });
+                if (researchAction?.resultJson) {
+                  const researchData = researchAction.resultJson as Record<string, unknown>;
+                  const data = researchData.data as Record<string, unknown> | undefined;
+                  if (data?.analysis) {
+                    competitorContext = `\n\nCOMPETITOR ANALYSIS (use to DIFFERENTIATE, do NOT copy their messaging):\n${String(data.analysis).slice(0, 800)}\n\nYour ad copy must stand out from what competitors are doing. Find the gaps they're missing and use a unique angle. NEVER reuse their exact headlines, phrases, or messaging.`;
+                  }
+                }
+              } catch {
+                // Non-critical — continue without competitor context
+              }
+            }
+
             // Build a listing-aware prompt if we have matched listings
             let copyPrompt: string;
             if (payload.listing_focus && matchedListings.length > 0) {
@@ -336,15 +360,15 @@ export const adsExecutors: Record<string, ActionExecutor> = {
                 ? `under $${payload.target_price_max.toLocaleString()}`
                 : "";
 
-              copyPrompt = `Write a Facebook ad promoting real estate listings in ${userCity}${userState ? `, ${userState}` : ""} ${priceLabel}. I have ${matchedListings.length} matching listings:\n${listingSummary}\n\nReturn JSON only with fields: headline (max 40 chars — mention the city and price range), primary_text (max 125 chars — highlight the # of listings available and the value), description (max 30 chars). Make it compelling for home buyers searching in this area and price range.`;
+              copyPrompt = `Write a Facebook ad promoting real estate listings in ${userCity}${userState ? `, ${userState}` : ""} ${priceLabel}. I have ${matchedListings.length} matching listings:\n${listingSummary}\n\nReturn JSON only with fields: headline (max 40 chars — mention the city and price range), primary_text (max 125 chars — highlight the # of listings available and the value), description (max 30 chars). Make it compelling for home buyers searching in this area and price range.${competitorContext}`;
             } else if (payload.listing_focus) {
               // Listing focus but no matching properties found
               const priceLabel = payload.target_price_max
                 ? ` under $${payload.target_price_max.toLocaleString()}`
                 : "";
-              copyPrompt = `Write a Facebook ad for a real estate agent promoting homes${priceLabel} in ${userCity}${userState ? `, ${userState}` : ""}. Return JSON only with fields: headline (max 40 chars — mention the city and price range), primary_text (max 125 chars — focus on helping buyers find homes in this price range), description (max 30 chars). Be specific and compelling.`;
+              copyPrompt = `Write a Facebook ad for a real estate agent promoting homes${priceLabel} in ${userCity}${userState ? `, ${userState}` : ""}. Return JSON only with fields: headline (max 40 chars — mention the city and price range), primary_text (max 125 chars — focus on helping buyers find homes in this price range), description (max 30 chars). Be specific and compelling.${competitorContext}`;
             } else {
-              copyPrompt = `Write a Facebook ad for a ${businessType} in ${userCity}${userState ? `, ${userState}` : ""}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.`;
+              copyPrompt = `Write a Facebook ad for a ${businessType} in ${userCity}${userState ? `, ${userState}` : ""}. Return JSON only with fields: headline (max 40 chars), primary_text (max 125 chars), description (max 30 chars). Be specific to the area and business type. No generic copy.${competitorContext}`;
             }
 
             const copyResponse = await llm.complete([
@@ -2026,11 +2050,13 @@ ${JSON.stringify(competitors, null, 2)}
 
 Provide a concise competitive analysis covering:
 1. Key competitors and their ad volume
-2. Common messaging themes and angles
+2. Common messaging themes (summarize trends — do NOT reproduce exact copy)
 3. Platforms being used (Facebook, Instagram, etc.)
 4. Spend patterns (if data available)
-5. Gaps or opportunities — what angles are competitors NOT using that could work?
-6. Actionable recommendations for how to differentiate
+5. GAPS AND OPPORTUNITIES — what angles, emotions, or value props are competitors NOT using? These are your differentiation plays.
+6. DIFFERENTIATION STRATEGY — 3 specific, unique ad angles that would stand out from the crowd. These must be original ideas, NOT copied from any competitor.
+
+IMPORTANT: The goal is to find what's MISSING in the market, not to copy what exists. Never recommend reusing competitor headlines, imagery concepts, or messaging. Focus on white space and untapped positioning.
 
 Keep it practical and actionable. Format as plain text, not markdown.`;
 
