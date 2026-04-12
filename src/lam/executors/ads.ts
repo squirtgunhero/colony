@@ -395,9 +395,9 @@ export const adsExecutors: Record<string, ActionExecutor> = {
               // Use user-provided image prompt if available, otherwise auto-generate
               let prompt: string;
               if (payload.image_prompt) {
-                // User described what they want — use their prompt directly with some guardrails
-                prompt = `Professional Facebook ad image: ${payload.image_prompt}. Photorealistic, high quality, no text overlays.`;
-                console.log("[ADS] Using user-provided image prompt");
+                // User described what they want — generate as ad creative with copy
+                prompt = `Facebook ad creative: ${payload.image_prompt}. Bold headline text overlaid on photorealistic background with dark gradient for contrast. Professional ad design with CTA button. Ready to publish.`;
+                console.log("[ADS] Using user-provided image prompt as ad creative");
               } else {
                 const imgType = payload.listing_focus ? "new_listing" : (payload.lead_type || "lead_generation");
                 prompt = buildAdImagePrompt({
@@ -405,6 +405,8 @@ export const adsExecutors: Record<string, ActionExecutor> = {
                   city: userCity,
                   state: userState,
                   businessType,
+                  agentName: profile?.fullName || undefined,
+                  leadType: payload.lead_type || undefined,
                   propertyDetails: matchedListings.length > 0 ? {
                     bedrooms: matchedListings[0].bedrooms || undefined,
                     sqft: matchedListings[0].sqft || undefined,

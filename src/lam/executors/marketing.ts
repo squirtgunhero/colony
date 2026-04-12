@@ -28,7 +28,7 @@ export const marketingExecutors: Record<string, ActionExecutor> = {
 
       const profile = await prisma.profile.findUnique({
         where: { id: ctx.user_id },
-        select: { businessType: true, serviceAreaCity: true },
+        select: { fullName: true, businessType: true, serviceAreaCity: true },
       });
 
       let propertyDetails: Record<string, unknown> | undefined;
@@ -51,6 +51,7 @@ export const marketingExecutors: Record<string, ActionExecutor> = {
         type: payload.type || "general",
         city: profile?.serviceAreaCity || undefined,
         businessType: profile?.businessType || undefined,
+        agentName: profile?.fullName || undefined,
         propertyDetails: propertyDetails as Parameters<typeof buildAdImagePrompt>[0]["propertyDetails"],
       });
 
@@ -139,34 +140,55 @@ export const marketingExecutors: Record<string, ActionExecutor> = {
       // Build the generation prompt based on lead type
       let prompt: string;
 
+      // Fetch phone/email for the prompt
+      const fullProfile = await prisma.profile.findUnique({
+        where: { id: ctx.user_id },
+        include: { phone: true },
+      });
+      const agentPhone = fullProfile?.phone?.phoneNumber || null;
+      const agentEmail = fullProfile?.email || null;
+
+      const contactInfo = [
+        agentPhone ? `Phone: ${agentPhone}` : null,
+        agentEmail ? `Email: ${agentEmail}` : null,
+      ].filter(Boolean).join(", ");
+
+      const noPlaceholderRule = `
+
+CRITICAL RULES:
+- NEVER invent fake data. No made-up statistics, license numbers, phone numbers, or emails.
+- Only show the agent name "${agentName}" — never generic "Agent" or "Your Agent".
+${contactInfo ? `- Real contact info: ${contactInfo}. Use ONLY these.` : "- No contact info available — do NOT include any phone/email/address in the footer. Skip the contact section entirely."}
+- Do NOT include a footer with fake info. If you include a footer, only use real data from above.
+- Do NOT include fake market stats like "average home value" or "days on market" unless real numbers were provided.
+- Keep it to 3 sections MAX: (1) Hero with headline + lead capture form, (2) 3 short value props, (3) final CTA. No filler sections.
+- The lead capture FORM must be visible above the fold on desktop. It is the single most important element.
+- Form must POST to action="#" method="POST" with fields: name, email, phone, and property address (for sellers) or desired area/budget (for buyers).`;
+
       if (payload.custom_prompt) {
-        prompt = payload.custom_prompt;
+        prompt = payload.custom_prompt + noPlaceholderRule;
       } else if (leadType === "seller" || leadType === "both") {
-        prompt = `Create a ${style} real estate landing page for ${agentName}${profile?.businessType ? ` (${profile.businessType})` : ""} targeting home sellers in ${city}.
+        prompt = `Create a tight, conversion-focused landing page for ${agentName}${profile?.businessType ? ` (${profile.businessType})` : ""} targeting home sellers in ${city}.
 
-The page should:
-- Have a compelling hero section with headline: "${payload.headline || `What's Your Home Worth in ${city}?`}"
-- Include a prominent home valuation request form (name, email, phone, property address)
-- Show why sellers should choose ${agentName} — local expertise, track record, marketing reach
-- Include a section about the local ${city} market with urgency ("homes selling fast", "low inventory")
-${payload.description ? `- Feature this message: "${payload.description}"` : ""}
-${payload.include_listings ? "- Show available listings from CRM data to demonstrate market activity" : ""}
-- Strong CTA: "Get Your Free Home Valuation"
-- Mobile-optimized, fast-loading
-- Color palette: dark/premium with gold accents for the ${style} feel`;
+Layout (3 sections only):
+1. HERO (full viewport): Split layout — left side has headline "${payload.headline || `What's Your Home Worth in ${city}?`}" with a short 1-line subtext. Right side has the lead capture form (name, email, phone, property address) with a gold CTA button "Get Your Free Home Valuation". Dark background (#0a0a0a), gold accent (#c8a55a).
+2. VALUE PROPS: 3 cards in a row — "Accurate Valuation", "Local Expert", "No Obligation". 1-2 sentences each. Keep it tight.
+3. FINAL CTA: Simple centered section repeating the headline with another CTA button.
+${payload.description ? `Message to feature: "${payload.description}"` : ""}
+${payload.include_listings ? "Include a featured listings section using CRM property data." : ""}
+
+Design: dark premium (#0a0a0a bg), gold accent (#c8a55a), clean sans-serif (Inter from Google Fonts). Mobile-optimized. No hero background image — use solid dark + subtle gradient.${noPlaceholderRule}`;
       } else {
-        prompt = `Create a ${style} real estate landing page for ${agentName}${profile?.businessType ? ` (${profile.businessType})` : ""} targeting home buyers in ${city}.
+        prompt = `Create a tight, conversion-focused landing page for ${agentName}${profile?.businessType ? ` (${profile.businessType})` : ""} targeting home buyers in ${city}.
 
-The page should:
-- Have a compelling hero section with headline: "${payload.headline || `Find Your Dream Home in ${city}`}"
-- Include a property search/inquiry form (name, email, phone, desired area, budget range, bedrooms)
-- Show why buyers should work with ${agentName} — local knowledge, exclusive listings, negotiation expertise
-- Include a section about the ${city} market — neighborhoods, schools, lifestyle
-${payload.description ? `- Feature this message: "${payload.description}"` : ""}
-${payload.include_listings ? "- Display featured listings from CRM data" : ""}
-- Strong CTA: "Start Your Home Search" or "See Available Homes"
-- Mobile-optimized, fast-loading
-- Color palette: dark/premium with gold accents for the ${style} feel`;
+Layout (3 sections only):
+1. HERO (full viewport): Split layout — left side has headline "${payload.headline || `Find Your Dream Home in ${city}`}" with a short 1-line subtext. Right side has the inquiry form (name, email, phone, desired area, budget range) with a gold CTA button "Start Your Home Search". Dark background (#0a0a0a), gold accent (#c8a55a).
+2. VALUE PROPS: 3 cards in a row — "Local Knowledge", "Exclusive Listings", "Expert Negotiation". 1-2 sentences each. Keep it tight.
+3. FINAL CTA: Simple centered section repeating the headline with another CTA button.
+${payload.description ? `Message to feature: "${payload.description}"` : ""}
+${payload.include_listings ? "Include a featured listings section using CRM property data." : ""}
+
+Design: dark premium (#0a0a0a bg), gold accent (#c8a55a), clean sans-serif (Inter from Google Fonts). Mobile-optimized. No hero background image — use solid dark + subtle gradient.${noPlaceholderRule}`;
       }
 
       // Generate the HTML using the site builder (which uses Claude)

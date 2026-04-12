@@ -139,7 +139,7 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
             risk_tier: getRiskTier("marketing.generate_image"),
             requires_approval: false,
             payload: {
-              custom_prompt: `Professional real estate photo of a beautiful home in ${city}, warm golden hour lighting, lush landscaping, luxury feel, photorealistic, no text overlays`,
+              custom_prompt: `Facebook ad creative for real estate lead generation in ${city}. Background: photorealistic stunning home exterior, golden hour lighting, luxury curb appeal. Bold white headline "What's Your Home Worth in ${city}?" in clean sans-serif font with dark cinematic gradient overlay for contrast. Subtext "Free, No-Obligation Estimate" in lighter weight. Bright gold CTA button "Get Free Estimate" at bottom. Professional premium ad design, ready to publish on Facebook/Instagram. Photorealistic background, clean modern typography.`,
               size: "1024x1024",
             },
             expected_outcome: { entity_type: "image" as const, generated: true as const },

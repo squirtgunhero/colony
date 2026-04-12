@@ -102,10 +102,20 @@ Footer:
 - Grid layout: brand/description column, quick links, contact info, social links.
 - Subtle top border or gradient separator. Copyright at bottom.
 
+CRITICAL — NO PLACEHOLDER DATA:
+- NEVER invent fake data. No made-up statistics, license numbers, phone numbers, emails, or addresses.
+- If you don't have real agent contact info, DO NOT include a footer with fake phone/email/license.
+- Only show data that was provided in the CRM DATA section above.
+- If no properties are available, do NOT show a listings section. Remove it entirely.
+- If no phone/email was provided, show ONLY the lead capture form — no contact section.
+- Stats like "average home value" or "days on market" must ONLY be used if real data is provided. Otherwise, omit the stats section entirely.
+- The agent's name/brand should come from CRM DATA — never use generic "Agent" or "Your Agent".
+
 QUALITY BAR:
 - The site should look like it costs $5,000-$15,000 to build. Premium, polished, intentional.
 - Every pixel matters. Consistent spacing, aligned elements, harmonious colors.
-- Less is more. Fewer sections done beautifully beats many sections done averagely.
+- Less is more. 3-4 sections maximum: Hero + Form, Value Props, and a final CTA. Skip filler sections.
+- The FORM is the most important element. Make it prominent, above the fold, with clear fields and a strong CTA button.
 - Test mental model: would a luxury real estate brand use this on their homepage?`;
 }
 

@@ -62,13 +62,19 @@ export async function generateImage(
 }
 
 /**
- * Build a real estate ad image prompt based on context
+ * Build a real estate ad image prompt based on context.
+ * By default generates a complete ad creative (photo + text overlay).
+ * Set adCreative=false for raw property photos without text.
  */
 export function buildAdImagePrompt(options: {
   type: string;
   city?: string;
   state?: string;
   businessType?: string;
+  agentName?: string;
+  headline?: string;
+  ctaText?: string;
+  leadType?: string;
   propertyDetails?: {
     address?: string;
     bedrooms?: number;
@@ -77,40 +83,86 @@ export function buildAdImagePrompt(options: {
     price?: number;
   };
   customInstructions?: string;
+  adCreative?: boolean; // true = include text overlay (default), false = photo only
 }): string {
   const { type, city, state, businessType, propertyDetails, customInstructions } = options;
+  const adCreative = options.adCreative !== false; // default true
 
   const location = [city, state].filter(Boolean).join(", ") || "suburban neighborhood";
+  const agent = options.agentName || "";
+  const leadType = options.leadType?.toLowerCase() || "seller";
 
-  const basePrompts: Record<string, string> = {
-    new_listing: `Professional real estate marketing photo of a beautiful home exterior in ${location}. Warm golden hour lighting, manicured lawn, welcoming front entrance. Clean, aspirational, magazine-quality composition. No text or watermarks.`,
-    open_house: `Inviting real estate open house scene: a bright, modern home interior in ${location} with natural light streaming through windows. Staged living room with contemporary furniture. Warm and welcoming atmosphere. No text or people.`,
-    just_sold: `Celebration-worthy exterior photo of a charming home in ${location}. Beautiful curb appeal, well-maintained property, sunny day. Shot from slight angle showing depth and character. Professional real estate photography style. No text.`,
-    market_update: `Aerial view of a beautiful ${location} neighborhood with tree-lined streets, well-maintained homes, and green spaces. Real estate market overview perspective. Professional drone photography style. No text or overlays.`,
-    lead_generation: `Professional real estate hero image: modern home in ${location} with stunning curb appeal. Dramatic sky, perfect landscaping, warm interior lights glowing. Aspirational lifestyle photography. No text.`,
-    price_reduction: `Eye-catching exterior photo of an attractive home in ${location}. Bright, appealing presentation emphasizing value. Professional real estate marketing photography. No text or signs.`,
-    general: `Professional real estate marketing image of a beautiful home in ${location}. Clean, bright, aspirational. Magazine-quality photography composition. No text, watermarks, or people.`,
-  };
+  // Determine headline and CTA based on lead type and ad type
+  const defaultHeadline = options.headline ||
+    (leadType === "buyer"
+      ? `Find Your Dream Home in ${city || "Your City"}`
+      : `What's Your Home Worth?`);
 
-  let prompt = basePrompts[type] || basePrompts.general;
+  const defaultCta = options.ctaText ||
+    (leadType === "buyer" ? "Search Homes Now" : "Get Free Estimate");
 
-  if (propertyDetails) {
-    const details: string[] = [];
-    if (propertyDetails.bedrooms) details.push(`${propertyDetails.bedrooms}-bedroom`);
-    if (propertyDetails.sqft && propertyDetails.sqft > 3000) details.push("spacious luxury");
-    if (details.length > 0) {
-      prompt = prompt.replace("home", `${details.join(" ")} home`);
+  if (adCreative) {
+    // --- AD CREATIVE: realistic photo with bold text overlay ---
+    const basePrompts: Record<string, string> = {
+      new_listing: `Polished Facebook ad creative for a real estate listing in ${location}. Background: photorealistic exterior of a stunning home, golden hour light, lush landscaping. Overlay: bold white headline "${defaultHeadline}" in clean sans-serif font at the top, small agent branding "${agent}" in the corner, and a bright CTA button "${defaultCta}" at the bottom. Dark gradient overlay behind text for legibility. Professional ad layout, magazine quality.`,
+      open_house: `Facebook ad creative for an open house in ${location}. Background: bright, beautifully staged modern living room with natural light. Overlay: bold headline "Open House This Weekend" in elegant white sans-serif, address and time in smaller text, agent name "${agent}", and a CTA button "${defaultCta}". Subtle dark gradient for readability. Clean, professional ad design.`,
+      just_sold: `Facebook ad creative celebrating a just-sold property in ${location}. Background: gorgeous home exterior on a sunny day, professional photography. Overlay: bold "JUST SOLD" banner at top in gold/white, "${agent}" agent branding, and CTA "Thinking of Selling? ${defaultCta}" at bottom. Professional real estate marketing design.`,
+      market_update: `Facebook ad creative for a real estate market update in ${location}. Background: aerial neighborhood view with tree-lined streets. Overlay: bold headline "${city || "Local"} Market Update" in white, key stat "Homes Selling Fast" in accent color, agent "${agent}" branding, CTA "${defaultCta}". Clean infographic-style ad layout.`,
+      lead_generation: `Facebook ad creative for real estate lead generation in ${location}. Background: stunning modern home with dramatic sky, perfect landscaping, warm lights glowing from windows. Overlay: bold white headline "${defaultHeadline}" in premium sans-serif font, subtext "Free, No-Obligation Estimate", agent "${agent}" branding, and prominent CTA button "${defaultCta}". Dark cinematic gradient behind text. Looks like a $10,000 ad agency designed it.`,
+      seller: `Facebook ad creative targeting home sellers in ${location}. Background: photorealistic beautiful home exterior, golden hour, luxury curb appeal. Bold white headline "${defaultHeadline}" overlaid at top with dark gradient for contrast. Subtext "Free, No-Obligation Home Valuation" in lighter weight. Agent name "${agent}" with subtle branding. Bright accent-colored CTA button "${defaultCta}" at bottom. Professional, premium ad design. Photorealistic background, clean typography.`,
+      buyer: `Facebook ad creative targeting home buyers in ${location}. Background: photorealistic dream home with welcoming entrance, green lawn, blue sky. Bold white headline "${defaultHeadline}" overlaid at top with dark gradient. Subtext "Browse available homes in ${city || "your area"}" in lighter weight. Agent "${agent}" branding. Bright CTA button "${defaultCta}" at bottom. Professional real estate ad design. Photorealistic background, clean typography.`,
+      general: `Facebook ad creative for a ${businessType || "real estate"} professional in ${location}. Background: photorealistic beautiful property, golden light. Bold headline "${defaultHeadline}" in white sans-serif with dark gradient overlay. Agent "${agent}" branding and CTA button "${defaultCta}". Professional, premium advertising design.`,
+    };
+
+    // Pick best template: use leadType if available, fall back to type
+    let prompt = basePrompts[leadType] || basePrompts[type] || basePrompts.general;
+
+    if (propertyDetails) {
+      const details: string[] = [];
+      if (propertyDetails.bedrooms) details.push(`${propertyDetails.bedrooms}-bedroom`);
+      if (propertyDetails.sqft && propertyDetails.sqft > 3000) details.push("spacious luxury");
+      if (details.length > 0) {
+        prompt = prompt.replace("home", `${details.join(" ")} home`);
+      }
     }
+
+    if (customInstructions) {
+      prompt += ` Additional style notes: ${customInstructions}`;
+    }
+
+    prompt += " The final image must look like a real, polished Facebook/Instagram ad ready to publish. Photorealistic background photo, clean modern typography, no spelling errors.";
+
+    return prompt;
+  } else {
+    // --- RAW PHOTO: no text overlay ---
+    const basePrompts: Record<string, string> = {
+      new_listing: `Professional real estate marketing photo of a beautiful home exterior in ${location}. Warm golden hour lighting, manicured lawn, welcoming front entrance. Clean, aspirational, magazine-quality composition.`,
+      open_house: `Inviting real estate open house scene: a bright, modern home interior in ${location} with natural light streaming through windows. Staged living room with contemporary furniture. Warm and welcoming atmosphere.`,
+      just_sold: `Celebration-worthy exterior photo of a charming home in ${location}. Beautiful curb appeal, well-maintained property, sunny day. Professional real estate photography style.`,
+      market_update: `Aerial view of a beautiful ${location} neighborhood with tree-lined streets, well-maintained homes, and green spaces. Professional drone photography style.`,
+      lead_generation: `Professional real estate hero image: modern home in ${location} with stunning curb appeal. Dramatic sky, perfect landscaping, warm interior lights glowing. Aspirational lifestyle photography.`,
+      general: `Professional real estate marketing image of a beautiful home in ${location}. Clean, bright, aspirational. Magazine-quality photography composition.`,
+    };
+
+    let prompt = basePrompts[type] || basePrompts.general;
+
+    if (propertyDetails) {
+      const details: string[] = [];
+      if (propertyDetails.bedrooms) details.push(`${propertyDetails.bedrooms}-bedroom`);
+      if (propertyDetails.sqft && propertyDetails.sqft > 3000) details.push("spacious luxury");
+      if (details.length > 0) {
+        prompt = prompt.replace("home", `${details.join(" ")} home`);
+      }
+    }
+
+    if (customInstructions) {
+      prompt += ` Additional style notes: ${customInstructions}`;
+    }
+
+    prompt += " Photorealistic. No text, words, letters, numbers, signs, logos, or watermarks anywhere in the image.";
+
+    return prompt;
   }
-
-  if (customInstructions) {
-    prompt += ` Additional style notes: ${customInstructions}`;
-  }
-
-  // Safety: ensure no text generation in the image
-  prompt += " Photorealistic. No text, words, letters, numbers, signs, logos, or watermarks anywhere in the image.";
-
-  return prompt;
 }
 
 /**
