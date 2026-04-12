@@ -307,7 +307,59 @@ function PerformanceCard({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-// ---- D) Default Action Card ----
+// ---- D) Generated Image Card ----
+function GeneratedImageCard({ data }: { data: Record<string, unknown> }) {
+  const { theme } = useColonyTheme();
+  const { sendToLam } = useAssistantStore();
+  const imageUrl = String(data.image_url || "");
+  const revisedPrompt = data.revised_prompt as string | undefined;
+
+  return (
+    <CardWrapper>
+      <div className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: theme.textMuted }}>
+        AI-Generated Image
+      </div>
+      {imageUrl && (
+        <div style={{ borderRadius: 12, overflow: "hidden", marginBottom: 12 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={revisedPrompt || "AI-generated marketing image"}
+            style={{ width: "100%", height: "auto", display: "block" }}
+          />
+        </div>
+      )}
+      {revisedPrompt && (
+        <p className="text-xs mb-3" style={{ color: theme.textMuted }}>
+          {revisedPrompt}
+        </p>
+      )}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => sendToLam("Yes, use this image for the ad")}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-90"
+          style={{ backgroundColor: theme.accent, color: theme.bg }}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Use This
+        </button>
+        <button
+          onClick={() => sendToLam("Generate a different image")}
+          className="px-4 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
+          style={{
+            color: theme.textSoft,
+            border: `1px solid ${withAlpha(theme.accent, 0.15)}`,
+            backgroundColor: "transparent",
+          }}
+        >
+          Try Again
+        </button>
+      </div>
+    </CardWrapper>
+  );
+}
+
+// ---- E) Default Action Card ----
 function DefaultActionCard({ data }: { data: Record<string, unknown> }) {
   const { theme } = useColonyTheme();
 
@@ -346,6 +398,8 @@ export function ActionCard({ card }: ActionCardProps) {
       return <ConnectAccountCard data={card.data} />;
     case "performance_report":
       return <PerformanceCard data={card.data} />;
+    case "generated_image":
+      return <GeneratedImageCard data={card.data} />;
     default:
       return <DefaultActionCard data={card.data} />;
   }

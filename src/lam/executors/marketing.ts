@@ -67,6 +67,13 @@ export const marketingExecutors: Record<string, ActionExecutor> = {
           image_url: result.url,
           revised_prompt: result.revised_prompt,
           note: "Here's your AI-generated marketing image! You can use this for your ads, social posts, or email campaigns. The image URL is valid for about 1 hour — download it or use it right away.",
+          __action_card: {
+            type: "generated_image",
+            data: {
+              image_url: result.url,
+              revised_prompt: result.revised_prompt,
+            },
+          },
         },
       };
     } catch (error) {

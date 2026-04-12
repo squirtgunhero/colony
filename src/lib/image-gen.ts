@@ -44,6 +44,7 @@ export async function generateImage(
       style: options.style || "natural",
       response_format: "url",
     }),
+    signal: AbortSignal.timeout(60_000), // 60s timeout — DALL-E can be slow
   });
 
   if (!response.ok) {
