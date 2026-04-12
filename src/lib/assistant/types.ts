@@ -239,6 +239,9 @@ export function getActionTypeLabel(type: string): string {
     "google.resume_campaign": "Resume Google Campaign",
     "google.add_negatives": "Add Negative Keywords",
     "google.adjust_bid": "Adjust Budget",
+    "marketing.generate_image": "Generate Image",
+    "marketing.generate_landing_page": "Generate Landing Page",
+    "marketing.generate_content": "Generate Content",
   };
   return labels[type] || type;
 }

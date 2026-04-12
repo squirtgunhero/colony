@@ -87,6 +87,146 @@ export const marketingExecutors: Record<string, ActionExecutor> = {
     }
   },
 
+  "marketing.generate_landing_page": async (action, ctx) => {
+    if (action.type !== "marketing.generate_landing_page") throw new Error("Invalid action type");
+
+    const payload = action.payload as {
+      lead_type?: string;
+      target_city?: string;
+      campaign_name?: string;
+      headline?: string;
+      description?: string;
+      style?: string;
+      include_listings?: boolean;
+      custom_prompt?: string;
+    };
+
+    try {
+      const { generateSite } = await import("@/lib/site-builder");
+
+      const profile = await prisma.profile.findUnique({
+        where: { id: ctx.user_id },
+        select: { fullName: true, businessType: true, serviceAreaCity: true },
+      });
+
+      const agentName = profile?.fullName || "Agent";
+      const city = payload.target_city || profile?.serviceAreaCity || "your area";
+      const leadType = payload.lead_type?.toLowerCase() || "seller";
+      const style = payload.style || "luxury";
+      const campaignLabel = payload.campaign_name || "Lead Generation";
+
+      // Build a descriptive site name
+      const siteName = `${campaignLabel} - ${city}`;
+      const baseSlug = siteName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 48);
+      const slug = `${baseSlug}-${Date.now().toString(36)}`;
+
+      // Create the landing page record
+      const site = await prisma.landingPage.create({
+        data: {
+          userId: ctx.user_id,
+          name: siteName,
+          slug,
+          status: "draft",
+          contentJson: {},
+          siteType: "landing_page",
+        },
+      });
+
+      // Build the generation prompt based on lead type
+      let prompt: string;
+
+      if (payload.custom_prompt) {
+        prompt = payload.custom_prompt;
+      } else if (leadType === "seller" || leadType === "both") {
+        prompt = `Create a ${style} real estate landing page for ${agentName}${profile?.businessType ? ` (${profile.businessType})` : ""} targeting home sellers in ${city}.
+
+The page should:
+- Have a compelling hero section with headline: "${payload.headline || `What's Your Home Worth in ${city}?`}"
+- Include a prominent home valuation request form (name, email, phone, property address)
+- Show why sellers should choose ${agentName} — local expertise, track record, marketing reach
+- Include a section about the local ${city} market with urgency ("homes selling fast", "low inventory")
+${payload.description ? `- Feature this message: "${payload.description}"` : ""}
+${payload.include_listings ? "- Show available listings from CRM data to demonstrate market activity" : ""}
+- Strong CTA: "Get Your Free Home Valuation"
+- Mobile-optimized, fast-loading
+- Color palette: dark/premium with gold accents for the ${style} feel`;
+      } else {
+        prompt = `Create a ${style} real estate landing page for ${agentName}${profile?.businessType ? ` (${profile.businessType})` : ""} targeting home buyers in ${city}.
+
+The page should:
+- Have a compelling hero section with headline: "${payload.headline || `Find Your Dream Home in ${city}`}"
+- Include a property search/inquiry form (name, email, phone, desired area, budget range, bedrooms)
+- Show why buyers should work with ${agentName} — local knowledge, exclusive listings, negotiation expertise
+- Include a section about the ${city} market — neighborhoods, schools, lifestyle
+${payload.description ? `- Feature this message: "${payload.description}"` : ""}
+${payload.include_listings ? "- Display featured listings from CRM data" : ""}
+- Strong CTA: "Start Your Home Search" or "See Available Homes"
+- Mobile-optimized, fast-loading
+- Color palette: dark/premium with gold accents for the ${style} feel`;
+      }
+
+      // Generate the HTML using the site builder (which uses Claude)
+      const result = await generateSite({
+        siteId: site.id,
+        userId: ctx.user_id,
+        prompt,
+      });
+
+      // Auto-publish the landing page so it's immediately usable for ads
+      await prisma.landingPage.update({
+        where: { id: site.id },
+        data: {
+          status: "published",
+          publishedAt: new Date(),
+        },
+      });
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mycolonyhq.com";
+      const publicUrl = `${baseUrl}/s/${slug}`;
+      const editUrl = `/marketing/sites/${site.id}`;
+
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "success" as const,
+        data: {
+          site_id: site.id,
+          slug,
+          public_url: publicUrl,
+          edit_url: editUrl,
+          version: result.version,
+          tokens_used: result.tokensUsed,
+          note: `Your landing page is live! You can view it at ${publicUrl} or edit it in the site builder.`,
+          __action_card: {
+            type: "landing_page_created",
+            data: {
+              site_id: site.id,
+              name: siteName,
+              slug,
+              public_url: publicUrl,
+              edit_url: editUrl,
+              lead_type: leadType,
+              city,
+              agent_name: agentName,
+            },
+          },
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Landing page generation failed";
+      return {
+        action_id: action.action_id,
+        action_type: action.type,
+        status: "failed" as const,
+        error: `Landing page generation failed: ${message}`,
+      };
+    }
+  },
+
   "marketing.generate_content": async (action, ctx) => {
     if (action.type !== "marketing.generate_content") throw new Error("Invalid action type");
 

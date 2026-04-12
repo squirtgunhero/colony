@@ -123,26 +123,59 @@ export async function runLam(input: LamRunInput): Promise<LamRunResult> {
         const hasServiceArea = !!profile?.serviceAreaCity;
 
         if (hasBudget || hasArea || hasServiceArea) {
-          // We have enough context — create the ads.create_campaign action
-          // and let the runtime handle targeting from the profile
+          // We have enough context — create image + landing page + campaign
           const budgetMatch = msgLower.match(/\$(\d+)/);
           const budget = budgetMatch ? parseInt(budgetMatch[1], 10) : 10;
+          const city = profile?.serviceAreaCity || "your area";
 
           const { getRiskTier, requiresApproval } = await import("./actionSchema");
-          const actionType = "ads.create_campaign" as const;
-          plan.actions = [{
+          const now = Date.now();
+
+          // Image generation (Tier 0 — auto-execute)
+          const imageAction = {
             action_id: randomUUID(),
-            idempotency_key: `${input.user_id}:ads.create_campaign:${Date.now()}`,
-            type: actionType,
-            risk_tier: getRiskTier(actionType),
-            requires_approval: requiresApproval(actionType),
+            idempotency_key: `${input.user_id}:marketing.generate_image:${now}`,
+            type: "marketing.generate_image" as const,
+            risk_tier: getRiskTier("marketing.generate_image"),
+            requires_approval: false,
+            payload: {
+              custom_prompt: `Professional real estate photo of a beautiful home in ${city}, warm golden hour lighting, lush landscaping, luxury feel, photorealistic, no text overlays`,
+              size: "1024x1024",
+            },
+            expected_outcome: { entity_type: "image" as const, generated: true as const },
+          } as ActionPlan["actions"][0];
+
+          // Landing page generation (Tier 0 — auto-execute)
+          const landingPageAction = {
+            action_id: randomUUID(),
+            idempotency_key: `${input.user_id}:marketing.generate_landing_page:${now}`,
+            type: "marketing.generate_landing_page" as const,
+            risk_tier: getRiskTier("marketing.generate_landing_page"),
+            requires_approval: false,
+            payload: {
+              lead_type: "seller",
+              target_city: city,
+              style: "luxury",
+            },
+            expected_outcome: { entity_type: "landing_page" as const, created: true as const },
+          } as ActionPlan["actions"][0];
+
+          // Campaign creation (Tier 2 — requires approval)
+          const campaignAction = {
+            action_id: randomUUID(),
+            idempotency_key: `${input.user_id}:ads.create_campaign:${now}`,
+            type: "ads.create_campaign" as const,
+            risk_tier: getRiskTier("ads.create_campaign"),
+            requires_approval: requiresApproval("ads.create_campaign"),
             payload: {
               channel: "native" as const,
               objective: "LEADS" as const,
               daily_budget: budget,
             },
-            expected_outcome: { entity_type: "campaign", created: true },
-          } as ActionPlan["actions"][0]];
+            expected_outcome: { entity_type: "campaign" as const, created: true as const },
+          } as ActionPlan["actions"][0];
+
+          plan.actions = [imageAction, landingPageAction, campaignAction];
           plan.follow_up_question = null;
           plan.requires_approval = true;
           plan.highest_risk_tier = 2;

@@ -914,6 +914,28 @@ export const MarketingGenerateImageActionSchema = BaseActionSchema.extend({
   expected_outcome: MarketingGenerateImageExpectedOutcomeSchema,
 });
 
+export const MarketingGenerateLandingPagePayloadSchema = z.object({
+  lead_type: z.string().optional(), // "seller", "buyer", "both"
+  target_city: z.string().optional(),
+  campaign_name: z.string().optional(),
+  headline: z.string().optional(),
+  description: z.string().optional(),
+  style: z.string().optional(), // "modern", "luxury", "minimal", etc.
+  include_listings: z.boolean().optional().default(false),
+  custom_prompt: z.string().optional(),
+});
+
+export const MarketingGenerateLandingPageExpectedOutcomeSchema = z.object({
+  entity_type: z.literal("landing_page"),
+  created: z.literal(true),
+});
+
+export const MarketingGenerateLandingPageActionSchema = BaseActionSchema.extend({
+  type: z.literal("marketing.generate_landing_page"),
+  payload: MarketingGenerateLandingPagePayloadSchema,
+  expected_outcome: MarketingGenerateLandingPageExpectedOutcomeSchema,
+});
+
 export const MarketingGenerateContentPayloadSchema = z.object({
   type: z.string().optional(),
   platform: z.string().optional(),
@@ -1133,6 +1155,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   SavedSearchListActionSchema,
   DealAddMilestonesActionSchema,
   MarketingGenerateImageActionSchema,
+  MarketingGenerateLandingPageActionSchema,
   MarketingGenerateContentActionSchema,
   AutomationCreateActionSchema,
   AutomationListActionSchema,
@@ -1200,6 +1223,7 @@ export function getRiskTier(actionType: ActionType): RiskTier {
     case "google.check_performance":
     case "savedSearch.list":
     case "marketing.generate_image":
+    case "marketing.generate_landing_page":
     case "marketing.generate_content":
     case "automation.list":
     case "docusign.check_status":

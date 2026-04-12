@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, XCircle, Facebook, Link2, BarChart3, Rocket } from "lucide-react";
+import { CheckCircle2, XCircle, Facebook, Link2, BarChart3, Rocket, Globe, ExternalLink, Pencil } from "lucide-react";
 import { useColonyTheme } from "@/lib/chat-theme-context";
 import { withAlpha } from "@/lib/themes";
 import { useAssistantStore } from "@/lib/assistant/store";
@@ -359,7 +359,195 @@ function GeneratedImageCard({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-// ---- E) Default Action Card ----
+// ---- E) Landing Page Card ----
+function LandingPageCard({ data }: { data: Record<string, unknown> }) {
+  const { theme } = useColonyTheme();
+  const { sendToLam } = useAssistantStore();
+
+  const name = String(data.name || "Landing Page");
+  const publicUrl = String(data.public_url || "");
+  const editUrl = String(data.edit_url || "");
+  const city = String(data.city || "");
+  const agentName = String(data.agent_name || "");
+  const leadType = String(data.lead_type || "seller");
+  const slug = String(data.slug || "");
+
+  const isSellerPage = leadType === "seller" || leadType === "both";
+
+  return (
+    <CardWrapper>
+      {/* Header */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <div
+          className="flex items-center justify-center w-7 h-7 rounded-full"
+          style={{ backgroundColor: withAlpha(theme.accent, 0.15) }}
+        >
+          <Globe className="h-3.5 w-3.5" style={{ color: theme.accent }} />
+        </div>
+        <span className="text-sm font-medium flex-1" style={{ color: theme.text }}>
+          {name}
+        </span>
+        <span
+          className="text-[11px] font-medium px-2.5 py-0.5 rounded-full"
+          style={{
+            backgroundColor: withAlpha("#22C55E", 0.15),
+            color: "#22C55E",
+          }}
+        >
+          Published
+        </span>
+      </div>
+
+      {/* Landing Page Preview Mockup */}
+      <div style={{
+        borderRadius: 12,
+        overflow: "hidden",
+        border: `1px solid ${withAlpha(theme.accent, 0.08)}`,
+        background: "linear-gradient(135deg, #0a0a0a, #1a1a2e)",
+        marginBottom: 12,
+        position: "relative" as const,
+      }}>
+        {/* Browser chrome mockup */}
+        <div style={{
+          padding: "8px 12px",
+          background: "rgba(255,255,255,0.03)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}>
+          <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.1)" }} />
+          </div>
+          <div style={{
+            flex: 1,
+            background: "rgba(255,255,255,0.05)",
+            borderRadius: 6,
+            padding: "4px 10px",
+            fontSize: 10,
+            color: "rgba(255,255,255,0.4)",
+            fontFamily: "monospace",
+          }}>
+            {publicUrl ? publicUrl.replace("https://", "") : `mycolonyhq.com/s/${slug}`}
+          </div>
+        </div>
+
+        {/* Page content preview */}
+        <div style={{ padding: "24px 20px", textAlign: "center" as const, minHeight: 160 }}>
+          {/* Hero mockup */}
+          <div style={{
+            fontSize: 9,
+            textTransform: "uppercase" as const,
+            letterSpacing: "0.15em",
+            color: "#c8a55a",
+            marginBottom: 8,
+            fontWeight: 500,
+          }}>
+            {agentName}
+          </div>
+          <div style={{
+            fontSize: 20,
+            fontWeight: 300,
+            color: "#f5f5f0",
+            lineHeight: 1.2,
+            marginBottom: 12,
+            letterSpacing: "-0.02em",
+          }}>
+            {isSellerPage
+              ? `What's Your Home Worth\nin ${city}?`
+              : `Find Your Dream Home\nin ${city}`}
+          </div>
+          <div style={{
+            fontSize: 11,
+            color: "rgba(245,245,240,0.5)",
+            marginBottom: 16,
+            lineHeight: 1.5,
+          }}>
+            {isSellerPage
+              ? "Get a free, no-obligation home valuation"
+              : "Browse available homes and start your search"}
+          </div>
+          {/* CTA button mockup */}
+          <div style={{
+            display: "inline-block",
+            padding: "8px 20px",
+            borderRadius: 100,
+            background: "#c8a55a",
+            color: "#0a0a0a",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+          }}>
+            {isSellerPage ? "Get Free Valuation" : "Start Your Search"}
+          </div>
+        </div>
+      </div>
+
+      {/* Info grid */}
+      <div className="grid grid-cols-3 gap-3 mb-3">
+        {[
+          { label: "Type", value: isSellerPage ? "Seller Lead Capture" : "Buyer Lead Capture" },
+          { label: "Area", value: city || "—" },
+          { label: "Status", value: "Live" },
+        ].map((item) => (
+          <div key={item.label}>
+            <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: theme.textMuted }}>
+              {item.label}
+            </div>
+            <div className="text-[13px] font-medium" style={{ color: theme.textSoft }}>
+              {item.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Buttons */}
+      <div className="flex items-center gap-2">
+        {publicUrl && (
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-90"
+            style={{ backgroundColor: theme.accent, color: theme.bg }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            View Page
+          </a>
+        )}
+        {editUrl && (
+          <a
+            href={editUrl}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
+            style={{
+              color: theme.textSoft,
+              border: `1px solid ${withAlpha(theme.accent, 0.15)}`,
+              backgroundColor: "transparent",
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </a>
+        )}
+        <button
+          onClick={() => sendToLam("Use this landing page for my ad campaign")}
+          className="px-4 py-2 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
+          style={{
+            color: theme.textSoft,
+            border: `1px solid ${withAlpha(theme.accent, 0.15)}`,
+            backgroundColor: "transparent",
+          }}
+        >
+          Use for Ads
+        </button>
+      </div>
+    </CardWrapper>
+  );
+}
+
+// ---- F) Default Action Card ----
 function DefaultActionCard({ data }: { data: Record<string, unknown> }) {
   const { theme } = useColonyTheme();
 
@@ -400,6 +588,8 @@ export function ActionCard({ card }: ActionCardProps) {
       return <PerformanceCard data={card.data} />;
     case "generated_image":
       return <GeneratedImageCard data={card.data} />;
+    case "landing_page_created":
+      return <LandingPageCard data={card.data} />;
     default:
       return <DefaultActionCard data={card.data} />;
   }

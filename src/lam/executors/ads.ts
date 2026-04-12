@@ -526,10 +526,30 @@ export const adsExecutors: Record<string, ActionExecutor> = {
           });
 
           // ---- Step 5: Create Ad Creative ----
-          // Determine landing page URL — seller lead gen ads link to the valuation page
+          // Determine landing page URL — check for recently generated landing page first
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mycolonyhq.com";
           const isSellerAd = payload.lead_type?.toLowerCase().includes("seller") || false;
-          const landingUrl = payload.website || (isSellerAd ? `${baseUrl}/valuation/${ctx.user_id}` : baseUrl);
+
+          let landingUrl = payload.website || "";
+          if (!landingUrl) {
+            // Check if a landing page was recently generated for this user (within last 5 min)
+            const recentLandingPage = await prisma.landingPage.findFirst({
+              where: {
+                userId: ctx.user_id,
+                status: "published",
+                publishedAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+              },
+              orderBy: { publishedAt: "desc" },
+              select: { slug: true },
+            });
+
+            if (recentLandingPage) {
+              landingUrl = `${baseUrl}/s/${recentLandingPage.slug}`;
+              console.log("[ADS] Using recently generated landing page:", landingUrl);
+            } else {
+              landingUrl = isSellerAd ? `${baseUrl}/valuation/${ctx.user_id}` : baseUrl;
+            }
+          }
 
           let creativeResult: { id: string };
           try {
